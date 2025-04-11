@@ -1,0 +1,18 @@
+name: OpenHands Resolver
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened, edited, labeled]
+  issue_comment:
+    types: [created, edited]
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run OpenHands Resolver
+        uses: openhands/resolver@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fix-me-label: 'fix-me'
