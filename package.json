@@ -47,8 +47,8 @@
     "postversion": "git push && git push --tags"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.16.0",
-    "axios": "^1.10.0",
+    "@modelcontextprotocol/sdk": "1.17.0",
+    "axios": "^1.11.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
@@ -64,7 +64,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eventsource": "^2.0.2",
     "prettier": "^3.2.5",
-    "supertest": "^7.0.0",
+    "supertest": "^7.1.4",
     "vitest": "^3.2.4"
   },
   "engines": {
