@@ -393,6 +393,15 @@ docker run -d -p 3001:3001 -e PORT=3001 -e NODE_ENV=production --name letta-mcp 
    - Verify LETTA_BASE_URL includes `/v1` suffix
    - Check LETTA_PASSWORD is correct
    - Ensure environment variables are loaded
+   - When self-hosting the Letta-Server, set environment variables accordingly:
+     ```json
+     "env": {
+        "LETTA_BASE_URL": "http://localhost:8283",
+        "LETTA_PASSWORD": "",
+        "LOG_LEVEL": "info"
+      }
+     ```
+
 
 3. **Tool execution timeouts**
    - Increase timeout values in MCP configuration

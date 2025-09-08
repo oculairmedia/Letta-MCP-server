@@ -36,9 +36,11 @@ const logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
     format: combine(errors({ stack: true }), timestamp({ format: 'YYYY-MM-DD HH:mm:ss' })),
     transports: [
-        // Console transport
+        // Console transport - output to stderr to avoid interfering with MCP protocol (stdout)
         new winston.transports.Console({
             format: combine(colorize(), consoleFormat),
+            // Force all log levels to stderr to keep stdout clean for MCP JSON communication
+            stderrLevels: ['error', 'warn', 'info', 'verbose', 'debug', 'silly'],
         }),
     ],
 });
