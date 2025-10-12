@@ -225,6 +225,13 @@ export async function handleOldTool(server, args) {
 3. Wrapped in `handleSdkCall()` for consistent error handling
 4. Return MCP-formatted tool responses
 
+**Connection Pooling** (Production-ready configuration)
+1. HTTP/HTTPS agents with keepAlive enabled for connection reuse
+2. MaxSockets: 50 concurrent connections per host (prevents exhaustion)
+3. MaxFreeSockets: 10 warm connections in pool (faster subsequent requests)
+4. Socket timeout: 60s for connection establishment
+5. Request timeout: 30s (aligned with SDK timeout)
+
 **SDK Client Structure:**
 - `server.client.agents.*` - Agent operations
 - `server.client.agents.tools.*` - Agent-tool relationships

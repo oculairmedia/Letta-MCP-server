@@ -264,7 +264,9 @@ Built on the official **@letta-ai/letta-client** TypeScript SDK v0.0.68664, prov
 - Detailed error messages with context
 
 **Performance & Reliability**
-- Connection pooling and management
+- Production-grade connection pooling (50 max connections per host)
+- Keep-alive connection reuse (10 warm connections in pool)
+- 30s request timeout aligned with SDK defaults
 - Automatic request/response compression
 - HTTP/2 support where available
 - Reduced network overhead

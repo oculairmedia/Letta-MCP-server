@@ -2,6 +2,8 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
+import http from 'http';
+import https from 'https';
 import { LettaClient, LettaError, LettaTimeoutError } from '@letta-ai/letta-client';
 import { createLogger } from './logger.js';
 
@@ -53,12 +55,36 @@ export class LettaServer {
 
         // Initialize axios instance (keep for backward compatibility)
         this.apiBase = `${this.apiBase}/v1`;
+
+        // Configure HTTP/HTTPS agents with connection pooling
+        // These settings follow best practices for production environments:
+        // - keepAlive: Reuse TCP connections for multiple requests
+        // - maxSockets: Limit concurrent connections per host (prevents exhaustion)
+        // - maxFreeSockets: Keep warm connections in pool for faster requests
+        // - timeout: Socket timeout for connection establishment
+        const httpAgent = new http.Agent({
+            keepAlive: true,
+            maxSockets: 50,        // Max concurrent connections per host
+            maxFreeSockets: 10,    // Keep 10 connections warm in pool
+            timeout: 60000,        // 60s socket timeout
+        });
+
+        const httpsAgent = new https.Agent({
+            keepAlive: true,
+            maxSockets: 50,
+            maxFreeSockets: 10,
+            timeout: 60000,
+        });
+
         this.api = axios.create({
             baseURL: this.apiBase,
             headers: {
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
             },
+            httpAgent,
+            httpsAgent,
+            timeout: 30000,        // 30s request timeout (same as SDK)
         });
 
         // Initialize Letta SDK client
