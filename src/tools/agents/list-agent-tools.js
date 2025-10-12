@@ -13,6 +13,17 @@ export async function handleListAgentTools(server, args) {
         const agentName = agentInfoResponse.data.name;
         const tools = agentInfoResponse.data.tools || [];
 
+        // Trim tool objects to essential fields only to reduce token usage
+        // Full tool objects contain 15+ fields including source_code, json_schema, etc.
+        // We only need 5 essential fields for tool listing
+        const trimmedTools = tools.map((tool) => ({
+            id: tool.id,
+            name: tool.name,
+            description: tool.description,
+            source_type: tool.source_type || tool.sourceType, // Handle both formats
+            tags: tool.tags || [],
+        }));
+
         return {
             content: [
                 {
@@ -20,8 +31,8 @@ export async function handleListAgentTools(server, args) {
                     text: JSON.stringify({
                         agent_id: args.agent_id,
                         agent_name: agentName,
-                        tool_count: tools.length,
-                        tools: tools,
+                        tool_count: trimmedTools.length,
+                        tools: trimmedTools,
                     }),
                 },
             ],

@@ -178,6 +178,24 @@ async function handleGetAgent(server, args) {
         'Getting agent details'
     );
 
+    // Trim agent object to essential fields only to reduce token usage
+    // Full AgentState objects contain 30+ fields including full tools array, memory blocks, etc.
+    // We only need 10-12 essential fields for agent details
+    const trimmedAgent = {
+        id: result.id,
+        name: result.name,
+        description: result.description,
+        system: result.system,
+        llm_config: result.llm_config,
+        embedding_config: result.embedding_config,
+        tool_ids: result.tool_ids || [],           // Just IDs, not full tool objects
+        source_ids: result.source_ids || [],       // Just IDs, not full source objects
+        block_ids: result.block_ids || [],         // Just IDs, not full block objects
+        message_count: result.message_count,
+        created_at: result.created_at,
+        updated_at: result.updated_at,
+    };
+
     return {
         content: [
             {
@@ -186,7 +204,7 @@ async function handleGetAgent(server, args) {
                     success: true,
                     operation: 'get',
                     agent_id,
-                    agent: result,
+                    agent: trimmedAgent,
                     message: 'Agent retrieved successfully',
                 }),
             },

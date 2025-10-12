@@ -14,12 +14,30 @@ export async function handleRetrieveAgent(server, args) {
         const response = await server.api.get(`/agents/${agentId}`, { headers });
         const agentState = response.data; // Assuming response.data is the AgentState object
 
+        // Trim agent object to essential fields only to reduce token usage
+        // Full AgentState objects contain 30+ fields including full tools array, memory blocks, etc.
+        // We only need 10-12 essential fields for agent details
+        const trimmedAgent = {
+            id: agentState.id,
+            name: agentState.name,
+            description: agentState.description,
+            system: agentState.system,
+            llm_config: agentState.llm_config,
+            embedding_config: agentState.embedding_config,
+            tool_ids: agentState.tool_ids || [],           // Just IDs, not full tool objects
+            source_ids: agentState.source_ids || [],       // Just IDs, not full source objects
+            block_ids: agentState.block_ids || [],         // Just IDs, not full block objects
+            message_count: agentState.message_count,
+            created_at: agentState.created_at,
+            updated_at: agentState.updated_at,
+        };
+
         return {
             content: [
                 {
                     type: 'text',
                     text: JSON.stringify({
-                        agent: agentState,
+                        agent: trimmedAgent,
                     }),
                 },
             ],
