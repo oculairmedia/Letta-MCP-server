@@ -78,25 +78,24 @@ export async function handleLettaAgentAdvanced(server, args) {
 
 /**
  * List all agents with pagination
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleListAgents(server, args) {
     const { pagination = {} } = args;
 
-    const queryParams = new URLSearchParams();
-    if (pagination.limit) queryParams.append('limit', pagination.limit);
-    if (pagination.offset) queryParams.append('offset', pagination.offset);
-
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const url = `/agents/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-            const response = await server.api.get(url, { headers });
-            return response.data;
+            // Use SDK client.agents.list() with pagination
+            return await server.client.agents.list({
+                limit: pagination.limit,
+                offset: pagination.offset,
+            });
         },
         'Listing agents'
     );
 
-    const agents = Array.isArray(result) ? result : result.agents || result.data || [];
+    // SDK returns array directly
+    const agents = Array.isArray(result) ? result : [];
 
     return {
         content: [
@@ -122,6 +121,7 @@ async function handleListAgents(server, args) {
 
 /**
  * Create a new agent
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleCreateAgent(server, args) {
     const { agent_data } = args;
@@ -132,9 +132,8 @@ async function handleCreateAgent(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post('/agents/', agent_data, { headers });
-            return response.data;
+            // Use SDK client.agents.create() method
+            return await server.client.agents.create(agent_data);
         },
         'Creating agent'
     );
@@ -162,6 +161,7 @@ async function handleCreateAgent(server, args) {
 
 /**
  * Get agent details
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleGetAgent(server, args) {
     const { agent_id } = args;
@@ -172,9 +172,8 @@ async function handleGetAgent(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get(`/agents/${encodeURIComponent(agent_id)}`, { headers });
-            return response.data;
+            // Use SDK client.agents.retrieve() method
+            return await server.client.agents.retrieve(agent_id);
         },
         'Getting agent details'
     );
@@ -197,6 +196,7 @@ async function handleGetAgent(server, args) {
 
 /**
  * Update an existing agent
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleUpdateAgent(server, args) {
     const { agent_id, agent_data } = args;
@@ -210,13 +210,8 @@ async function handleUpdateAgent(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.put(
-                `/agents/${encodeURIComponent(agent_id)}`,
-                agent_data,
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.modify() method
+            return await server.client.agents.modify(agent_id, agent_data);
         },
         'Updating agent'
     );
@@ -239,6 +234,7 @@ async function handleUpdateAgent(server, args) {
 
 /**
  * Delete an agent
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleDeleteAgent(server, args) {
     const { agent_id } = args;
@@ -249,9 +245,8 @@ async function handleDeleteAgent(server, args) {
 
     await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.delete(`/agents/${encodeURIComponent(agent_id)}`, { headers });
-            return response.data;
+            // Use SDK client.agents.delete() method
+            return await server.client.agents.delete(agent_id);
         },
         'Deleting agent'
     );
@@ -274,6 +269,7 @@ async function handleDeleteAgent(server, args) {
 
 /**
  * List agent's tools
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleListAgentTools(server, args) {
     const { agent_id } = args;
@@ -284,14 +280,13 @@ async function handleListAgentTools(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get(`/agents/${encodeURIComponent(agent_id)}/tools`, { headers });
-            return response.data;
+            // Use SDK client.agents.tools.list() method
+            return await server.client.agents.tools.list(agent_id);
         },
         'Listing agent tools'
     );
 
-    const tools = Array.isArray(result) ? result : result.tools || [];
+    const tools = Array.isArray(result) ? result : [];
 
     return {
         content: [
@@ -316,6 +311,7 @@ async function handleListAgentTools(server, args) {
 
 /**
  * Send message to agent
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleSendMessage(server, args) {
     const { agent_id, message_data } = args;
@@ -329,13 +325,8 @@ async function handleSendMessage(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/agents/${encodeURIComponent(agent_id)}/messages`,
-                { messages: message_data.messages },
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.messages.create() method
+            return await server.client.agents.messages.create(agent_id, { messages: message_data.messages });
         },
         'Sending message to agent'
     );
@@ -668,6 +659,7 @@ async function handleGetContext(server, args) {
 
 /**
  * Reset/clear agent's message history
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleResetMessages(server, args) {
     const { agent_id } = args;
@@ -678,18 +670,14 @@ async function handleResetMessages(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/agents/${encodeURIComponent(agent_id)}/messages/reset`,
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.messages.reset() method
+            return await server.client.agents.messages.reset(agent_id);
         },
         'Resetting agent messages'
     );
 
-    const resetCount = result.reset_count || result.deleted || result.count || 0;
+    // SDK returns AgentState, extract message count if available
+    const resetCount = result.message_count || result.messages?.length || 0;
 
     return {
         content: [
@@ -700,7 +688,7 @@ async function handleResetMessages(server, args) {
                     operation: 'reset_messages',
                     agent_id,
                     reset_count: resetCount,
-                    message: `Reset ${resetCount} messages`,
+                    message: `Messages reset successfully`,
                 }),
             },
         ],
@@ -709,6 +697,7 @@ async function handleResetMessages(server, args) {
 
 /**
  * Generate conversation summary
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleSummarize(server, args) {
     const { agent_id } = args;
@@ -717,15 +706,11 @@ async function handleSummarize(server, args) {
         throw new Error('agent_id is required for summarize operation');
     }
 
-    const result = await server.handleSdkCall(
+    await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/agents/${encodeURIComponent(agent_id)}/messages/summarize`,
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.messages.summarize() method
+            // Note: SDK method returns void, just triggers the summarization
+            return await server.client.agents.messages.summarize(agent_id, { maxMessageLength: 1000 });
         },
         'Generating conversation summary'
     );
@@ -738,7 +723,6 @@ async function handleSummarize(server, args) {
                     success: true,
                     operation: 'summarize',
                     agent_id,
-                    summary: result.summary || result.text || '',
                     message: 'Summary generated successfully',
                 }),
             },
@@ -793,6 +777,7 @@ async function handleStream(server, args) {
 
 /**
  * Send message asynchronously with job tracking
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleAsyncMessage(server, args) {
     const { agent_id, message_data } = args;
@@ -806,15 +791,10 @@ async function handleAsyncMessage(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/agents/${encodeURIComponent(agent_id)}/messages/async`,
-                {
-                    messages: message_data.messages,
-                },
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.messages.createAsync() method
+            return await server.client.agents.messages.createAsync(agent_id, {
+                messages: message_data.messages,
+            });
         },
         'Sending async message'
     );
@@ -827,7 +807,7 @@ async function handleAsyncMessage(server, args) {
                     success: true,
                     operation: 'async_message',
                     agent_id,
-                    async_job_id: result.job_id || result.id,
+                    async_job_id: result.id,
                     message: 'Async message sent. Use job_id to track progress.',
                 }),
             },
@@ -837,6 +817,7 @@ async function handleAsyncMessage(server, args) {
 
 /**
  * Cancel an async message
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleCancelMessage(server, args) {
     const { agent_id, message_id } = args;
@@ -850,13 +831,9 @@ async function handleCancelMessage(server, args) {
 
     await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/agents/${encodeURIComponent(agent_id)}/messages/${encodeURIComponent(message_id)}/cancel`,
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.messages.cancel() method
+            // Note: message_id here is actually run_id for canceling async runs
+            return await server.client.agents.messages.cancel(agent_id, { runIds: [message_id] });
         },
         'Cancelling message'
     );
@@ -880,6 +857,7 @@ async function handleCancelMessage(server, args) {
 
 /**
  * Preview API payload before sending
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handlePreviewPayload(server, args) {
     const { agent_id, message_data } = args;
@@ -893,15 +871,10 @@ async function handlePreviewPayload(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/agents/${encodeURIComponent(agent_id)}/messages/preview`,
-                {
-                    messages: message_data.messages,
-                },
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.messages.preview() method
+            return await server.client.agents.messages.preview(agent_id, {
+                messages: message_data.messages,
+            });
         },
         'Generating payload preview'
     );
