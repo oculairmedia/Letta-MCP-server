@@ -41,23 +41,23 @@ export async function handleLettaSourceManager(server, args) {
     }
 }
 
+/**
+ * List all sources
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleList(server, args) {
     const { options = {} } = args;
-    const queryParams = new URLSearchParams();
-    if (options.limit) queryParams.append('limit', options.limit);
-    if (options.offset) queryParams.append('offset', options.offset);
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const url = `/sources/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-            const response = await server.api.get(url, { headers });
-            return response.data;
+            // Use SDK client.sources.list() method
+            return await server.client.sources.list();
         },
         'Listing sources'
     );
 
-    const sources = Array.isArray(result) ? result : result.sources || [];
+    // SDK returns Source[] array
+    const sources = Array.isArray(result) ? result : [];
     return {
         content: [{
             type: 'text',
@@ -78,15 +78,18 @@ async function handleList(server, args) {
     };
 }
 
+/**
+ * Create a new source
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleCreate(server, args) {
     const { source_data } = args;
     if (!source_data) throw new Error('source_data is required for create operation');
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post('/sources/', source_data, { headers });
-            return response.data;
+            // Use SDK client.sources.create() method
+            return await server.client.sources.create(source_data);
         },
         'Creating source'
     );
@@ -105,15 +108,18 @@ async function handleCreate(server, args) {
     };
 }
 
+/**
+ * Get source details by ID
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleGet(server, args) {
     const { source_id } = args;
     if (!source_id) throw new Error('source_id is required for get operation');
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get(`/sources/${encodeURIComponent(source_id)}`, { headers });
-            return response.data;
+            // Use SDK client.sources.retrieve() method
+            return await server.client.sources.retrieve(source_id);
         },
         'Getting source'
     );
@@ -132,6 +138,10 @@ async function handleGet(server, args) {
     };
 }
 
+/**
+ * Update an existing source
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleUpdate(server, args) {
     const { source_id, source_data } = args;
     if (!source_id) throw new Error('source_id is required for update operation');
@@ -139,9 +149,8 @@ async function handleUpdate(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.put(`/sources/${encodeURIComponent(source_id)}`, source_data, { headers });
-            return response.data;
+            // Use SDK client.sources.modify() method
+            return await server.client.sources.modify(source_id, source_data);
         },
         'Updating source'
     );
@@ -160,15 +169,18 @@ async function handleUpdate(server, args) {
     };
 }
 
+/**
+ * Delete a source
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleDelete(server, args) {
     const { source_id } = args;
     if (!source_id) throw new Error('source_id is required for delete operation');
 
     await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.delete(`/sources/${encodeURIComponent(source_id)}`, { headers });
-            return response.data;
+            // Use SDK client.sources.delete() method
+            return await server.client.sources.delete(source_id);
         },
         'Deleting source'
     );
@@ -186,12 +198,15 @@ async function handleDelete(server, args) {
     };
 }
 
+/**
+ * Count all sources
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleCount(server, _args) {
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get('/sources/count', { headers });
-            return response.data;
+            // Use SDK client.sources.count() method - returns number directly
+            return await server.client.sources.count();
         },
         'Counting sources'
     );
@@ -202,22 +217,27 @@ async function handleCount(server, _args) {
             text: JSON.stringify({
                 success: true,
                 operation: 'count',
-                count: result.count || result.total || 0,
+                count: typeof result === 'number' ? result : result.count || 0,
                 message: 'Sources counted successfully',
             }),
         }],
     };
 }
 
+/**
+ * Get source by name
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleGetByName(server, args) {
     const { source_name } = args;
     if (!source_name) throw new Error('source_name is required for get_by_name operation');
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get(`/sources/name/${encodeURIComponent(source_name)}`, { headers });
-            return response.data;
+            // Use SDK client.sources.retrieveByName() method
+            // SDK returns source ID as string, need to fetch full source
+            const sourceId = await server.client.sources.retrieveByName(source_name);
+            return await server.client.sources.retrieve(sourceId);
         },
         'Getting source by name'
     );
@@ -236,6 +256,11 @@ async function handleGetByName(server, args) {
     };
 }
 
+/**
+ * Upload file to source
+ * Note: SDK expects File/ReadStream/Blob, keeping axios for now
+ * TODO: Convert file_data to proper file object for SDK upload
+ */
 async function handleUploadFile(server, args) {
     const { source_id, file_data } = args;
     if (!source_id) throw new Error('source_id is required for upload_file operation');
@@ -264,20 +289,24 @@ async function handleUploadFile(server, args) {
     };
 }
 
+/**
+ * List files in a source
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleListFiles(server, args) {
     const { source_id } = args;
     if (!source_id) throw new Error('source_id is required for list_files operation');
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get(`/sources/${encodeURIComponent(source_id)}/files`, { headers });
-            return response.data;
+            // Use SDK client.sources.files.list() method
+            return await server.client.sources.files.list(source_id);
         },
         'Listing source files'
     );
 
-    const files = Array.isArray(result) ? result : result.files || [];
+    // SDK returns FileMetadata[] array
+    const files = Array.isArray(result) ? result : [];
     return {
         content: [{
             type: 'text',
@@ -298,6 +327,10 @@ async function handleListFiles(server, args) {
     };
 }
 
+/**
+ * Delete file from source
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleDeleteFile(server, args) {
     const { source_id, file_id } = args;
     if (!source_id) throw new Error('source_id is required for delete_file operation');
@@ -305,9 +338,8 @@ async function handleDeleteFile(server, args) {
 
     await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.delete(`/sources/${encodeURIComponent(source_id)}/files/${encodeURIComponent(file_id)}`, { headers });
-            return response.data;
+            // Use SDK client.sources.files.delete() method - returns void
+            return await server.client.sources.files.delete(source_id, file_id);
         },
         'Deleting file from source'
     );
@@ -326,20 +358,24 @@ async function handleDeleteFile(server, args) {
     };
 }
 
+/**
+ * List passages in a source
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleListPassages(server, args) {
     const { source_id } = args;
     if (!source_id) throw new Error('source_id is required for list_passages operation');
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get(`/sources/${encodeURIComponent(source_id)}/passages`, { headers });
-            return response.data;
+            // Use SDK client.sources.passages.list() method
+            return await server.client.sources.passages.list(source_id);
         },
         'Listing source passages'
     );
 
-    const passages = Array.isArray(result) ? result : result.passages || [];
+    // SDK returns Passage[] array
+    const passages = Array.isArray(result) ? result : [];
     return {
         content: [{
             type: 'text',
@@ -359,6 +395,12 @@ async function handleListPassages(server, args) {
     };
 }
 
+/**
+ * Get source metadata
+ * Note: SDK may not have direct /sources/{id}/metadata endpoint support
+ * Keeping axios for now
+ * TODO: Check if SDK adds getSourceMetadata() for single source
+ */
 async function handleGetMetadata(server, args) {
     const { source_id } = args;
     if (!source_id) throw new Error('source_id is required for get_metadata operation');
@@ -386,16 +428,19 @@ async function handleGetMetadata(server, args) {
     };
 }
 
+/**
+ * Attach source to agent
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleAttachToAgent(server, args) {
     const { agent_id, source_id } = args;
     if (!agent_id) throw new Error('agent_id is required for attach_to_agent operation');
     if (!source_id) throw new Error('source_id is required for attach_to_agent operation');
 
-    await server.handleSdkCall(
+    const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(`/agents/${encodeURIComponent(agent_id)}/sources/${encodeURIComponent(source_id)}`, {}, { headers });
-            return response.data;
+            // Use SDK client.agents.sources.attach() method - returns AgentState
+            return await server.client.agents.sources.attach(agent_id, source_id);
         },
         'Attaching source to agent'
     );
@@ -409,22 +454,26 @@ async function handleAttachToAgent(server, args) {
                 agent_id,
                 source_id,
                 attached: true,
+                agent_state: result, // SDK returns AgentState
                 message: 'Source attached to agent successfully',
             }),
         }],
     };
 }
 
+/**
+ * Detach source from agent
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleDetachFromAgent(server, args) {
     const { agent_id, source_id } = args;
     if (!agent_id) throw new Error('agent_id is required for detach_from_agent operation');
     if (!source_id) throw new Error('source_id is required for detach_from_agent operation');
 
-    await server.handleSdkCall(
+    const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.delete(`/agents/${encodeURIComponent(agent_id)}/sources/${encodeURIComponent(source_id)}`, { headers });
-            return response.data;
+            // Use SDK client.agents.sources.detach() method - returns AgentState
+            return await server.client.agents.sources.detach(agent_id, source_id);
         },
         'Detaching source from agent'
     );
@@ -438,26 +487,31 @@ async function handleDetachFromAgent(server, args) {
                 agent_id,
                 source_id,
                 detached: true,
+                agent_state: result, // SDK returns AgentState
                 message: 'Source detached from agent successfully',
             }),
         }],
     };
 }
 
+/**
+ * List sources attached to an agent
+ * MIGRATED: Now using Letta SDK instead of axios
+ */
 async function handleListAgentSources(server, args) {
     const { agent_id } = args;
     if (!agent_id) throw new Error('agent_id is required for list_agent_sources operation');
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get(`/agents/${encodeURIComponent(agent_id)}/sources`, { headers });
-            return response.data;
+            // Use SDK client.agents.sources.list() method
+            return await server.client.agents.sources.list(agent_id);
         },
         'Listing agent sources'
     );
 
-    const sources = Array.isArray(result) ? result : result.sources || [];
+    // SDK returns Source[] array
+    const sources = Array.isArray(result) ? result : [];
     return {
         content: [{
             type: 'text',

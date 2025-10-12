@@ -42,6 +42,7 @@ export async function handleLettaFileFolderOps(server, args) {
 
 /**
  * List files for an agent
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleListFiles(server, args) {
     const { agent_id } = args;
@@ -52,14 +53,14 @@ async function handleListFiles(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get(`/agents/${encodeURIComponent(agent_id)}/files`, { headers });
-            return response.data;
+            // Use SDK client.agents.files.list() method
+            return await server.client.agents.files.list(agent_id);
         },
         'Listing agent files'
     );
 
-    const files = Array.isArray(result) ? result : result.files || [];
+    // SDK returns PaginatedAgentFiles with files array
+    const files = result.files || [];
 
     return {
         content: [{
@@ -84,6 +85,7 @@ async function handleListFiles(server, args) {
 
 /**
  * Open a file for an agent
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleOpenFile(server, args) {
     const { agent_id, file_id } = args;
@@ -95,15 +97,10 @@ async function handleOpenFile(server, args) {
         throw new Error('file_id is required for open_file operation');
     }
 
-    await server.handleSdkCall(
+    const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/agents/${encodeURIComponent(agent_id)}/files/${encodeURIComponent(file_id)}/open`,
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.files.open() method - returns string[] of evicted files
+            return await server.client.agents.files.open(agent_id, file_id);
         },
         'Opening file'
     );
@@ -117,6 +114,7 @@ async function handleOpenFile(server, args) {
                 agent_id,
                 file_id,
                 opened: true,
+                evicted_files: result, // SDK returns array of file names evicted due to LRU
                 message: 'File opened successfully',
             }),
         }],
@@ -125,6 +123,7 @@ async function handleOpenFile(server, args) {
 
 /**
  * Close a specific file
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleCloseFile(server, args) {
     const { agent_id, file_id } = args;
@@ -138,13 +137,8 @@ async function handleCloseFile(server, args) {
 
     await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/agents/${encodeURIComponent(agent_id)}/files/${encodeURIComponent(file_id)}/close`,
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.files.close() method - returns void
+            return await server.client.agents.files.close(agent_id, file_id);
         },
         'Closing file'
     );
@@ -166,6 +160,7 @@ async function handleCloseFile(server, args) {
 
 /**
  * Close all files for an agent
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleCloseAllFiles(server, args) {
     const { agent_id } = args;
@@ -176,18 +171,14 @@ async function handleCloseAllFiles(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/agents/${encodeURIComponent(agent_id)}/files/close-all`,
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.files.closeAll() method - returns string[] of closed files
+            return await server.client.agents.files.closeAll(agent_id);
         },
         'Closing all files'
     );
 
-    const closedCount = result.closed_count || result.count || 0;
+    // SDK returns array of file names that were closed
+    const closedFiles = Array.isArray(result) ? result : [];
 
     return {
         content: [{
@@ -196,8 +187,9 @@ async function handleCloseAllFiles(server, args) {
                 success: true,
                 operation: 'close_all_files',
                 agent_id,
-                closed_count: closedCount,
-                message: `Closed ${closedCount} files`,
+                closed_count: closedFiles.length,
+                closed_files: closedFiles,
+                message: `Closed ${closedFiles.length} files`,
             }),
         }],
     };
@@ -205,18 +197,19 @@ async function handleCloseAllFiles(server, args) {
 
 /**
  * List all folders
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleListFolders(server, _args) {
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get('/folders', { headers });
-            return response.data;
+            // Use SDK client.folders.list() method
+            return await server.client.folders.list();
         },
         'Listing folders'
     );
 
-    const folders = Array.isArray(result) ? result : result.folders || [];
+    // SDK returns Folder[] array
+    const folders = Array.isArray(result) ? result : [];
 
     return {
         content: [{
@@ -239,6 +232,7 @@ async function handleListFolders(server, _args) {
 
 /**
  * Attach folder to agent
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleAttachFolder(server, args) {
     const { agent_id, folder_id } = args;
@@ -250,15 +244,10 @@ async function handleAttachFolder(server, args) {
         throw new Error('folder_id is required for attach_folder operation');
     }
 
-    await server.handleSdkCall(
+    const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/agents/${encodeURIComponent(agent_id)}/folders/${encodeURIComponent(folder_id)}`,
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.folders.attach() method - returns AgentState
+            return await server.client.agents.folders.attach(agent_id, folder_id);
         },
         'Attaching folder to agent'
     );
@@ -272,6 +261,7 @@ async function handleAttachFolder(server, args) {
                 agent_id,
                 folder_id,
                 attached: true,
+                agent_state: result, // SDK returns AgentState
                 message: 'Folder attached to agent successfully',
             }),
         }],
@@ -280,6 +270,7 @@ async function handleAttachFolder(server, args) {
 
 /**
  * Detach folder from agent
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleDetachFolder(server, args) {
     const { agent_id, folder_id } = args;
@@ -291,14 +282,10 @@ async function handleDetachFolder(server, args) {
         throw new Error('folder_id is required for detach_folder operation');
     }
 
-    await server.handleSdkCall(
+    const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.delete(
-                `/agents/${encodeURIComponent(agent_id)}/folders/${encodeURIComponent(folder_id)}`,
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.folders.detach() method - returns AgentState
+            return await server.client.agents.folders.detach(agent_id, folder_id);
         },
         'Detaching folder from agent'
     );
@@ -312,6 +299,7 @@ async function handleDetachFolder(server, args) {
                 agent_id,
                 folder_id,
                 detached: true,
+                agent_state: result, // SDK returns AgentState
                 message: 'Folder detached from agent successfully',
             }),
         }],
@@ -320,6 +308,7 @@ async function handleDetachFolder(server, args) {
 
 /**
  * List agents in a specific folder
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleListAgentsInFolder(server, args) {
     const { folder_id } = args;
@@ -330,17 +319,14 @@ async function handleListAgentsInFolder(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get(
-                `/folders/${encodeURIComponent(folder_id)}/agents`,
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.folders.agents.list() method - returns string[] of agent IDs
+            return await server.client.folders.agents.list(folder_id);
         },
         'Listing agents in folder'
     );
 
-    const agents = Array.isArray(result) ? result : result.agents || [];
+    // SDK returns array of agent ID strings
+    const agentIds = Array.isArray(result) ? result : [];
 
     return {
         content: [{
@@ -349,11 +335,9 @@ async function handleListAgentsInFolder(server, args) {
                 success: true,
                 operation: 'list_agents_in_folder',
                 folder_id,
-                agents: agents.map(a => ({
-                    id: a.id,
-                    name: a.name || a.agent_name,
-                })),
-                message: `Found ${agents.length} agents in folder`,
+                agent_ids: agentIds,
+                agents: agentIds.map(id => ({ id })), // Convert IDs to objects for consistency
+                message: `Found ${agentIds.length} agents in folder`,
             }),
         }],
     };

@@ -58,31 +58,20 @@ export async function handleLettaToolManager(server, args) {
 
 /**
  * List all tools with pagination and filters
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleListTools(server, args) {
     const { options = {} } = args;
     const { pagination = {}, filters = {} } = options;
 
-    const queryParams = new URLSearchParams();
-
-    // Apply pagination
-    if (pagination.limit) queryParams.append('limit', pagination.limit);
-    if (pagination.offset) queryParams.append('offset', pagination.offset);
-    if (pagination.after) queryParams.append('after', pagination.after);
-
-    // Apply filters
-    if (filters.name) queryParams.append('name', filters.name);
-    if (filters.tags && filters.tags.length > 0) {
-        filters.tags.forEach(tag => queryParams.append('tags', tag));
-    }
-    if (filters.source_type) queryParams.append('source_type', filters.source_type);
-
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const url = `/tools/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-            const response = await server.api.get(url, { headers });
-            return response.data;
+            // Use SDK client.tools.list() method with filters
+            return await server.client.tools.list({
+                limit: pagination.limit,
+                cursor: pagination.after,
+                ...filters,
+            });
         },
         'Listing tools'
     );
@@ -122,6 +111,7 @@ async function handleListTools(server, args) {
 
 /**
  * Get tool details by ID
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleGetTool(server, args) {
     const { tool_id } = args;
@@ -132,9 +122,8 @@ async function handleGetTool(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get(`/tools/${encodeURIComponent(tool_id)}`, { headers });
-            return response.data;
+            // Use SDK client.tools.retrieve() method
+            return await server.client.tools.retrieve(tool_id);
         },
         'Getting tool details'
     );
@@ -164,6 +153,7 @@ async function handleGetTool(server, args) {
 
 /**
  * Create a new tool
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleCreateTool(server, args) {
     const { tool_data } = args;
@@ -177,9 +167,13 @@ async function handleCreateTool(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post('/tools/', tool_data, { headers });
-            return response.data;
+            // Use SDK client.tools.create() method
+            // SDK expects sourceCode not source_code
+            const createData = {
+                ...tool_data,
+                sourceCode: tool_data.source_code || tool_data.sourceCode,
+            };
+            return await server.client.tools.create(createData);
         },
         'Creating tool'
     );
@@ -202,6 +196,7 @@ async function handleCreateTool(server, args) {
 
 /**
  * Attach a tool to an agent
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleAttachTool(server, args) {
     const { agent_id, tool_id } = args;
@@ -213,15 +208,10 @@ async function handleAttachTool(server, args) {
         throw new Error('tool_id is required for attach operation');
     }
 
-    await server.handleSdkCall(
+    const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/agents/${encodeURIComponent(agent_id)}/tools/${encodeURIComponent(tool_id)}`,
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.tools.attach() method
+            return await server.client.agents.tools.attach(agent_id, tool_id);
         },
         'Attaching tool to agent'
     );
@@ -236,6 +226,7 @@ async function handleAttachTool(server, args) {
                     agent_id,
                     tool_id,
                     attached: true,
+                    agent_state: result, // SDK returns AgentState
                     message: 'Tool attached to agent successfully',
                 }),
             },
@@ -245,6 +236,7 @@ async function handleAttachTool(server, args) {
 
 /**
  * Bulk attach tool to multiple agents
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleBulkAttach(server, args) {
     const { tool_id, bulk_attach_filters } = args;
@@ -256,12 +248,10 @@ async function handleBulkAttach(server, args) {
         throw new Error('bulk_attach_filters is required for bulk_attach operation');
     }
 
-    // Get list of all agents
+    // Get list of all agents using SDK
     const allAgents = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get('/agents/', { headers });
-            return response.data;
+            return await server.client.agents.list();
         },
         'Listing agents for bulk attach'
     );
@@ -285,19 +275,13 @@ async function handleBulkAttach(server, args) {
         });
     }
 
-    // Attach tool to filtered agents
+    // Attach tool to filtered agents using SDK
     const attachResults = [];
     for (const agent of agentsToAttach) {
         try {
             await server.handleSdkCall(
                 async () => {
-                    const headers = server.getApiHeaders();
-                    const response = await server.api.post(
-                        `/agents/${encodeURIComponent(agent.id)}/tools/${encodeURIComponent(tool_id)}`,
-                        {},
-                        { headers }
-                    );
-                    return response.data;
+                    return await server.client.agents.tools.attach(agent.id, tool_id);
                 },
                 `Attaching tool to agent ${agent.id}`
             );
@@ -329,6 +313,7 @@ async function handleBulkAttach(server, args) {
 
 /**
  * Update an existing tool
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleUpdateTool(server, args) {
     const { tool_id, tool_data } = args;
@@ -342,13 +327,8 @@ async function handleUpdateTool(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.put(
-                `/tools/${encodeURIComponent(tool_id)}`,
-                tool_data,
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.tools.modify() method
+            return await server.client.tools.modify(tool_id, tool_data);
         },
         'Updating tool'
     );
@@ -371,6 +351,7 @@ async function handleUpdateTool(server, args) {
 
 /**
  * Delete a tool
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleDeleteTool(server, args) {
     const { tool_id } = args;
@@ -381,12 +362,8 @@ async function handleDeleteTool(server, args) {
 
     await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.delete(
-                `/tools/${encodeURIComponent(tool_id)}`,
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.tools.delete() method
+            return await server.client.tools.delete(tool_id);
         },
         'Deleting tool'
     );
@@ -408,6 +385,7 @@ async function handleDeleteTool(server, args) {
 
 /**
  * Upsert a tool (create or update if exists)
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleUpsertTool(server, args) {
     const { tool_data } = args;
@@ -419,39 +397,15 @@ async function handleUpsertTool(server, args) {
         throw new Error('tool_data.name is required for upsert operation');
     }
 
-    // First, try to find existing tool by name
-    const headers = server.getApiHeaders();
-    let existingToolId = null;
-
-    try {
-        const listResponse = await server.api.get('/tools/', { headers });
-        const tools = Array.isArray(listResponse.data) ? listResponse.data : listResponse.data.tools || [];
-
-        const existingTool = tools.find(t => t.name === tool_data.name);
-        if (existingTool) {
-            existingToolId = existingTool.id;
-            logger.info(`Found existing tool "${tool_data.name}" with ID ${existingToolId}`);
-        }
-    } catch (error) {
-        logger.warn('Could not check for existing tools', { error });
-    }
-
-    // Update if exists, create if not
     const result = await server.handleSdkCall(
         async () => {
-            if (existingToolId) {
-                // Update existing tool
-                const response = await server.api.put(
-                    `/tools/${encodeURIComponent(existingToolId)}`,
-                    tool_data,
-                    { headers }
-                );
-                return { ...response.data, was_updated: true };
-            } else {
-                // Create new tool
-                const response = await server.api.post('/tools/', tool_data, { headers });
-                return { ...response.data, was_updated: false };
-            }
+            // Use SDK client.tools.upsert() method - SDK has native support!
+            // SDK expects sourceCode not source_code
+            const upsertData = {
+                ...tool_data,
+                sourceCode: tool_data.source_code || tool_data.sourceCode,
+            };
+            return await server.client.tools.upsert(upsertData);
         },
         'Upserting tool'
     );
@@ -465,9 +419,7 @@ async function handleUpsertTool(server, args) {
                     operation: 'upsert',
                     tool_id: result.id,
                     tool: result,
-                    message: result.was_updated
-                        ? `Tool "${tool_data.name}" updated successfully`
-                        : `Tool "${tool_data.name}" created successfully`,
+                    message: `Tool "${tool_data.name}" upserted successfully`,
                 }),
             },
         ],
@@ -476,6 +428,7 @@ async function handleUpsertTool(server, args) {
 
 /**
  * Detach a tool from an agent
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleDetachTool(server, args) {
     const { agent_id, tool_id } = args;
@@ -487,15 +440,10 @@ async function handleDetachTool(server, args) {
         throw new Error('tool_id is required for detach operation');
     }
 
-    await server.handleSdkCall(
+    const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.patch(
-                `/agents/${encodeURIComponent(agent_id)}/tools/detach/${encodeURIComponent(tool_id)}`,
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.agents.tools.detach() method
+            return await server.client.agents.tools.detach(agent_id, tool_id);
         },
         'Detaching tool from agent'
     );
@@ -509,6 +457,7 @@ async function handleDetachTool(server, args) {
                     operation: 'detach',
                     tool_id,
                     detached_from_agent: agent_id,
+                    agent_state: result, // SDK returns AgentState
                     message: 'Tool detached from agent successfully',
                 }),
             },
@@ -518,6 +467,8 @@ async function handleDetachTool(server, args) {
 
 /**
  * Generate tool from natural language prompt
+ * Note: SDK may not have direct support - keeping axios for now
+ * TODO: Check if SDK adds support for tool generation in future releases
  */
 async function handleGenerateFromPrompt(server, args) {
     const { prompt } = args;
@@ -557,6 +508,8 @@ async function handleGenerateFromPrompt(server, args) {
 
 /**
  * Generate JSON schema from tool source code
+ * Note: SDK may not have direct support - keeping axios for now
+ * TODO: Check if SDK adds support for schema generation in future releases
  */
 async function handleGenerateSchema(server, args) {
     const { source_code } = args;
@@ -595,6 +548,7 @@ async function handleGenerateSchema(server, args) {
 
 /**
  * Run tool from source code without saving
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleRunFromSource(server, args) {
     const { source_code, tool_args = {} } = args;
@@ -605,16 +559,12 @@ async function handleRunFromSource(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                '/tools/run',
-                {
-                    source_code,
-                    arguments: tool_args,
-                },
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.tools.runToolFromSource() method
+            // SDK expects sourceCode and args (not arguments)
+            return await server.client.tools.runToolFromSource({
+                sourceCode: source_code,
+                args: tool_args,
+            });
         },
         'Running tool from source code'
     );
@@ -636,22 +586,19 @@ async function handleRunFromSource(server, args) {
 
 /**
  * Add base tools to the system
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleAddBaseTools(server, _args) {
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                '/tools/add-base-tools',
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.tools.upsertBaseTools() method
+            return await server.client.tools.upsertBaseTools();
         },
         'Adding base tools'
     );
 
-    const toolsCount = result.count || result.added || (result.tools ? result.tools.length : 0);
+    // SDK returns array of tools
+    const toolsCount = Array.isArray(result) ? result.length : result.count || 0;
 
     return {
         content: [
@@ -661,6 +608,7 @@ async function handleAddBaseTools(server, _args) {
                     success: true,
                     operation: 'add_base_tools',
                     added_tools_count: toolsCount,
+                    tools: result,
                     message: `Successfully added ${toolsCount} base tools`,
                 }),
             },

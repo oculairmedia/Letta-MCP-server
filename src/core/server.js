@@ -2,7 +2,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
-import { LettaClient } from '@letta-ai/letta-client';
+import { LettaClient, LettaError, LettaTimeoutError } from '@letta-ai/letta-client';
 import { createLogger } from './logger.js';
 
 /**
@@ -162,6 +162,7 @@ export class LettaServer {
 
     /**
      * Wrapper for SDK calls that converts SDK errors to MCP errors
+     * Handles both Letta SDK errors and axios errors for backward compatibility
      * @param {Function} sdkFunction - Async function that makes SDK calls
      * @param {string} [context] - Additional context for error messages
      * @returns {Promise<any>} Result from the SDK call
@@ -176,17 +177,39 @@ export class LettaServer {
             let errorMessage = '';
             let errorCode = ErrorCode.InternalError;
 
-            // Check if it's a Letta SDK error (has statusCode property)
-            if (error.statusCode) {
-                errorCode = this.mapErrorCode(error.statusCode);
+            // Handle Letta SDK errors (LettaError, LettaTimeoutError)
+            if (error instanceof LettaError || error instanceof LettaTimeoutError) {
+                // SDK error format: { statusCode, body, message }
+                const statusCode = error.statusCode || 500;
+                errorCode = this.mapErrorCode(statusCode);
                 errorMessage = error.message || 'SDK request failed';
 
                 // Include response body if available
                 if (error.body) {
-                    errorMessage += ` - ${JSON.stringify(error.body)}`;
+                    const bodyStr = typeof error.body === 'string'
+                        ? error.body
+                        : JSON.stringify(error.body);
+                    errorMessage += `\nBody: ${bodyStr}`;
                 }
-            } else if (error instanceof Error) {
-                errorMessage = error.message;
+            }
+            // Handle axios errors (for operations still using axios)
+            else if (error.response) {
+                // Axios error format: { response: { status, data } }
+                const statusCode = error.response.status || 500;
+                errorCode = this.mapErrorCode(statusCode);
+                errorMessage = error.message || 'Request failed';
+
+                // Include response data if available
+                if (error.response.data) {
+                    const dataStr = typeof error.response.data === 'string'
+                        ? error.response.data
+                        : JSON.stringify(error.response.data);
+                    errorMessage += ` - ${dataStr}`;
+                }
+            }
+            // Handle generic errors
+            else if (error instanceof Error) {
+                errorMessage = error.message || 'Unknown error occurred';
             } else {
                 errorMessage = 'Unknown SDK error occurred';
             }

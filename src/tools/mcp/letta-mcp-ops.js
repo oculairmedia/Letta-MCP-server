@@ -52,6 +52,7 @@ export async function handleLettaMcpOps(server, args) {
 
 /**
  * Add a new MCP server
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleAddServer(server, args) {
     const { server_config } = args;
@@ -60,12 +61,10 @@ async function handleAddServer(server, args) {
         throw new Error('server_config is required for add operation');
     }
 
-    // Use direct API call as SDK may not have this endpoint yet
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.put('/tools/mcp/servers', server_config, { headers });
-            return response.data;
+            // Use SDK client.tools.addMcpServer() method
+            return await server.client.tools.addMcpServer(server_config);
         },
         'Adding MCP server'
     );
@@ -77,7 +76,7 @@ async function handleAddServer(server, args) {
                 text: JSON.stringify({
                     success: true,
                     operation: 'add',
-                    server_name: server_config.name || 'unnamed',
+                    server_name: server_config.serverName || server_config.name || 'unnamed',
                     server_config: result,
                     message: 'MCP server added successfully',
                 }),
@@ -88,6 +87,7 @@ async function handleAddServer(server, args) {
 
 /**
  * Update an existing MCP server
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleUpdateServer(server, args) {
     const { server_name, server_config } = args;
@@ -101,13 +101,8 @@ async function handleUpdateServer(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.patch(
-                `/tools/mcp/servers/${encodeURIComponent(server_name)}`,
-                server_config,
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.tools.updateMcpServer() method
+            return await server.client.tools.updateMcpServer(server_name, server_config);
         },
         'Updating MCP server'
     );
@@ -130,6 +125,7 @@ async function handleUpdateServer(server, args) {
 
 /**
  * Delete an MCP server
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleDeleteServer(server, args) {
     const { server_name } = args;
@@ -138,14 +134,10 @@ async function handleDeleteServer(server, args) {
         throw new Error('server_name is required for delete operation');
     }
 
-    await server.handleSdkCall(
+    const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.delete(
-                `/tools/mcp/servers/${encodeURIComponent(server_name)}`,
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.tools.deleteMcpServer() method
+            return await server.client.tools.deleteMcpServer(server_name);
         },
         'Deleting MCP server'
     );
@@ -158,6 +150,7 @@ async function handleDeleteServer(server, args) {
                     success: true,
                     operation: 'delete',
                     server_name,
+                    deleted_servers: result, // SDK returns array of deleted servers
                     message: 'MCP server deleted successfully',
                 }),
             },
@@ -167,6 +160,7 @@ async function handleDeleteServer(server, args) {
 
 /**
  * Test MCP server connection
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleTestServer(server, args) {
     const { server_config } = args;
@@ -178,11 +172,8 @@ async function handleTestServer(server, args) {
     const startTime = Date.now();
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post('/tools/mcp/servers/test', server_config, {
-                headers,
-            });
-            return response.data;
+            // Use SDK client.tools.testMcpServer() method
+            return await server.client.tools.testMcpServer(server_config);
         },
         'Testing MCP server connection'
     );
@@ -209,6 +200,8 @@ async function handleTestServer(server, args) {
 
 /**
  * Connect to MCP server with OAuth
+ * MIGRATED: Now using Letta SDK instead of axios
+ * Note: SDK returns Stream for SSE, may need special handling
  */
 async function handleConnectServer(server, args) {
     const { server_name, oauth_config } = args;
@@ -222,16 +215,12 @@ async function handleConnectServer(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                '/tools/mcp/servers/connect',
-                {
-                    server_name,
-                    ...oauth_config,
-                },
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.tools.connectMcpServer() method
+            // SDK returns Stream<StreamingResponse> for SSE
+            return await server.client.tools.connectMcpServer({
+                serverName: server_name,
+                ...oauth_config,
+            });
         },
         'Connecting to MCP server with OAuth'
     );
@@ -244,8 +233,8 @@ async function handleConnectServer(server, args) {
                     success: true,
                     operation: 'connect',
                     server_name,
-                    oauth_url: result.authorization_url || result.url,
-                    message: 'OAuth flow initiated. Use the provided URL to authorize.',
+                    oauth_stream: result, // SDK returns Stream object for SSE
+                    message: 'OAuth flow initiated. SDK returns stream for authorization events.',
                 }),
             },
         ],
@@ -254,6 +243,8 @@ async function handleConnectServer(server, args) {
 
 /**
  * Resync MCP server tools
+ * Note: SDK may not have direct support - keeping axios for now
+ * TODO: Check if SDK adds resync support in future releases
  */
 async function handleResyncServer(server, args) {
     const { server_name } = args;
@@ -293,6 +284,8 @@ async function handleResyncServer(server, args) {
 
 /**
  * Execute a tool from an MCP server
+ * Note: SDK may not have direct support - keeping axios for now
+ * TODO: Check if SDK adds tool execution support in future releases
  */
 async function handleExecuteTool(server, args) {
     const { server_name, tool_name, tool_args = {} } = args;
@@ -336,25 +329,24 @@ async function handleExecuteTool(server, args) {
 
 /**
  * List all MCP servers
+ * MIGRATED: Now using Letta SDK instead of axios
  */
-async function handleListServers(server, args) {
-    const { pagination = {} } = args;
-
-    const queryParams = new URLSearchParams();
-    if (pagination.limit) queryParams.append('limit', pagination.limit);
-    if (pagination.offset) queryParams.append('offset', pagination.offset);
-
+async function handleListServers(server, _args) {
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const url = `/tools/mcp/servers${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-            const response = await server.api.get(url, { headers });
-            return response.data;
+            // Use SDK client.tools.listMcpServers() method
+            return await server.client.tools.listMcpServers();
         },
         'Listing MCP servers'
     );
 
-    const servers = Array.isArray(result) ? result : result.servers || [];
+    // SDK returns object with server names as keys
+    const serversList = Object.entries(result || {}).map(([name, config]) => ({
+        name,
+        type: config.type || config.transport,
+        status: config.status || 'unknown',
+        ...config,
+    }));
 
     return {
         content: [
@@ -363,12 +355,8 @@ async function handleListServers(server, args) {
                 text: JSON.stringify({
                     success: true,
                     operation: 'list_servers',
-                    servers: servers.map(s => ({
-                        name: s.name,
-                        type: s.type || s.transport,
-                        status: s.status || 'unknown',
-                    })),
-                    message: `Found ${servers.length} MCP servers`,
+                    servers: serversList,
+                    message: `Found ${serversList.length} MCP servers`,
                 }),
             },
         ],
@@ -377,24 +365,19 @@ async function handleListServers(server, args) {
 
 /**
  * List tools from an MCP server
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleListTools(server, args) {
-    const { server_name, pagination = {} } = args;
+    const { server_name } = args;
 
     if (!server_name) {
         throw new Error('server_name is required for list_tools operation');
     }
 
-    const queryParams = new URLSearchParams();
-    if (pagination.limit) queryParams.append('limit', pagination.limit);
-    if (pagination.offset) queryParams.append('offset', pagination.offset);
-
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const url = `/tools/mcp/servers/${encodeURIComponent(server_name)}/tools${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-            const response = await server.api.get(url, { headers });
-            return response.data;
+            // Use SDK client.tools.listMcpToolsByServer() method
+            return await server.client.tools.listMcpToolsByServer(server_name);
         },
         'Listing MCP server tools'
     );
@@ -423,6 +406,7 @@ async function handleListTools(server, args) {
 
 /**
  * Register an MCP tool in Letta
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleRegisterTool(server, args) {
     const { server_name, tool_name } = args;
@@ -436,13 +420,8 @@ async function handleRegisterTool(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/tools/mcp/servers/${encodeURIComponent(server_name)}/tools/${encodeURIComponent(tool_name)}/register`,
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.tools.addMcpTool() method
+            return await server.client.tools.addMcpTool(server_name, tool_name);
         },
         'Registering MCP tool in Letta'
     );
@@ -457,6 +436,7 @@ async function handleRegisterTool(server, args) {
                     server_name,
                     tool_name,
                     tool_id: result.id || result.tool_id,
+                    tool: result,
                     message: `Tool ${tool_name} from ${server_name} registered successfully in Letta`,
                 }),
             },

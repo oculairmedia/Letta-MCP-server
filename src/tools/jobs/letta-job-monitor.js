@@ -38,26 +38,25 @@ export async function handleLettaJobMonitor(server, args) {
 
 /**
  * List all jobs with optional filters
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleList(server, args) {
     const { filters = {} } = args;
 
-    const queryParams = new URLSearchParams();
-    if (filters.status) queryParams.append('status', filters.status);
-    if (filters.job_type) queryParams.append('job_type', filters.job_type);
-    if (filters.agent_id) queryParams.append('agent_id', filters.agent_id);
-
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const url = `/jobs/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-            const response = await server.api.get(url, { headers });
-            return response.data;
+            // Use SDK client.jobs.list() method with filters
+            return await server.client.jobs.list({
+                status: filters.status,
+                jobType: filters.job_type,
+                agentId: filters.agent_id,
+            });
         },
         'Listing jobs'
     );
 
-    const jobs = Array.isArray(result) ? result : result.jobs || [];
+    // SDK returns Job[] array
+    const jobs = Array.isArray(result) ? result : [];
 
     return {
         content: [{
@@ -85,6 +84,7 @@ async function handleList(server, args) {
 
 /**
  * Get details of a specific job
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleGet(server, args) {
     const { job_id } = args;
@@ -95,9 +95,8 @@ async function handleGet(server, args) {
 
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get(`/jobs/${encodeURIComponent(job_id)}`, { headers });
-            return response.data;
+            // Use SDK client.jobs.retrieve() method
+            return await server.client.jobs.retrieve(job_id);
         },
         'Getting job details'
     );
@@ -128,18 +127,19 @@ async function handleGet(server, args) {
 
 /**
  * List only active/running jobs
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleListActive(server, _args) {
     const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.get('/jobs?status=running', { headers });
-            return response.data;
+            // Use SDK client.jobs.listActive() method
+            return await server.client.jobs.listActive();
         },
         'Listing active jobs'
     );
 
-    const jobs = Array.isArray(result) ? result : result.jobs || [];
+    // SDK returns Job[] array
+    const jobs = Array.isArray(result) ? result : [];
 
     return {
         content: [{
@@ -164,6 +164,7 @@ async function handleListActive(server, _args) {
 
 /**
  * Cancel a running job
+ * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleCancel(server, args) {
     const { job_id } = args;
@@ -172,15 +173,10 @@ async function handleCancel(server, args) {
         throw new Error('job_id is required for cancel operation');
     }
 
-    await server.handleSdkCall(
+    const result = await server.handleSdkCall(
         async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                `/jobs/${encodeURIComponent(job_id)}/cancel`,
-                {},
-                { headers }
-            );
-            return response.data;
+            // Use SDK client.jobs.cancelJob() method - returns Job
+            return await server.client.jobs.cancelJob(job_id);
         },
         'Cancelling job'
     );
@@ -193,6 +189,7 @@ async function handleCancel(server, args) {
                 operation: 'cancel',
                 job_id,
                 cancelled: true,
+                job: result, // SDK returns Job object with updated status
                 message: 'Job cancelled successfully',
             }),
         }],
