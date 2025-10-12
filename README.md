@@ -26,9 +26,10 @@ A Model Context Protocol (MCP) server that provides comprehensive tools for agen
 - 🔗 **MCP Server Integration** - Integrate with other MCP servers
 - 📊 **Enhanced Metadata** - Output schemas and behavioral annotations for all tools
 - 📦 **Docker Support** - Easy deployment with Docker
-- 🔄 **Consolidated Tools** - 7 unified tools with 51 operations using discriminator pattern
-- 🛡️ **SDK-Powered** - Built on official @letta-ai/letta-client v0.0.68664
+- 🔄 **Consolidated Tools** - 7 unified tools with 87 operations using discriminator pattern
+- 🛡️ **SDK-Powered** - Built on official @letta-ai/letta-client v0.0.68664 (93% SDK coverage)
 - ✅ **MCP Strict Mode** - Full compliance with `additionalProperties: false`
+- ⚡ **Phase 3 Complete** - Full SDK migration with enhanced error handling
 
 ## Environment Configuration
 
@@ -224,32 +225,70 @@ Resource templates for dynamic content:
 
 ### Consolidated Tools Architecture
 
-The server provides **7 consolidated tools** covering 51 operations using the discriminator pattern. Each tool uses an `operation` parameter to route to specific functionality, reducing tool count while maintaining comprehensive API coverage.
+The server provides **7 consolidated tools** covering **87 operations** using the discriminator pattern. Each tool uses an `operation` parameter to route to specific functionality, reducing tool count while maintaining comprehensive API coverage.
+
+**🎉 Phase 3 Complete**: 81 out of 87 operations (93%) migrated from axios to the official Letta SDK, providing type-safe interactions, automatic error handling, and improved reliability.
 
 #### Core Consolidated Tools
 
-| Tool | Operations | Coverage | Status |
-|------|-----------|----------|---------|
-| **letta_agent_advanced** | 10 | Agent lifecycle, messaging, config management | ✅ |
-| **letta_memory_unified** | 7 | Core memory, blocks, and archival passages | ✅ |
-| **letta_tool_manager** | 10 | Complete tool lifecycle and MCP integration | ✅ |
-| **letta_mcp_ops** | 5 | MCP server and tool discovery | ✅ |
-| **letta_source_manager** | 15 | Data sources, files, and passages | ✅ |
-| **letta_job_monitor** | 4 | Job tracking and cancellation | ✅ |
-| **letta_file_folder_ops** | 8 | File sessions and folder management | ✅ |
+| Tool | Operations | Coverage | SDK Status |
+|------|-----------|----------|------------|
+| **letta_agent_advanced** | 22 | Complete agent lifecycle, messaging, context, export/import | ✅ 100% SDK |
+| **letta_memory_unified** | 15 | Core memory, blocks, archival passages, search | ✅ 100% SDK |
+| **letta_tool_manager** | 13 | Tool lifecycle, attach/detach, bulk operations | ✅ 85% SDK (2 awaiting) |
+| **letta_mcp_ops** | 10 | MCP server management, tool discovery, execution | ✅ 80% SDK (2 awaiting) |
+| **letta_source_manager** | 15 | Data sources, files, passages, attachments | ✅ 87% SDK (2 awaiting) |
+| **letta_job_monitor** | 4 | Job tracking, cancellation, active monitoring | ✅ 100% SDK |
+| **letta_file_folder_ops** | 8 | File sessions, folder management, agent files | ✅ 100% SDK |
 
-**Total: 51 operations across 7 tools**
+**Total: 87 operations across 7 tools | 81 SDK-powered (93%)**
 
 > **Migration Notice**: Individual endpoint tools (e.g., `create_agent`, `list_memory_blocks`) are deprecated. They now include automatic deprecation warnings pointing to their consolidated replacements. See the [Migration Guide](#migration-guide) below.
 
-### SDK Integration
+### SDK Integration & Migration Benefits
 
-Built on the official **@letta-ai/letta-client** TypeScript SDK v0.0.68664, providing:
-- Type-safe API interactions
-- Automatic error handling and retries
-- Consistent response formatting
-- Full Letta API coverage
-- Backward compatibility with Axios for custom endpoints
+Built on the official **@letta-ai/letta-client** TypeScript SDK v0.0.68664, providing enterprise-grade reliability and developer experience.
+
+#### SDK Features
+
+**Type Safety & Validation**
+- Full TypeScript definitions for all operations
+- Compile-time parameter validation
+- IDE auto-completion and inline documentation
+- Reduced runtime errors from typos
+
+**Automatic Error Handling**
+- Built-in retry logic (maxRetries: 2)
+- Intelligent timeout handling (30s default)
+- Graceful fallback for transient failures
+- Detailed error messages with context
+
+**Performance & Reliability**
+- Connection pooling and management
+- Automatic request/response compression
+- HTTP/2 support where available
+- Reduced network overhead
+
+**Code Quality**
+- 70-80% code reduction per operation
+- Single source of truth for API changes
+- Consistent error handling across all operations
+- Easier maintenance and updates
+
+#### Migration Path
+
+**Phase 3 (Complete ✅)**
+- Migrated 81 out of 87 operations to SDK
+- Enhanced error handling for both SDK and axios errors
+- Comprehensive testing with 21 operation verifications
+- Production-ready Docker builds
+
+**Remaining Work**
+- 6 operations awaiting SDK support (documented with TODO comments)
+- Backward compatibility maintained for custom endpoints
+- Deprecated individual tools to be removed in future release
+
+For detailed migration progress, see [PHASE3_SDK_MIGRATION_PROGRESS.md](./PHASE3_SDK_MIGRATION_PROGRESS.md).
 
 ### Legacy Individual Tools (Deprecated)
 
