@@ -66,17 +66,10 @@ export const modifyAgentDefinition = {
                 type: 'object',
                 description:
                     'An object containing the fields to update (e.g., name, system, description, tool_ids, etc.)',
-                // Ideally, this would mirror the UpdateAgent schema from the API spec
-                // Example properties (add more as needed based on UpdateAgent schema):
-                properties: {
-                    name: { type: 'string', description: 'New name for the agent' },
-                    system: { type: 'string', description: 'New system prompt' },
-                    description: { type: 'string', description: 'New description' },
-                    // Add other updatable fields like tool_ids, source_ids, block_ids, tags, etc.
-                },
                 additionalProperties: true, // Allow other properties from UpdateAgent schema
             },
         },
         required: ['agent_id', 'update_data'],
+        additionalProperties: false,
     },
 };

@@ -128,6 +128,7 @@ export const createAgentToolDefinition = {
             },
         },
         required: ['name', 'description'],
+        additionalProperties: false,
     },
     outputSchema: {
         type: 'object',

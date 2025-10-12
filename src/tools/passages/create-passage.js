@@ -82,5 +82,6 @@ export const createPassageDefinition = {
             },
         },
         required: ['agent_id', 'text'],
+        additionalProperties: false,
     },
 };

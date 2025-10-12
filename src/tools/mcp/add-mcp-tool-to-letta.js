@@ -172,5 +172,6 @@ export const addMcpToolToLettaDefinition = {
             },
         },
         required: ['tool_name', 'agent_id'], // Updated required fields
+        additionalProperties: false,
     },
 };

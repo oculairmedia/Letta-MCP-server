@@ -159,5 +159,6 @@ export const cloneAgentDefinition = {
             },
         },
         required: ['source_agent_id', 'new_agent_name'],
+        additionalProperties: false,
     },
 };

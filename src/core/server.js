@@ -2,6 +2,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
+import { LettaClient } from '@letta-ai/letta-client';
 import { createLogger } from './logger.js';
 
 /**
@@ -50,7 +51,7 @@ export class LettaServer {
             throw new Error('Missing required environment variable: LETTA_BASE_URL');
         }
 
-        // Initialize axios instance
+        // Initialize axios instance (keep for backward compatibility)
         this.apiBase = `${this.apiBase}/v1`;
         this.api = axios.create({
             baseURL: this.apiBase,
@@ -59,6 +60,20 @@ export class LettaServer {
                 Accept: 'application/json',
             },
         });
+
+        // Initialize Letta SDK client
+        try {
+            this.client = new LettaClient({
+                token: this.password,
+                baseUrl: this.apiBase.replace('/v1', ''), // SDK adds /v1 automatically
+                maxRetries: 2,
+                timeoutInSeconds: 30,
+            });
+            this.logger.info('Letta SDK client initialized successfully');
+        } catch (error) {
+            this.logger.error('Failed to initialize Letta SDK client:', error);
+            throw new Error(`SDK initialization failed: ${error.message}`);
+        }
     }
 
     /**
@@ -115,5 +130,73 @@ export class LettaServer {
         }
 
         throw new McpError(errorCode, errorMessage);
+    }
+
+    /**
+     * Map HTTP status codes to MCP error codes
+     * @param {number} statusCode - HTTP status code
+     * @returns {ErrorCode} Corresponding MCP error code
+     */
+    mapErrorCode(statusCode) {
+        switch (statusCode) {
+            case 400:
+                return ErrorCode.InvalidParams;
+            case 401:
+            case 403:
+                return ErrorCode.InvalidRequest;
+            case 404:
+                return ErrorCode.InvalidRequest;
+            case 422:
+                return ErrorCode.InvalidParams;
+            case 429:
+                return ErrorCode.InvalidRequest;
+            case 500:
+            case 502:
+            case 503:
+            case 504:
+                return ErrorCode.InternalError;
+            default:
+                return ErrorCode.InternalError;
+        }
+    }
+
+    /**
+     * Wrapper for SDK calls that converts SDK errors to MCP errors
+     * @param {Function} sdkFunction - Async function that makes SDK calls
+     * @param {string} [context] - Additional context for error messages
+     * @returns {Promise<any>} Result from the SDK call
+     * @throws {McpError} Always throws McpError on failure for proper JSON-RPC handling
+     */
+    async handleSdkCall(sdkFunction, context) {
+        try {
+            return await sdkFunction();
+        } catch (error) {
+            this.logger.error('SDK call failed:', { error, context });
+
+            let errorMessage = '';
+            let errorCode = ErrorCode.InternalError;
+
+            // Check if it's a Letta SDK error (has statusCode property)
+            if (error.statusCode) {
+                errorCode = this.mapErrorCode(error.statusCode);
+                errorMessage = error.message || 'SDK request failed';
+
+                // Include response body if available
+                if (error.body) {
+                    errorMessage += ` - ${JSON.stringify(error.body)}`;
+                }
+            } else if (error instanceof Error) {
+                errorMessage = error.message;
+            } else {
+                errorMessage = 'Unknown SDK error occurred';
+            }
+
+            // Add context if provided
+            if (context) {
+                errorMessage = `${context}: ${errorMessage}`;
+            }
+
+            throw new McpError(errorCode, errorMessage);
+        }
     }
 }

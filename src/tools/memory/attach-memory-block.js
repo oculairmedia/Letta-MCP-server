@@ -88,5 +88,6 @@ export const attachMemoryBlockToolDefinition = {
             },
         },
         required: ['block_id', 'agent_id'],
+        additionalProperties: false,
     },
 };

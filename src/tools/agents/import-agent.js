@@ -110,5 +110,6 @@ export const importAgentDefinition = {
             },
         },
         required: ['file_path'],
+        additionalProperties: false,
     },
 };

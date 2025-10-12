@@ -138,5 +138,6 @@ export const bulkDeleteAgentsDefinition = {
         },
         // Custom validation in the handler ensures at least one argument is provided
         required: [],
+        additionalProperties: false,
     },
 };

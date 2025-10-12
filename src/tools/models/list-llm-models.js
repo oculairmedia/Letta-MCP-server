@@ -36,5 +36,6 @@ export const listLlmModelsDefinition = {
         type: 'object',
         properties: {}, // No input arguments needed
         required: [],
+        additionalProperties: false,
     },
 };

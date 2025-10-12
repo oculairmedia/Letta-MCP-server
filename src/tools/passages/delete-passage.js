@@ -60,5 +60,6 @@ export const deletePassageDefinition = {
             },
         },
         required: ['agent_id', 'memory_id'],
+        additionalProperties: false,
     },
 };

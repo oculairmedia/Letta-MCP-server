@@ -50,5 +50,6 @@ export const deleteAgentDefinition = {
             },
         },
         required: ['agent_id'],
+        additionalProperties: false,
     },
 };

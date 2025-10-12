@@ -354,6 +354,7 @@ export const attachToolToolDefinition = {
             },
         },
         required: ['agent_id'],
+        additionalProperties: false,
         // Custom validation could be added here if needed to ensure at least one tool input is present
     },
 };

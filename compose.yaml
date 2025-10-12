@@ -1,6 +1,9 @@
 services:
   letta-mcp:
-    image: ghcr.io/oculairmedia/letta-mcp-server:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: letta-mcp-server:local
     ports:
       - "${PORT:-3001}:3001"
     restart: unless-stopped

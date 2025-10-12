@@ -145,5 +145,6 @@ export const uploadToolToolDefinition = {
             },
         },
         required: ['name', 'description', 'source_code'],
+        additionalProperties: false,
     },
 };

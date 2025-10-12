@@ -47,6 +47,18 @@ import {
     bulkAttachToolDefinition,
 } from './tools/bulk-attach-tool.js';
 import { handleUploadTool, uploadToolToolDefinition } from './tools/upload-tool.js';
+import { handleLettaToolManager, lettaToolManagerDefinition } from './tools/letta-tool-manager.js';
+import { handleLettaAgentAdvanced, lettaAgentAdvancedDefinition } from './agents/letta-agent-advanced.js';
+import { handleLettaMemoryUnified, lettaMemoryUnifiedDefinition } from './memory/letta-memory-unified.js';
+
+// Source-related imports
+import { handleLettaSourceManager, lettaSourceManagerDefinition } from './sources/letta-source-manager.js';
+
+// Job-related imports
+import { handleLettaJobMonitor, lettaJobMonitorDefinition } from './jobs/letta-job-monitor.js';
+
+// File-related imports
+import { handleLettaFileFolderOps, lettaFileFolderOpsDefinition } from './files/letta-file-folder-ops.js';
 
 // MCP-related imports
 import {
@@ -58,6 +70,7 @@ import {
     handleAddMcpToolToLetta,
     addMcpToolToLettaDefinition,
 } from './mcp/add-mcp-tool-to-letta.js';
+import { handleLettaMcpOps, lettaMcpOpsDefinition } from './mcp/letta-mcp-ops.js';
 
 // Model-related imports
 import { handleListLlmModels, listLlmModelsDefinition } from './models/list-llm-models.js';
@@ -116,6 +129,13 @@ export function registerToolHandlers(server) {
         addMcpToolToLettaDefinition,
         listPromptsToolDefinition,
         usePromptToolDefinition,
+        lettaMcpOpsDefinition,
+        lettaToolManagerDefinition,
+        lettaAgentAdvancedDefinition,
+        lettaMemoryUnifiedDefinition,
+        lettaSourceManagerDefinition,
+        lettaJobMonitorDefinition,
+        lettaFileFolderOpsDefinition,
     ];
 
     // Enhance all tools with output schemas and improved descriptions
@@ -191,6 +211,20 @@ export function registerToolHandlers(server) {
                 return handleListPrompts(server, request.params.arguments);
             case 'use_prompt':
                 return handleUsePrompt(server, request.params.arguments);
+            case 'letta_mcp_ops':
+                return handleLettaMcpOps(server, request.params.arguments);
+            case 'letta_tool_manager':
+                return handleLettaToolManager(server, request.params.arguments);
+            case 'letta_agent_advanced':
+                return handleLettaAgentAdvanced(server, request.params.arguments);
+            case 'letta_memory_unified':
+                return handleLettaMemoryUnified(server, request.params.arguments);
+            case 'letta_source_manager':
+                return handleLettaSourceManager(server, request.params.arguments);
+            case 'letta_job_monitor':
+                return handleLettaJobMonitor(server, request.params.arguments);
+            case 'letta_file_folder_ops':
+                return handleLettaFileFolderOps(server, request.params.arguments);
             default:
                 throw new McpError(
                     ErrorCode.MethodNotFound,
@@ -233,6 +267,13 @@ export const toolDefinitions = enhanceAllTools([
     addMcpToolToLettaDefinition,
     listPromptsToolDefinition,
     usePromptToolDefinition,
+    lettaMcpOpsDefinition,
+    lettaToolManagerDefinition,
+    lettaAgentAdvancedDefinition,
+    lettaMemoryUnifiedDefinition,
+    lettaSourceManagerDefinition,
+    lettaJobMonitorDefinition,
+    lettaFileFolderOpsDefinition,
 ]);
 
 // Export all tool handlers
@@ -266,4 +307,11 @@ export const toolHandlers = {
     handleGetAgentSummary,
     handleBulkDeleteAgents,
     handleAddMcpToolToLetta,
+    handleLettaMcpOps,
+    handleLettaToolManager,
+    handleLettaAgentAdvanced,
+    handleLettaMemoryUnified,
+    handleLettaSourceManager,
+    handleLettaJobMonitor,
+    handleLettaFileFolderOps,
 };

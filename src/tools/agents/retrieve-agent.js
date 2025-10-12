@@ -49,5 +49,6 @@ export const retrieveAgentDefinition = {
             },
         },
         required: ['agent_id'],
+        additionalProperties: false,
     },
 };

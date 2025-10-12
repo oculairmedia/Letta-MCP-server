@@ -36,5 +36,6 @@ export const listEmbeddingModelsDefinition = {
         type: 'object',
         properties: {}, // No input arguments needed
         required: [],
+        additionalProperties: false,
     },
 };

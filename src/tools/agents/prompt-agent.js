@@ -134,5 +134,6 @@ export const promptAgentToolDefinition = {
             },
         },
         required: ['agent_id', 'message'],
+        additionalProperties: false,
     },
 };

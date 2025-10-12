@@ -76,5 +76,6 @@ export const updateMemoryBlockToolDefinition = {
             },
         },
         required: ['block_id'],
+        additionalProperties: false,
     },
 };

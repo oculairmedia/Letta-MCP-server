@@ -1,6 +1,7 @@
 import { getOutputSchema } from './output-schemas.js';
 import { getEnhancedDescription } from './enhanced-descriptions.js';
 import { getToolAnnotations } from './annotations.js';
+import { getDeprecationNotice } from './deprecated-tools.js';
 
 /**
  * Enhance a tool definition with output schema and improved description
@@ -9,6 +10,12 @@ import { getToolAnnotations } from './annotations.js';
  */
 export function enhanceToolDefinition(toolDefinition) {
     const enhanced = { ...toolDefinition };
+
+    // Add deprecation notice if tool is deprecated
+    const deprecationNotice = getDeprecationNotice(toolDefinition.name);
+    if (deprecationNotice) {
+        enhanced.description = `${deprecationNotice}\n\n${enhanced.description}`;
+    }
 
     // Add output schema if available
     const outputSchema = getOutputSchema(toolDefinition.name);

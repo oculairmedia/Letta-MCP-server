@@ -177,5 +177,6 @@ export const exportAgentDefinition = {
             },
         },
         required: ['agent_id'],
+        additionalProperties: false,
     },
 };

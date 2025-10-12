@@ -164,7 +164,9 @@ export const modifyPassageDefinition = {
                     'Whether to include the full embedding vectors in the response (default: false).',
                 default: false,
             },
+            additionalProperties: false,
         },
         required: ['agent_id', 'memory_id', 'update_data'],
+        additionalProperties: false,
     },
 };

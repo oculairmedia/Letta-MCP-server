@@ -176,5 +176,6 @@ export const listMemoryBlocksToolDefinition = {
             },
         },
         required: [],
+        additionalProperties: false,
     },
 };

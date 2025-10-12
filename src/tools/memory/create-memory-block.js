@@ -121,5 +121,6 @@ export const createMemoryBlockToolDefinition = {
             },
         },
         required: ['name', 'label', 'value'],
+        additionalProperties: false,
     },
 };

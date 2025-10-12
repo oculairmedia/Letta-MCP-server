@@ -140,6 +140,7 @@ export const bulkAttachToolDefinition = {
             // Could add more filters like project_id if needed and supported by list_agents API
         },
         required: ['tool_id'],
+        additionalProperties: false,
         // Custom validation could ensure at least one filter is present, but basic schema doesn't enforce this easily.
         // The handler function checks for this.
     },

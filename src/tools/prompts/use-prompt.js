@@ -96,6 +96,7 @@ export const usePromptToolDefinition = {
                 },
                 description: 'Messages returned by the prompt',
             },
+            additionalProperties: false,
         },
         required: ['prompt_name', 'messages'],
     },

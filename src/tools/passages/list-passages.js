@@ -99,5 +99,6 @@ export const listPassagesDefinition = {
             },
         },
         required: ['agent_id'],
+        additionalProperties: false,
     },
 };

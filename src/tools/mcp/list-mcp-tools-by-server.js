@@ -106,5 +106,6 @@ export const listMcpToolsByServerDefinition = {
             },
         },
         required: ['mcp_server_name'], // mcp_server_name is now required
+        additionalProperties: false,
     },
 };

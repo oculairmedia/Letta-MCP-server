@@ -55,5 +55,6 @@ export const readMemoryBlockToolDefinition = {
             },
         },
         required: ['block_id'],
+        additionalProperties: false,
     },
 };

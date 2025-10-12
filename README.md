@@ -26,6 +26,9 @@ A Model Context Protocol (MCP) server that provides comprehensive tools for agen
 - 🔗 **MCP Server Integration** - Integrate with other MCP servers
 - 📊 **Enhanced Metadata** - Output schemas and behavioral annotations for all tools
 - 📦 **Docker Support** - Easy deployment with Docker
+- 🔄 **Consolidated Tools** - 7 unified tools with 51 operations using discriminator pattern
+- 🛡️ **SDK-Powered** - Built on official @letta-ai/letta-client v0.0.68664
+- ✅ **MCP Strict Mode** - Full compliance with `additionalProperties: false`
 
 ## Environment Configuration
 
@@ -219,7 +222,38 @@ Resource templates for dynamic content:
 
 ## Available Tools
 
-### Agent Management
+### Consolidated Tools Architecture
+
+The server provides **7 consolidated tools** covering 51 operations using the discriminator pattern. Each tool uses an `operation` parameter to route to specific functionality, reducing tool count while maintaining comprehensive API coverage.
+
+#### Core Consolidated Tools
+
+| Tool | Operations | Coverage | Status |
+|------|-----------|----------|---------|
+| **letta_agent_advanced** | 10 | Agent lifecycle, messaging, config management | ✅ |
+| **letta_memory_unified** | 7 | Core memory, blocks, and archival passages | ✅ |
+| **letta_tool_manager** | 10 | Complete tool lifecycle and MCP integration | ✅ |
+| **letta_mcp_ops** | 5 | MCP server and tool discovery | ✅ |
+| **letta_source_manager** | 15 | Data sources, files, and passages | ✅ |
+| **letta_job_monitor** | 4 | Job tracking and cancellation | ✅ |
+| **letta_file_folder_ops** | 8 | File sessions and folder management | ✅ |
+
+**Total: 51 operations across 7 tools**
+
+> **Migration Notice**: Individual endpoint tools (e.g., `create_agent`, `list_memory_blocks`) are deprecated. They now include automatic deprecation warnings pointing to their consolidated replacements. See the [Migration Guide](#migration-guide) below.
+
+### SDK Integration
+
+Built on the official **@letta-ai/letta-client** TypeScript SDK v0.0.68664, providing:
+- Type-safe API interactions
+- Automatic error handling and retries
+- Consistent response formatting
+- Full Letta API coverage
+- Backward compatibility with Axios for custom endpoints
+
+### Legacy Individual Tools (Deprecated)
+
+#### Agent Management
 
 | Tool | Description | Annotations |
 |------|-------------|-------------|
@@ -285,23 +319,213 @@ Resource templates for dynamic content:
 | `list_prompts` | List available prompt templates | 👁️ Read-only, ⚡ Fast |
 | `use_prompt` | Execute a prompt template | 💰 Variable cost, ⏱️ Variable time |
 
+## Migration Guide
+
+### Migrating from Individual Tools to Consolidated Tools
+
+The consolidated tools provide the same functionality with a cleaner API. Here's how to migrate:
+
+#### Example: Agent Operations
+
+**Old (Deprecated):**
+```javascript
+// List agents
+await callTool('list_agents', { filter: 'active' });
+
+// Create agent
+await callTool('create_agent', {
+  name: 'my-agent',
+  llm_model: 'gpt-4'
+});
+
+// Get agent
+await callTool('retrieve_agent', { agent_id: 'agent-123' });
+```
+
+**New (Consolidated):**
+```javascript
+// List agents
+await callTool('letta_agent_advanced', {
+  operation: 'list',
+  filters: { status: 'active' }
+});
+
+// Create agent
+await callTool('letta_agent_advanced', {
+  operation: 'create',
+  name: 'my-agent',
+  llm_model: 'gpt-4'
+});
+
+// Get agent
+await callTool('letta_agent_advanced', {
+  operation: 'get',
+  agent_id: 'agent-123'
+});
+```
+
+#### Example: Memory Operations
+
+**Old (Deprecated):**
+```javascript
+// List memory blocks
+await callTool('list_memory_blocks', { agent_id: 'agent-123' });
+
+// Create memory block
+await callTool('create_memory_block', {
+  label: 'persona',
+  value: 'You are a helpful assistant'
+});
+
+// List passages
+await callTool('list_passages', {
+  agent_id: 'agent-123',
+  limit: 10
+});
+```
+
+**New (Consolidated):**
+```javascript
+// List memory blocks
+await callTool('letta_memory_unified', {
+  operation: 'list_blocks',
+  agent_id: 'agent-123'
+});
+
+// Create memory block
+await callTool('letta_memory_unified', {
+  operation: 'create_block',
+  label: 'persona',
+  value: 'You are a helpful assistant'
+});
+
+// List passages
+await callTool('letta_memory_unified', {
+  operation: 'list_passages',
+  agent_id: 'agent-123',
+  limit: 10
+});
+```
+
+#### Complete Tool Mapping
+
+| Old Tool | New Tool | Operation |
+|----------|----------|-----------|
+| `create_agent` | `letta_agent_advanced` | `create` |
+| `list_agents` | `letta_agent_advanced` | `list` |
+| `retrieve_agent` | `letta_agent_advanced` | `get` |
+| `modify_agent` | `letta_agent_advanced` | `update` |
+| `delete_agent` | `letta_agent_advanced` | `delete` |
+| `prompt_agent` | `letta_agent_advanced` | `send_message` |
+| `list_agent_tools` | `letta_agent_advanced` | `list_tools` |
+| `export_agent` | `letta_agent_advanced` | `export` |
+| `import_agent` | `letta_agent_advanced` | `import` |
+| `clone_agent` | `letta_agent_advanced` | `clone` |
+| `list_memory_blocks` | `letta_memory_unified` | `list_blocks` |
+| `create_memory_block` | `letta_memory_unified` | `create_block` |
+| `read_memory_block` | `letta_memory_unified` | `get_block` |
+| `update_memory_block` | `letta_memory_unified` | `update_block` |
+| `attach_memory_block` | `letta_memory_unified` | `attach_block` |
+| `list_passages` | `letta_memory_unified` | `list_passages` |
+| `create_passage` | `letta_memory_unified` | `create_passage` |
+| `modify_passage` | `letta_memory_unified` | `update_passage` |
+| `delete_passage` | `letta_memory_unified` | `delete_passage` |
+| `attach_tool` | `letta_tool_manager` | `attach` |
+| `upload_tool` | `letta_tool_manager` | `create` |
+| `bulk_attach_tool_to_agents` | `letta_tool_manager` | `bulk_attach` |
+| `list_mcp_servers` | `letta_mcp_ops` | `list_servers` |
+| `list_mcp_tools_by_server` | `letta_mcp_ops` | `list_tools` |
+| `add_mcp_tool_to_letta` | `letta_mcp_ops` | `register_tool` |
+
+### Benefits of Consolidated Tools
+
+1. **Reduced Tool Count**: 7 tools instead of 70+ individual endpoints
+2. **Consistent Interface**: All tools follow the discriminator pattern
+3. **Better Organization**: Operations grouped by domain
+4. **Improved Documentation**: Comprehensive coverage in fewer tools
+5. **MCP Compliance**: Full `additionalProperties: false` support
+6. **SDK-Powered**: Type-safe operations with official Letta SDK
+
+### Deprecation Timeline
+
+- **Phase 1 (Current)**: Old tools remain functional with deprecation warnings
+- **Phase 2 (Next Release)**: Old tools will log deprecation notices
+- **Phase 3 (Future Release)**: Old tools will be removed from the codebase
+
+We recommend migrating to consolidated tools now to prepare for future releases.
+
 ## Directory Structure
 
-- `src/index.js` - Main entry point
-- `src/core/` - Core server functionality
-- `src/handlers/` - Prompt and resource handlers
-- `src/examples/` - Example prompts and resources
-- `src/tools/` - Tool implementations organized by category:
-  - `agents/` - Agent management tools
-  - `memory/` - Memory block tools
-  - `passages/` - Passage management tools
-  - `tools/` - Tool attachment and management
-  - `mcp/` - MCP server integration tools
-  - `models/` - Model listing tools
-  - `enhanced-descriptions.js` - Detailed tool descriptions
-  - `output-schemas.js` - Structured output definitions
-  - `annotations.js` - Behavioral hints
-- `src/transports/` - Server transport implementations
+```
+src/
+├── index.js                      # Main entry point
+├── core/
+│   ├── server.js                 # LettaServer class with SDK integration
+│   └── logger.js                 # Logging utilities
+├── handlers/
+│   ├── prompts.js                # Prompt handlers (wizards, assistants)
+│   └── resources.js              # Resource handlers (system info, docs)
+├── examples/
+│   ├── prompts.js                # Example prompt templates
+│   └── resources.js              # Example resource templates
+├── tools/
+│   ├── agents/
+│   │   ├── letta-agent-advanced.js      # ✅ Consolidated (10 ops)
+│   │   ├── create-agent.js              # ⚠️ Deprecated
+│   │   ├── list-agents.js               # ⚠️ Deprecated
+│   │   └── ... (other legacy tools)
+│   ├── memory/
+│   │   ├── letta-memory-unified.js      # ✅ Consolidated (7 ops)
+│   │   ├── list-memory-blocks.js        # ⚠️ Deprecated
+│   │   └── ... (other legacy tools)
+│   ├── tools/
+│   │   ├── letta-tool-manager.js        # ✅ Consolidated (10 ops)
+│   │   ├── attach-tool.js               # ⚠️ Deprecated
+│   │   └── ... (other legacy tools)
+│   ├── mcp/
+│   │   ├── letta-mcp-ops.js             # ✅ Consolidated (5 ops)
+│   │   ├── list-mcp-servers.js          # ⚠️ Deprecated
+│   │   └── ... (other legacy tools)
+│   ├── sources/
+│   │   └── letta-source-manager.js      # ✅ Consolidated (15 ops)
+│   ├── jobs/
+│   │   └── letta-job-monitor.js         # ✅ Consolidated (4 ops)
+│   ├── files/
+│   │   └── letta-file-folder-ops.js     # ✅ Consolidated (8 ops)
+│   ├── models/
+│   │   ├── list-llm-models.js           # Active (not yet consolidated)
+│   │   └── list-embedding-models.js     # Active (not yet consolidated)
+│   ├── prompts/
+│   │   ├── list-prompts.js              # Active
+│   │   └── use-prompt.js                # Active
+│   ├── schemas/                          # Input schemas for tools
+│   │   ├── agent-ops-schemas.js
+│   │   ├── memory-ops-schemas.js
+│   │   ├── tool-ops-schemas.js
+│   │   ├── mcp-ops-schemas.js
+│   │   ├── source-ops-schemas.js
+│   │   ├── job-ops-schemas.js
+│   │   └── file-ops-schemas.js
+│   ├── index.js                          # Tool registration
+│   ├── enhance-tools.js                  # Tool enhancement pipeline
+│   ├── enhanced-descriptions.js          # Detailed tool descriptions
+│   ├── output-schemas.js                 # Structured output definitions
+│   ├── annotations.js                    # Behavioral hints
+│   └── deprecated-tools.js               # Deprecation mapping
+└── transports/
+    ├── http-transport.js                 # Streamable HTTP (recommended)
+    ├── sse-transport.js                  # Server-Sent Events
+    └── stdio-transport.js                # Standard I/O
+```
+
+### Key Files
+
+- **Consolidated Tools** (`letta-*-*.js`) - Main tool implementations using discriminator pattern
+- **Schemas** (`schemas/*.js`) - Input validation schemas with Zod
+- **Output Schemas** (`output-schemas.js`) - Response structure definitions
+- **Deprecated Tools** (`deprecated-tools.js`) - Migration mapping for old tools
+- **Enhanced Descriptions** (`enhanced-descriptions.js`) - Extended tool documentation
+- **Annotations** (`annotations.js`) - Behavioral metadata (cost, speed, safety)
 
 ## Transport Protocols
 

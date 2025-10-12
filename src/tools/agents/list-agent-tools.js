@@ -47,5 +47,6 @@ export const listAgentToolsDefinition = {
             },
         },
         required: ['agent_id'],
+        additionalProperties: false,
     },
 };

@@ -142,5 +142,6 @@ export const getAgentSummaryDefinition = {
             },
         },
         required: ['agent_id'],
+        additionalProperties: false,
     },
 };

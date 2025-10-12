@@ -67,5 +67,6 @@ export const listAgentsToolDefinition = {
             },
         },
         required: [],
+        additionalProperties: false,
     },
 };

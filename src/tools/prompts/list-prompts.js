@@ -45,6 +45,7 @@ export const listPromptsToolDefinition = {
     inputSchema: {
         type: 'object',
         properties: {},
+        additionalProperties: false,
     },
     outputSchema: {
         type: 'object',
@@ -73,9 +74,11 @@ export const listPromptsToolDefinition = {
                                 },
                             },
                         },
+                        additionalProperties: false,
                     },
                 },
             },
+            additionalProperties: false,
         },
         required: ['total_prompts', 'prompts'],
     },
