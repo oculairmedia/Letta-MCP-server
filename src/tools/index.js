@@ -1,75 +1,87 @@
 // Agent-related imports
-import { handleListAgents, listAgentsToolDefinition } from './agents/list-agents.js';
-import { handlePromptAgent, promptAgentToolDefinition } from './agents/prompt-agent.js';
-import { handleListAgentTools, listAgentToolsDefinition } from './agents/list-agent-tools.js';
-import { handleCreateAgent, createAgentToolDefinition } from './agents/create-agent.js';
-import { handleRetrieveAgent, retrieveAgentDefinition } from './agents/retrieve-agent.js';
-import { handleModifyAgent, modifyAgentDefinition } from './agents/modify-agent.js';
-import { handleDeleteAgent, deleteAgentDefinition } from './agents/delete-agent.js';
-import { handleExportAgent, exportAgentDefinition } from './agents/export-agent.js';
-import { handleImportAgent, importAgentDefinition } from './agents/import-agent.js';
-import { handleCloneAgent, cloneAgentDefinition } from './agents/clone-agent.js';
-import { handleGetAgentSummary, getAgentSummaryDefinition } from './agents/get-agent-summary.js';
-import { handleBulkDeleteAgents, bulkDeleteAgentsDefinition } from './agents/bulk-delete-agents.js';
+// import { handleListAgents, listAgentsToolDefinition } from './agents/list-agents.js';
+// import { handlePromptAgent, promptAgentToolDefinition } from './agents/prompt-agent.js';
+// import { handleListAgentTools, listAgentToolsDefinition } from './agents/list-agent-tools.js';
+// import { handleCreateAgent, createAgentToolDefinition } from './agents/create-agent.js';
+// import { handleRetrieveAgent, retrieveAgentDefinition } from './agents/retrieve-agent.js';
+// import { handleModifyAgent, modifyAgentDefinition } from './agents/modify-agent.js';
+// import { handleDeleteAgent, deleteAgentDefinition } from './agents/delete-agent.js';
+// import { handleExportAgent, exportAgentDefinition } from './agents/export-agent.js';
+// import { handleImportAgent, importAgentDefinition } from './agents/import-agent.js';
+// import { handleCloneAgent, cloneAgentDefinition } from './agents/clone-agent.js';
+// import { handleGetAgentSummary, getAgentSummaryDefinition } from './agents/get-agent-summary.js';
+// import { handleBulkDeleteAgents, bulkDeleteAgentsDefinition } from './agents/bulk-delete-agents.js';
 
 // Memory-related imports
-import {
-    handleListMemoryBlocks,
-    listMemoryBlocksToolDefinition,
-} from './memory/list-memory-blocks.js';
-import {
-    handleReadMemoryBlock,
-    readMemoryBlockToolDefinition,
-} from './memory/read-memory-block.js';
-import {
-    handleUpdateMemoryBlock,
-    updateMemoryBlockToolDefinition,
-} from './memory/update-memory-block.js';
-import {
-    handleAttachMemoryBlock,
-    attachMemoryBlockToolDefinition,
-} from './memory/attach-memory-block.js';
-import {
-    handleCreateMemoryBlock,
-    createMemoryBlockToolDefinition,
-} from './memory/create-memory-block.js';
+// import {
+//     handleListMemoryBlocks,
+//     listMemoryBlocksToolDefinition,
+// } from './memory/list-memory-blocks.js';
+// import {
+//     handleReadMemoryBlock,
+//     readMemoryBlockToolDefinition,
+// } from './memory/read-memory-block.js';
+// import {
+//     handleUpdateMemoryBlock,
+//     updateMemoryBlockToolDefinition,
+// } from './memory/update-memory-block.js';
+// import {
+//     handleAttachMemoryBlock,
+//     attachMemoryBlockToolDefinition,
+// } from './memory/attach-memory-block.js';
+// import {
+//     handleCreateMemoryBlock,
+//     createMemoryBlockToolDefinition,
+// } from './memory/create-memory-block.js';
 
 // Passage-related imports
-import { handleListPassages, listPassagesDefinition } from './passages/list-passages.js';
-import { handleCreatePassage, createPassageDefinition } from './passages/create-passage.js';
-import { handleModifyPassage, modifyPassageDefinition } from './passages/modify-passage.js';
-import { handleDeletePassage, deletePassageDefinition } from './passages/delete-passage.js';
+// import { handleListPassages, listPassagesDefinition } from './passages/list-passages.js';
+// import { handleCreatePassage, createPassageDefinition } from './passages/create-passage.js';
+// import { handleModifyPassage, modifyPassageDefinition } from './passages/modify-passage.js';
+// import { handleDeletePassage, deletePassageDefinition } from './passages/delete-passage.js';
 
 // Tool-related imports
-import { handleAttachTool, attachToolToolDefinition } from './tools/attach-tool.js';
-import {
-    handleBulkAttachToolToAgents,
-    bulkAttachToolDefinition,
-} from './tools/bulk-attach-tool.js';
-import { handleUploadTool, uploadToolToolDefinition } from './tools/upload-tool.js';
+// import { handleAttachTool, attachToolToolDefinition } from './tools/attach-tool.js';
+// import {
+//     handleBulkAttachToolToAgents,
+//     bulkAttachToolDefinition,
+// } from './tools/bulk-attach-tool.js';
+// import { handleUploadTool, uploadToolToolDefinition } from './tools/upload-tool.js';
 import { handleLettaToolManager, lettaToolManagerDefinition } from './tools/letta-tool-manager.js';
-import { handleLettaAgentAdvanced, lettaAgentAdvancedDefinition } from './agents/letta-agent-advanced.js';
-import { handleLettaMemoryUnified, lettaMemoryUnifiedDefinition } from './memory/letta-memory-unified.js';
+import {
+    handleLettaAgentAdvanced,
+    lettaAgentAdvancedDefinition,
+} from './agents/letta-agent-advanced.js';
+import {
+    handleLettaMemoryUnified,
+    lettaMemoryUnifiedDefinition,
+} from './memory/letta-memory-unified.js';
 
 // Source-related imports
-import { handleLettaSourceManager, lettaSourceManagerDefinition } from './sources/letta-source-manager.js';
+import {
+    handleLettaSourceManager,
+    lettaSourceManagerDefinition,
+} from './sources/letta-source-manager.js';
 
 // Job-related imports
 import { handleLettaJobMonitor, lettaJobMonitorDefinition } from './jobs/letta-job-monitor.js';
 
 // File-related imports
-import { handleLettaFileFolderOps, lettaFileFolderOpsDefinition } from './files/letta-file-folder-ops.js';
+import {
+    handleLettaFileFolderOps,
+    lettaFileFolderOpsDefinition,
+} from './files/letta-file-folder-ops.js';
 
 // MCP-related imports
-import {
-    handleListMcpToolsByServer,
-    listMcpToolsByServerDefinition,
-} from './mcp/list-mcp-tools-by-server.js';
-import { handleListMcpServers, listMcpServersDefinition } from './mcp/list-mcp-servers.js';
-import {
-    handleAddMcpToolToLetta,
-    addMcpToolToLettaDefinition,
-} from './mcp/add-mcp-tool-to-letta.js';
+// import {
+//     handleListMcpToolsByServer,
+//     listMcpToolsByServerDefinition,
+// } from './mcp/list-mcp-tools-by-server.js';
+// import { handleListMcpServers, listMcpServersDefinition } from './mcp/list-mcp-servers.js';
+// import {
+//     handleAddMcpToolToLetta,
+//     addMcpToolToLettaDefinition,
+// } from './mcp/add-mcp-tool-to-letta.js';
 import { handleLettaMcpOps, lettaMcpOpsDefinition } from './mcp/letta-mcp-ops.js';
 
 // Model-related imports
@@ -98,35 +110,8 @@ import { enhanceAllTools } from './enhance-tools.js';
 export function registerToolHandlers(server) {
     // Collect all tool definitions
     const allTools = [
-        listAgentsToolDefinition,
-        promptAgentToolDefinition,
-        listAgentToolsDefinition,
-        createAgentToolDefinition,
-        attachToolToolDefinition,
-        listMemoryBlocksToolDefinition,
-        readMemoryBlockToolDefinition,
-        updateMemoryBlockToolDefinition,
-        attachMemoryBlockToolDefinition,
-        createMemoryBlockToolDefinition,
-        uploadToolToolDefinition,
-        listMcpToolsByServerDefinition,
-        listMcpServersDefinition,
-        retrieveAgentDefinition,
-        modifyAgentDefinition,
-        deleteAgentDefinition,
         listLlmModelsDefinition,
         listEmbeddingModelsDefinition,
-        listPassagesDefinition,
-        createPassageDefinition,
-        modifyPassageDefinition,
-        deletePassageDefinition,
-        exportAgentDefinition,
-        importAgentDefinition,
-        cloneAgentDefinition,
-        bulkAttachToolDefinition,
-        getAgentSummaryDefinition,
-        bulkDeleteAgentsDefinition,
-        addMcpToolToLettaDefinition,
         listPromptsToolDefinition,
         usePromptToolDefinition,
         lettaMcpOpsDefinition,
@@ -149,64 +134,10 @@ export function registerToolHandlers(server) {
     // Register tool call handler
     server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
         switch (request.params.name) {
-            case 'list_agents':
-                return handleListAgents(server, request.params.arguments);
-            case 'prompt_agent':
-                return handlePromptAgent(server, request.params.arguments);
-            case 'list_agent_tools':
-                return handleListAgentTools(server, request.params.arguments);
-            case 'create_agent':
-                return handleCreateAgent(server, request.params.arguments);
-            case 'attach_tool':
-                return handleAttachTool(server, request.params.arguments);
-            case 'list_memory_blocks':
-                return handleListMemoryBlocks(server, request.params.arguments);
-            case 'read_memory_block':
-                return handleReadMemoryBlock(server, request.params.arguments);
-            case 'update_memory_block':
-                return handleUpdateMemoryBlock(server, request.params.arguments);
-            case 'attach_memory_block':
-                return handleAttachMemoryBlock(server, request.params.arguments);
-            case 'create_memory_block':
-                return handleCreateMemoryBlock(server, request.params.arguments);
-            case 'upload_tool':
-                return handleUploadTool(server, request.params.arguments);
-            case 'list_mcp_tools_by_server':
-                return handleListMcpToolsByServer(server, request.params.arguments);
-            case 'list_mcp_servers':
-                return handleListMcpServers(server, request.params.arguments);
-            case 'retrieve_agent':
-                return handleRetrieveAgent(server, request.params.arguments);
-            case 'modify_agent':
-                return handleModifyAgent(server, request.params.arguments);
-            case 'delete_agent':
-                return handleDeleteAgent(server, request.params.arguments);
             case 'list_llm_models':
                 return handleListLlmModels(server, request.params.arguments);
             case 'list_embedding_models':
                 return handleListEmbeddingModels(server, request.params.arguments);
-            case 'list_passages':
-                return handleListPassages(server, request.params.arguments);
-            case 'create_passage':
-                return handleCreatePassage(server, request.params.arguments);
-            case 'modify_passage':
-                return handleModifyPassage(server, request.params.arguments);
-            case 'delete_passage':
-                return handleDeletePassage(server, request.params.arguments);
-            case 'export_agent':
-                return handleExportAgent(server, request.params.arguments);
-            case 'import_agent':
-                return handleImportAgent(server, request.params.arguments);
-            case 'clone_agent':
-                return handleCloneAgent(server, request.params.arguments);
-            case 'bulk_attach_tool_to_agents':
-                return handleBulkAttachToolToAgents(server, request.params.arguments);
-            case 'get_agent_summary':
-                return handleGetAgentSummary(server, request.params.arguments);
-            case 'bulk_delete_agents':
-                return handleBulkDeleteAgents(server, request.params.arguments);
-            case 'add_mcp_tool_to_letta':
-                return handleAddMcpToolToLetta(server, request.params.arguments);
             case 'list_prompts':
                 return handleListPrompts(server, request.params.arguments);
             case 'use_prompt':
@@ -236,35 +167,8 @@ export function registerToolHandlers(server) {
 
 // Export all tool definitions (enhanced)
 export const toolDefinitions = enhanceAllTools([
-    listAgentsToolDefinition,
-    promptAgentToolDefinition,
-    listAgentToolsDefinition,
-    createAgentToolDefinition,
-    attachToolToolDefinition,
-    listMemoryBlocksToolDefinition,
-    readMemoryBlockToolDefinition,
-    updateMemoryBlockToolDefinition,
-    attachMemoryBlockToolDefinition,
-    createMemoryBlockToolDefinition,
-    uploadToolToolDefinition,
-    listMcpToolsByServerDefinition,
-    listMcpServersDefinition,
-    retrieveAgentDefinition,
-    modifyAgentDefinition,
-    deleteAgentDefinition,
     listLlmModelsDefinition,
     listEmbeddingModelsDefinition,
-    listPassagesDefinition,
-    createPassageDefinition,
-    modifyPassageDefinition,
-    deletePassageDefinition,
-    exportAgentDefinition,
-    importAgentDefinition,
-    cloneAgentDefinition,
-    bulkAttachToolDefinition,
-    getAgentSummaryDefinition,
-    bulkDeleteAgentsDefinition,
-    addMcpToolToLettaDefinition,
     listPromptsToolDefinition,
     usePromptToolDefinition,
     lettaMcpOpsDefinition,
@@ -278,35 +182,10 @@ export const toolDefinitions = enhanceAllTools([
 
 // Export all tool handlers
 export const toolHandlers = {
-    handleListAgents,
-    handlePromptAgent,
-    handleListAgentTools,
-    handleCreateAgent,
-    handleAttachTool,
-    handleListMemoryBlocks,
-    handleReadMemoryBlock,
-    handleUpdateMemoryBlock,
-    handleAttachMemoryBlock,
-    handleCreateMemoryBlock,
-    handleUploadTool,
-    handleListMcpToolsByServer,
-    handleListMcpServers,
-    handleRetrieveAgent,
-    handleModifyAgent,
-    handleDeleteAgent,
     handleListLlmModels,
     handleListEmbeddingModels,
-    handleListPassages,
-    handleCreatePassage,
-    handleModifyPassage,
-    handleDeletePassage,
-    handleExportAgent,
-    handleImportAgent,
-    handleCloneAgent,
-    handleBulkAttachToolToAgents,
-    handleGetAgentSummary,
-    handleBulkDeleteAgents,
-    handleAddMcpToolToLetta,
+    handleListPrompts,
+    handleUsePrompt,
     handleLettaMcpOps,
     handleLettaToolManager,
     handleLettaAgentAdvanced,
