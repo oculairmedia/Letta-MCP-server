@@ -1,9 +1,11 @@
 services:
   letta-mcp:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: letta-mcp-server:local
+    # Build locally or pull from GitHub Container Registry
+    # Uncomment build section for local development
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    image: ghcr.io/oculairmedia/letta-mcp-server:phase2-crud-operations-complete
     ports:
       - "${PORT:-3001}:3001"
     restart: unless-stopped

@@ -14,9 +14,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Only run if tests passed or this is a tag push
+    # Only run if tests passed, this is a tag push, or push to phase2 branch
     if: >
       github.event_name == 'push' && contains(github.ref, 'refs/tags/') ||
+      github.event_name == 'push' && contains(github.ref, 'phase2-crud-operations-complete') ||
       github.event_name == 'pull_request' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     
