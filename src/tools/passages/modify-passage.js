@@ -157,6 +157,7 @@ export const modifyPassageDefinition = {
                     // Add other fields here if the API supports updating them via PassageUpdate schema
                 },
                 required: ['text'], // Require 'text' within the update_data object
+                additionalProperties: false,
             },
             include_embeddings: {
                 type: 'boolean',
@@ -164,7 +165,6 @@ export const modifyPassageDefinition = {
                     'Whether to include the full embedding vectors in the response (default: false).',
                 default: false,
             },
-            additionalProperties: false,
         },
         required: ['agent_id', 'memory_id', 'update_data'],
         additionalProperties: false,

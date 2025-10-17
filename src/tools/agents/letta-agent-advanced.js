@@ -4,7 +4,10 @@
  */
 import { createLogger } from '../../core/logger.js';
 // eslint-disable-next-line no-unused-vars
-import { agentAdvancedInputSchema, agentAdvancedOutputSchema } from '../schemas/agent-advanced-schemas.js';
+import {
+    agentAdvancedInputSchema,
+    agentAdvancedOutputSchema,
+} from '../schemas/agent-advanced-schemas.js';
 
 const logger = createLogger('letta_agent_advanced');
 
@@ -83,16 +86,13 @@ export async function handleLettaAgentAdvanced(server, args) {
 async function handleListAgents(server, args) {
     const { pagination = {} } = args;
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.list() with pagination
-            return await server.client.agents.list({
-                limit: pagination.limit,
-                offset: pagination.offset,
-            });
-        },
-        'Listing agents'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.list() with pagination
+        return await server.client.agents.list({
+            limit: pagination.limit,
+            offset: pagination.offset,
+        });
+    }, 'Listing agents');
 
     // SDK returns array directly
     const agents = Array.isArray(result) ? result : [];
@@ -104,7 +104,7 @@ async function handleListAgents(server, args) {
                 text: JSON.stringify({
                     success: true,
                     operation: 'list',
-                    agents: agents.map(agent => ({
+                    agents: agents.map((agent) => ({
                         id: agent.id,
                         name: agent.name,
                         description: agent.description,
@@ -130,13 +130,10 @@ async function handleCreateAgent(server, args) {
         throw new Error('agent_data is required for create operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.create() method
-            return await server.client.agents.create(agent_data);
-        },
-        'Creating agent'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.create() method
+        return await server.client.agents.create(agent_data);
+    }, 'Creating agent');
 
     return {
         content: [
@@ -170,13 +167,10 @@ async function handleGetAgent(server, args) {
         throw new Error('agent_id is required for get operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.retrieve() method
-            return await server.client.agents.retrieve(agent_id);
-        },
-        'Getting agent details'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.retrieve() method
+        return await server.client.agents.retrieve(agent_id);
+    }, 'Getting agent details');
 
     // Trim agent object to essential fields only to reduce token usage
     // Full AgentState objects contain 30+ fields including full tools array, memory blocks, etc.
@@ -188,9 +182,9 @@ async function handleGetAgent(server, args) {
         system: result.system,
         llm_config: result.llm_config,
         embedding_config: result.embedding_config,
-        tool_ids: result.tool_ids || [],           // Just IDs, not full tool objects
-        source_ids: result.source_ids || [],       // Just IDs, not full source objects
-        block_ids: result.block_ids || [],         // Just IDs, not full block objects
+        tool_ids: result.tool_ids || [], // Just IDs, not full tool objects
+        source_ids: result.source_ids || [], // Just IDs, not full source objects
+        block_ids: result.block_ids || [], // Just IDs, not full block objects
         message_count: result.message_count,
         created_at: result.created_at,
         updated_at: result.updated_at,
@@ -226,13 +220,10 @@ async function handleUpdateAgent(server, args) {
         throw new Error('agent_data is required for update operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.modify() method
-            return await server.client.agents.modify(agent_id, agent_data);
-        },
-        'Updating agent'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.modify() method
+        return await server.client.agents.modify(agent_id, agent_data);
+    }, 'Updating agent');
 
     return {
         content: [
@@ -261,13 +252,10 @@ async function handleDeleteAgent(server, args) {
         throw new Error('agent_id is required for delete operation');
     }
 
-    await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.delete() method
-            return await server.client.agents.delete(agent_id);
-        },
-        'Deleting agent'
-    );
+    await server.handleSdkCall(async () => {
+        // Use SDK client.agents.delete() method
+        return await server.client.agents.delete(agent_id);
+    }, 'Deleting agent');
 
     return {
         content: [
@@ -296,13 +284,10 @@ async function handleListAgentTools(server, args) {
         throw new Error('agent_id is required for list_tools operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.tools.list() method
-            return await server.client.agents.tools.list(agent_id);
-        },
-        'Listing agent tools'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.tools.list() method
+        return await server.client.agents.tools.list(agent_id);
+    }, 'Listing agent tools');
 
     const tools = Array.isArray(result) ? result : [];
 
@@ -314,7 +299,7 @@ async function handleListAgentTools(server, args) {
                     success: true,
                     operation: 'list_tools',
                     agent_id,
-                    tools: tools.map(tool => ({
+                    tools: tools.map((tool) => ({
                         id: tool.id,
                         name: tool.name,
                         description: tool.description,
@@ -341,13 +326,12 @@ async function handleSendMessage(server, args) {
         throw new Error('message_data is required for send_message operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.messages.create() method
-            return await server.client.agents.messages.create(agent_id, { messages: message_data.messages });
-        },
-        'Sending message to agent'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.messages.create() method
+        return await server.client.agents.messages.create(agent_id, {
+            messages: message_data.messages,
+        });
+    }, 'Sending message to agent');
 
     return {
         content: [
@@ -376,13 +360,10 @@ async function handleExportAgent(server, args) {
         throw new Error('agent_id is required for export operation');
     }
 
-    const exportData = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.exportFile() method
-            return await server.client.agents.exportFile(agent_id);
-        },
-        'Exporting agent configuration'
-    );
+    const exportData = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.exportFile() method
+        return await server.client.agents.exportFile(agent_id);
+    }, 'Exporting agent configuration');
 
     return {
         content: [
@@ -414,12 +395,9 @@ async function handleImportAgent(server, args) {
 
     // SDK importFile expects a file, but we have JSON object
     // Use create() as it's functionally equivalent for JSON imports
-    const result = await server.handleSdkCall(
-        async () => {
-            return await server.client.agents.create(agent_data);
-        },
-        'Importing agent'
-    );
+    const result = await server.handleSdkCall(async () => {
+        return await server.client.agents.create(agent_data);
+    }, 'Importing agent');
 
     return {
         content: [
@@ -452,26 +430,20 @@ async function handleCloneAgent(server, args) {
     }
 
     // Get source agent using SDK
-    const sourceAgent = await server.handleSdkCall(
-        async () => {
-            return await server.client.agents.retrieve(agent_id);
-        },
-        'Getting source agent for cloning'
-    );
+    const sourceAgent = await server.handleSdkCall(async () => {
+        return await server.client.agents.retrieve(agent_id);
+    }, 'Getting source agent for cloning');
 
     // Create new agent with cloned config
     const cloneData = {
         ...sourceAgent,
         name: new_agent_name,
-        id: undefined, // Remove ID to create new agent
     };
+    delete cloneData.id;
 
-    const result = await server.handleSdkCall(
-        async () => {
-            return await server.client.agents.create(cloneData);
-        },
-        'Creating cloned agent'
-    );
+    const result = await server.handleSdkCall(async () => {
+        return await server.client.agents.create(cloneData);
+    }, 'Creating cloned agent');
 
     return {
         content: [
@@ -501,20 +473,16 @@ async function handleGetConfig(server, args) {
         throw new Error('agent_id is required for get_config operation');
     }
 
-    const agent = await server.handleSdkCall(
-        async () => {
-            return await server.client.agents.retrieve(agent_id);
-        },
-        'Getting agent configuration'
-    );
+    const agent = await server.handleSdkCall(async () => {
+        return await server.client.agents.retrieve(agent_id);
+    }, 'Getting agent configuration');
 
     // Get agent's tools using SDK
-    const tools = await server.handleSdkCall(
-        async () => {
+    const tools = await server
+        .handleSdkCall(async () => {
             return await server.client.agents.tools.list(agent_id);
-        },
-        'Getting agent tools'
-    ).catch(() => []);
+        }, 'Getting agent tools')
+        .catch(() => []);
 
     const toolsList = Array.isArray(tools) ? tools : [];
 
@@ -532,7 +500,7 @@ async function handleGetConfig(server, args) {
                         system: agent.system,
                         llm_config: agent.llm_config,
                         embedding_config: agent.embedding_config,
-                        tools: toolsList.map(t => ({ id: t.id, name: t.name })),
+                        tools: toolsList.map((t) => ({ id: t.id, name: t.name })),
                         created_at: agent.created_at,
                         updated_at: agent.updated_at,
                     },
@@ -555,12 +523,9 @@ async function handleBulkDelete(server, args) {
     }
 
     // Get list of all agents using SDK
-    const allAgents = await server.handleSdkCall(
-        async () => {
-            return await server.client.agents.list();
-        },
-        'Listing agents for bulk delete'
-    );
+    const allAgents = await server.handleSdkCall(async () => {
+        return await server.client.agents.list();
+    }, 'Listing agents for bulk delete');
 
     const agents = Array.isArray(allAgents) ? allAgents : [];
 
@@ -568,13 +533,19 @@ async function handleBulkDelete(server, args) {
     let agentsToDelete = [];
 
     if (bulk_delete_filters.agent_ids && bulk_delete_filters.agent_ids.length > 0) {
-        agentsToDelete = agents.filter(a => bulk_delete_filters.agent_ids.includes(a.id));
+        agentsToDelete = agents.filter((a) => bulk_delete_filters.agent_ids.includes(a.id));
     } else {
-        agentsToDelete = agents.filter(agent => {
-            if (bulk_delete_filters.agent_name_filter && !agent.name.includes(bulk_delete_filters.agent_name_filter)) {
+        agentsToDelete = agents.filter((agent) => {
+            if (
+                bulk_delete_filters.agent_name_filter &&
+                !agent.name.includes(bulk_delete_filters.agent_name_filter)
+            ) {
                 return false;
             }
-            if (bulk_delete_filters.agent_tag_filter && !agent.tags?.includes(bulk_delete_filters.agent_tag_filter)) {
+            if (
+                bulk_delete_filters.agent_tag_filter &&
+                !agent.tags?.includes(bulk_delete_filters.agent_tag_filter)
+            ) {
                 return false;
             }
             return true;
@@ -585,19 +556,21 @@ async function handleBulkDelete(server, args) {
     const deleteResults = [];
     for (const agent of agentsToDelete) {
         try {
-            await server.handleSdkCall(
-                async () => {
-                    return await server.client.agents.delete(agent.id);
-                },
-                `Deleting agent ${agent.id}`
-            );
+            await server.handleSdkCall(async () => {
+                return await server.client.agents.delete(agent.id);
+            }, `Deleting agent ${agent.id}`);
             deleteResults.push({ id: agent.id, name: agent.name, success: true });
         } catch (error) {
-            deleteResults.push({ id: agent.id, name: agent.name, success: false, error: error.message });
+            deleteResults.push({
+                id: agent.id,
+                name: agent.name,
+                success: false,
+                error: error.message,
+            });
         }
     }
 
-    const successCount = deleteResults.filter(r => r.success).length;
+    const successCount = deleteResults.filter((r) => r.success).length;
 
     return {
         content: [
@@ -627,12 +600,9 @@ async function handleGetContext(server, args) {
         throw new Error('agent_id is required for context operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            return await server.client.agents.context.retrieve(agent_id);
-        },
-        'Getting agent context'
-    );
+    const result = await server.handleSdkCall(async () => {
+        return await server.client.agents.context.retrieve(agent_id);
+    }, 'Getting agent context');
 
     return {
         content: [
@@ -661,13 +631,10 @@ async function handleResetMessages(server, args) {
         throw new Error('agent_id is required for reset_messages operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.messages.reset() method
-            return await server.client.agents.messages.reset(agent_id);
-        },
-        'Resetting agent messages'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.messages.reset() method
+        return await server.client.agents.messages.reset(agent_id);
+    }, 'Resetting agent messages');
 
     // SDK returns AgentState, extract message count if available
     const resetCount = result.message_count || result.messages?.length || 0;
@@ -699,14 +666,11 @@ async function handleSummarize(server, args) {
         throw new Error('agent_id is required for summarize operation');
     }
 
-    await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.messages.summarize() method
-            // Note: SDK method returns void, just triggers the summarization
-            return await server.client.agents.messages.summarize(agent_id, { maxMessageLength: 1000 });
-        },
-        'Generating conversation summary'
-    );
+    await server.handleSdkCall(async () => {
+        // Use SDK client.agents.messages.summarize() method
+        // Note: SDK method returns void, just triggers the summarization
+        return await server.client.agents.messages.summarize(agent_id, { maxMessageLength: 1000 });
+    }, 'Generating conversation summary');
 
     return {
         content: [
@@ -740,15 +704,12 @@ async function handleStream(server, args) {
 
     // SDK createStream returns a Stream object for direct consumption
     // For MCP protocol, we may need to handle this differently
-    const stream = await server.handleSdkCall(
-        async () => {
-            return await server.client.agents.messages.createStream(agent_id, {
-                messages: message_data.messages,
-                streamTokens: message_data.stream || true,
-            });
-        },
-        'Starting message stream'
-    );
+    const stream = await server.handleSdkCall(async () => {
+        return await server.client.agents.messages.createStream(agent_id, {
+            messages: message_data.messages,
+            streamTokens: message_data.stream || true,
+        });
+    }, 'Starting message stream');
 
     // Note: Stream object cannot be easily serialized over MCP
     // This operation may need transport-specific handling
@@ -760,7 +721,8 @@ async function handleStream(server, args) {
                     success: true,
                     operation: 'stream',
                     agent_id,
-                    message: 'Stream initiated via SDK. Note: Stream object requires special handling for MCP transport.',
+                    message:
+                        'Stream initiated via SDK. Note: Stream object requires special handling for MCP transport.',
                     stream_type: typeof stream,
                 }),
             },
@@ -782,15 +744,12 @@ async function handleAsyncMessage(server, args) {
         throw new Error('message_data is required for async_message operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.messages.createAsync() method
-            return await server.client.agents.messages.createAsync(agent_id, {
-                messages: message_data.messages,
-            });
-        },
-        'Sending async message'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.messages.createAsync() method
+        return await server.client.agents.messages.createAsync(agent_id, {
+            messages: message_data.messages,
+        });
+    }, 'Sending async message');
 
     return {
         content: [
@@ -822,14 +781,11 @@ async function handleCancelMessage(server, args) {
         throw new Error('message_id is required for cancel_message operation');
     }
 
-    await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.messages.cancel() method
-            // Note: message_id here is actually run_id for canceling async runs
-            return await server.client.agents.messages.cancel(agent_id, { runIds: [message_id] });
-        },
-        'Cancelling message'
-    );
+    await server.handleSdkCall(async () => {
+        // Use SDK client.agents.messages.cancel() method
+        // Note: message_id here is actually run_id for canceling async runs
+        return await server.client.agents.messages.cancel(agent_id, { runIds: [message_id] });
+    }, 'Cancelling message');
 
     return {
         content: [
@@ -862,15 +818,12 @@ async function handlePreviewPayload(server, args) {
         throw new Error('message_data is required for preview_payload operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.messages.preview() method
-            return await server.client.agents.messages.preview(agent_id, {
-                messages: message_data.messages,
-            });
-        },
-        'Generating payload preview'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.messages.preview() method
+        return await server.client.agents.messages.preview(agent_id, {
+            messages: message_data.messages,
+        });
+    }, 'Generating payload preview');
 
     return {
         content: [
@@ -901,17 +854,14 @@ async function handleSearchMessages(server, args) {
     }
 
     try {
-        const result = await server.handleSdkCall(
-            async () => {
-                // SDK messages.search() - cloud-only feature
-                return await server.client.agents.messages.search({
-                    query: search_query,
-                    agentId: agent_id,
-                    ...filters,
-                });
-            },
-            'Searching messages'
-        );
+        const result = await server.handleSdkCall(async () => {
+            // SDK messages.search() - cloud-only feature
+            return await server.client.agents.messages.search({
+                query: search_query,
+                agentId: agent_id,
+                ...filters,
+            });
+        }, 'Searching messages');
 
         const messages = Array.isArray(result) ? result : [];
 
@@ -923,7 +873,7 @@ async function handleSearchMessages(server, args) {
                         success: true,
                         operation: 'search_messages',
                         agent_id,
-                        messages: messages.map(msg => ({
+                        messages: messages.map((msg) => ({
                             id: msg.id,
                             role: msg.role,
                             content: msg.content || msg.text,
@@ -937,22 +887,24 @@ async function handleSearchMessages(server, args) {
         };
     } catch (error) {
         // If search fails (e.g., on self-hosted), fall back to listing messages
-        const messages = await server.handleSdkCall(
-            async () => {
-                return await server.client.agents.messages.list(agent_id);
-            },
-            'Listing messages (search fallback)'
-        );
+        const messages = await server.handleSdkCall(async () => {
+            return await server.client.agents.messages.list(agent_id);
+        }, 'Listing messages (search fallback)');
 
-        const filtered = Array.isArray(messages) ? messages.filter(msg => {
-            if (search_query && !JSON.stringify(msg).toLowerCase().includes(search_query.toLowerCase())) {
-                return false;
-            }
-            if (filters.role && msg.role !== filters.role) {
-                return false;
-            }
-            return true;
-        }) : [];
+        const filtered = Array.isArray(messages)
+            ? messages.filter((msg) => {
+                  if (
+                      search_query &&
+                      !JSON.stringify(msg).toLowerCase().includes(search_query.toLowerCase())
+                  ) {
+                      return false;
+                  }
+                  if (filters.role && msg.role !== filters.role) {
+                      return false;
+                  }
+                  return true;
+              })
+            : [];
 
         return {
             content: [
@@ -962,7 +914,7 @@ async function handleSearchMessages(server, args) {
                         success: true,
                         operation: 'search_messages',
                         agent_id,
-                        messages: filtered.map(msg => ({
+                        messages: filtered.map((msg) => ({
                             id: msg.id,
                             role: msg.role,
                             content: msg.content || msg.text,
@@ -994,14 +946,11 @@ async function handleGetMessage(server, args) {
     }
 
     // SDK doesn't have messages.retrieve(message_id), use list and filter
-    const messages = await server.handleSdkCall(
-        async () => {
-            return await server.client.agents.messages.list(agent_id);
-        },
-        'Listing messages to find specific message'
-    );
+    const messages = await server.handleSdkCall(async () => {
+        return await server.client.agents.messages.list(agent_id);
+    }, 'Listing messages to find specific message');
 
-    const result = Array.isArray(messages) ? messages.find(m => m.id === message_id) : null;
+    const result = Array.isArray(messages) ? messages.find((m) => m.id === message_id) : null;
 
     if (!result) {
         throw new Error(`Message ${message_id} not found`);
@@ -1040,12 +989,9 @@ async function handleCount(server, args) {
 
     // If agent_id provided, this was intended as message count - not supported by SDK
     // Count agents instead as that's what SDK provides
-    const count = await server.handleSdkCall(
-        async () => {
-            return await server.client.agents.count();
-        },
-        'Counting agents'
-    );
+    const count = await server.handleSdkCall(async () => {
+        return await server.client.agents.count();
+    }, 'Counting agents');
 
     return {
         content: [
@@ -1056,7 +1002,9 @@ async function handleCount(server, args) {
                     operation: 'count',
                     count,
                     message: `Total agents: ${count}`,
-                    note: agent_id ? 'Agent-specific message counting requires using list operation with filters' : undefined,
+                    note: agent_id
+                        ? 'Agent-specific message counting requires using list operation with filters'
+                        : undefined,
                 }),
             },
         ],

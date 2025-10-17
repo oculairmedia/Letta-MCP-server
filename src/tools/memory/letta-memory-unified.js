@@ -4,7 +4,10 @@
  */
 import { createLogger } from '../../core/logger.js';
 // eslint-disable-next-line no-unused-vars
-import { memoryUnifiedInputSchema, memoryUnifiedOutputSchema } from '../schemas/memory-unified-schemas.js';
+import {
+    memoryUnifiedInputSchema,
+    memoryUnifiedOutputSchema,
+} from '../schemas/memory-unified-schemas.js';
 
 const logger = createLogger('letta_memory_unified');
 
@@ -74,13 +77,10 @@ async function handleGetCoreMemory(server, args) {
         throw new Error('agent_id is required for get_core_memory operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.coreMemory.retrieve() method
-            return await server.client.agents.coreMemory.retrieve(agent_id);
-        },
-        'Getting core memory'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.coreMemory.retrieve() method
+        return await server.client.agents.coreMemory.retrieve(agent_id);
+    }, 'Getting core memory');
 
     return {
         content: [
@@ -121,40 +121,27 @@ async function handleUpdateCoreMemory(server, args) {
     const updates = [];
 
     if (memory_data.persona !== undefined) {
-        const personaUpdate = await server.handleSdkCall(
-            async () => {
-                return await server.client.agents.blocks.modify(
-                    agent_id,
-                    'persona',
-                    { value: memory_data.persona }
-                );
-            },
-            'Updating persona block'
-        );
+        const personaUpdate = await server.handleSdkCall(async () => {
+            return await server.client.agents.blocks.modify(agent_id, 'persona', {
+                value: memory_data.persona,
+            });
+        }, 'Updating persona block');
         updates.push(personaUpdate);
     }
 
     if (memory_data.human !== undefined) {
-        const humanUpdate = await server.handleSdkCall(
-            async () => {
-                return await server.client.agents.blocks.modify(
-                    agent_id,
-                    'human',
-                    { value: memory_data.human }
-                );
-            },
-            'Updating human block'
-        );
+        const humanUpdate = await server.handleSdkCall(async () => {
+            return await server.client.agents.blocks.modify(agent_id, 'human', {
+                value: memory_data.human,
+            });
+        }, 'Updating human block');
         updates.push(humanUpdate);
     }
 
     // Get updated core memory to return
-    const result = await server.handleSdkCall(
-        async () => {
-            return await server.client.agents.coreMemory.retrieve(agent_id);
-        },
-        'Getting updated core memory'
-    );
+    const result = await server.handleSdkCall(async () => {
+        return await server.client.agents.coreMemory.retrieve(agent_id);
+    }, 'Getting updated core memory');
 
     return {
         content: [
@@ -187,13 +174,10 @@ async function handleGetBlockByLabel(server, args) {
         throw new Error('block_label is required for get_block_by_label operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.blocks.retrieve() method
-            return await server.client.agents.blocks.retrieve(agent_id, block_label);
-        },
-        'Getting memory block by label'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.blocks.retrieve() method
+        return await server.client.agents.blocks.retrieve(agent_id, block_label);
+    }, 'Getting memory block by label');
 
     return {
         content: [
@@ -228,13 +212,10 @@ async function handleListBlocks(server, args) {
         throw new Error('agent_id is required for list_blocks operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.blocks.list() method
-            return await server.client.agents.blocks.list(agent_id);
-        },
-        'Listing memory blocks'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.blocks.list() method
+        return await server.client.agents.blocks.list(agent_id);
+    }, 'Listing memory blocks');
 
     const blocks = Array.isArray(result) ? result : result.blocks || [];
 
@@ -246,7 +227,7 @@ async function handleListBlocks(server, args) {
                     success: true,
                     operation: 'list_blocks',
                     agent_id,
-                    blocks: blocks.map(block => ({
+                    blocks: blocks.map((block) => ({
                         id: block.id,
                         label: block.label,
                         value: block.value,
@@ -276,13 +257,10 @@ async function handleCreateBlock(server, args) {
         throw new Error('block_data.value is required for create_block operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.blocks.create() method
-            return await server.client.blocks.create(block_data);
-        },
-        'Creating memory block'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.blocks.create() method
+        return await server.client.blocks.create(block_data);
+    }, 'Creating memory block');
 
     return {
         content: [
@@ -316,13 +294,10 @@ async function handleGetBlock(server, args) {
         throw new Error('block_id is required for get_block operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.blocks.retrieve() method
-            return await server.client.blocks.retrieve(block_id);
-        },
-        'Getting memory block'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.blocks.retrieve() method
+        return await server.client.blocks.retrieve(block_id);
+    }, 'Getting memory block');
 
     return {
         content: [
@@ -359,13 +334,10 @@ async function handleUpdateBlock(server, args) {
         throw new Error('block_data is required for update_block operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.blocks.modify() method
-            return await server.client.blocks.modify(block_id, block_data);
-        },
-        'Updating memory block'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.blocks.modify() method
+        return await server.client.blocks.modify(block_id, block_data);
+    }, 'Updating memory block');
 
     return {
         content: [
@@ -397,13 +369,10 @@ async function handleAttachBlock(server, args) {
         throw new Error('block_id is required for attach_block operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.blocks.attach() method
-            return await server.client.agents.blocks.attach(agent_id, block_id);
-        },
-        'Attaching memory block to agent'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.blocks.attach() method
+        return await server.client.agents.blocks.attach(agent_id, block_id);
+    }, 'Attaching memory block to agent');
 
     return {
         content: [
@@ -437,13 +406,10 @@ async function handleDetachBlock(server, args) {
         throw new Error('block_id is required for detach_block operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.blocks.detach() method
-            return await server.client.agents.blocks.detach(agent_id, block_id);
-        },
-        'Detaching memory block'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.blocks.detach() method
+        return await server.client.agents.blocks.detach(agent_id, block_id);
+    }, 'Detaching memory block');
 
     return {
         content: [
@@ -476,12 +442,9 @@ async function handleListAgentsUsingBlock(server, args) {
     }
 
     // Get block details which may include agent references
-    const block = await server.handleSdkCall(
-        async () => {
-            return await server.client.blocks.retrieve(block_id);
-        },
-        'Getting block details for agent list'
-    );
+    const block = await server.handleSdkCall(async () => {
+        return await server.client.blocks.retrieve(block_id);
+    }, 'Getting block details for agent list');
 
     // If SDK doesn't provide agent list directly, we need to fall back to axios
     // Check if block.agents exists, otherwise make direct API call
@@ -489,18 +452,18 @@ async function handleListAgentsUsingBlock(server, args) {
     if (block.agents) {
         agents = Array.isArray(block.agents) ? block.agents : [];
     } else {
-        // Fallback to direct API call if SDK doesn't support this endpoint
-        const result = await server.handleSdkCall(
-            async () => {
-                const headers = server.getApiHeaders();
-                const response = await server.api.get(
-                    `/memory/blocks/${encodeURIComponent(block_id)}/agents`,
-                    { headers }
-                );
-                return response.data;
-            },
-            'Listing agents using block (API fallback)'
-        );
+        // TODO(LMS-512): Replace this fallback once the SDK can list agents for a block.
+        // Direct API access is required because @letta-ai/letta-client currently lacks this endpoint;
+        // using server.getApiHeaders() and wrapping the request with server.handleSdkCall() keeps auth and
+        // error handling consistent until the SDK supports the operation.
+        const result = await server.handleSdkCall(async () => {
+            const headers = server.getApiHeaders();
+            const response = await server.api.get(
+                `/memory/blocks/${encodeURIComponent(block_id)}/agents`,
+                { headers },
+            );
+            return response.data;
+        }, 'Listing agents using block (API fallback)');
         agents = Array.isArray(result) ? result : result.agents || [];
     }
 
@@ -512,7 +475,7 @@ async function handleListAgentsUsingBlock(server, args) {
                     success: true,
                     operation: 'list_agents_using_block',
                     block_id,
-                    agents: agents.map(agent => ({
+                    agents: agents.map((agent) => ({
                         id: agent.id,
                         name: agent.name || agent.agent_name,
                     })),
@@ -537,16 +500,13 @@ async function handleSearchArchival(server, args) {
         throw new Error('search_query is required for search_archival operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.passages.search() method
-            return await server.client.agents.passages.search(agent_id, {
-                query: search_query,
-                ...search_options,
-            });
-        },
-        'Searching archival memory'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.passages.search() method
+        return await server.client.agents.passages.search(agent_id, {
+            query: search_query,
+            ...search_options,
+        });
+    }, 'Searching archival memory');
 
     const searchResults = Array.isArray(result) ? result : result.results || result.passages || [];
 
@@ -558,7 +518,7 @@ async function handleSearchArchival(server, args) {
                     success: true,
                     operation: 'search_archival',
                     agent_id,
-                    search_results: searchResults.map(item => ({
+                    search_results: searchResults.map((item) => ({
                         id: item.id,
                         text: item.text || item.content,
                         timestamp: item.timestamp || item.created_at,
@@ -582,13 +542,10 @@ async function handleListPassages(server, args) {
         throw new Error('agent_id is required for list_passages operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.passages.list() method
-            return await server.client.agents.passages.list(agent_id, pagination);
-        },
-        'Listing passages'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.passages.list() method
+        return await server.client.agents.passages.list(agent_id, pagination);
+    }, 'Listing passages');
 
     const passages = Array.isArray(result) ? result : result.passages || result.results || [];
 
@@ -600,7 +557,7 @@ async function handleListPassages(server, args) {
                     success: true,
                     operation: 'list_passages',
                     agent_id,
-                    passages: passages.map(p => ({
+                    passages: passages.map((p) => ({
                         id: p.id,
                         text: p.text || p.content,
                         timestamp: p.timestamp || p.created_at,
@@ -629,14 +586,11 @@ async function handleCreatePassage(server, args) {
         throw new Error('passage_data.text is required for create_passage operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.passages.create() method
-            // SDK returns array of created passages
-            return await server.client.agents.passages.create(agent_id, passage_data);
-        },
-        'Creating passage'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.passages.create() method
+        // SDK returns array of created passages
+        return await server.client.agents.passages.create(agent_id, passage_data);
+    }, 'Creating passage');
 
     // SDK may return array of passages
     const passages = Array.isArray(result) ? result : [result];
@@ -682,14 +636,11 @@ async function handleUpdatePassage(server, args) {
     }
 
     // SDK modify() returns void, so we just call it
-    await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.passages.modify() method
-            // Note: SDK method signature is modify(agentId, memoryId) - doesn't take passage_data
-            return await server.client.agents.passages.modify(agent_id, passage_id);
-        },
-        'Updating passage'
-    );
+    await server.handleSdkCall(async () => {
+        // Use SDK client.agents.passages.modify() method
+        // Note: SDK method signature is modify(agentId, memoryId) - doesn't take passage_data
+        return await server.client.agents.passages.modify(agent_id, passage_id);
+    }, 'Updating passage');
 
     return {
         content: [
@@ -721,13 +672,10 @@ async function handleDeletePassage(server, args) {
         throw new Error('passage_id is required for delete_passage operation');
     }
 
-    await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.passages.delete() method
-            return await server.client.agents.passages.delete(agent_id, passage_id);
-        },
-        'Deleting passage'
-    );
+    await server.handleSdkCall(async () => {
+        // Use SDK client.agents.passages.delete() method
+        return await server.client.agents.passages.delete(agent_id, passage_id);
+    }, 'Deleting passage');
 
     return {
         content: [

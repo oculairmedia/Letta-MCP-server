@@ -14,7 +14,11 @@ export function enhanceToolDefinition(toolDefinition) {
     // Add deprecation notice if tool is deprecated
     const deprecationNotice = getDeprecationNotice(toolDefinition.name);
     if (deprecationNotice) {
-        enhanced.description = `${deprecationNotice}\n\n${enhanced.description}`;
+        const existingDescription =
+            typeof enhanced.description === 'string' ? enhanced.description.trim() : '';
+        enhanced.description = existingDescription
+            ? `${deprecationNotice}\n\n${existingDescription}`
+            : deprecationNotice;
     }
 
     // Add output schema if available

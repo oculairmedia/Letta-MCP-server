@@ -5,26 +5,30 @@
 
 import axios from 'axios';
 
-const MCP_BASE_URL = 'http://192.168.50.90:3001/mcp';
+const MCP_ENDPOINT = process.env.MCP_ENDPOINT?.trim() || 'http://localhost:3001/mcp';
 let sessionId = null;
 
 // Helper to make MCP requests
 async function mcpRequest(method, params = {}) {
     const headers = {
         'Content-Type': 'application/json',
-        'Accept': 'application/json, text/event-stream',
+        Accept: 'application/json, text/event-stream',
     };
 
     if (sessionId) {
         headers['mcp-session-id'] = sessionId;
     }
 
-    const response = await axios.post(MCP_BASE_URL, {
-        jsonrpc: '2.0',
-        method,
-        params,
-        id: Date.now(),
-    }, { headers });
+    const response = await axios.post(
+        MCP_ENDPOINT,
+        {
+            jsonrpc: '2.0',
+            method,
+            params,
+            id: Date.now(),
+        },
+        { headers },
+    );
 
     // Handle SSE response - extract JSON from event data
     if (typeof response.data === 'string' && response.data.includes('data: ')) {
@@ -51,19 +55,23 @@ async function callTool(toolName, args) {
 async function initialize() {
     const headers = {
         'Content-Type': 'application/json',
-        'Accept': 'application/json, text/event-stream',
+        Accept: 'application/json, text/event-stream',
     };
 
-    const response = await axios.post(MCP_BASE_URL, {
-        jsonrpc: '2.0',
-        method: 'initialize',
-        params: {
-            protocolVersion: '2025-06-18',
-            capabilities: {},
-            clientInfo: { name: 'phase2-test', version: '1.0.0' },
+    const response = await axios.post(
+        MCP_ENDPOINT,
+        {
+            jsonrpc: '2.0',
+            method: 'initialize',
+            params: {
+                protocolVersion: '2025-06-18',
+                capabilities: {},
+                clientInfo: { name: 'phase2-test', version: '1.0.0' },
+            },
+            id: Date.now(),
         },
-        id: Date.now(),
-    }, { headers });
+        { headers },
+    );
 
     // Check for session ID in response headers (mcp-session-id)
     if (response.headers['mcp-session-id']) {

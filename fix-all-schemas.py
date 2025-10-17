@@ -21,11 +21,12 @@ def add_additional_properties(content):
             has_properties = False
             has_additional_properties = False
             closing_brace_line = None
-            brace_depth = 0
+            brace_depth = 0  # initialize before counting braces
             j = i
 
             # Count opening braces on current line
-            brace_depth += line.count('{') - line.count('}')
+            current_line_brace_delta = line.count('{') - line.count('}')
+            brace_depth += current_line_brace_delta
 
             # Scan forward
             for j in range(i + 1, min(i + 200, len(lines))):

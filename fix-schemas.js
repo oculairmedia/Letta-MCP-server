@@ -30,15 +30,19 @@ function fixSchemaFile(filePath) {
                 // Count braces to track depth
                 const openBraces = (line.match(/{/g) || []).length;
                 const closeBraces = (line.match(/}/g) || []).length;
+                const braceDelta = openBraces - closeBraces;
+
+                if (!startedObject && openBraces > 0) {
+                    startedObject = true;
+                }
 
                 if (j === i) {
-                    // First line might have opening brace
-                    if (line.includes('{')) {
-                        startedObject = true;
-                        braceDepth = 1;
-                    }
+                    braceDepth = braceDelta;
                 } else {
-                    braceDepth += openBraces - closeBraces;
+                    braceDepth += braceDelta;
+                    if (!startedObject && braceDepth > 0) {
+                        startedObject = true;
+                    }
                 }
 
                 if (line.includes('properties:')) {
@@ -66,15 +70,15 @@ function fixSchemaFile(filePath) {
                 const additionalPropsLine = `${indent}    additionalProperties: false,`;
 
                 // We need to insert this line before the closing brace
-                // Skip ahead to where we'll insert it
-                let insertIndex = closingBraceIndex;
                 for (let k = i + 1; k < closingBraceIndex; k++) {
                     newLines.push(lines[k]);
                 }
 
                 newLines.push(additionalPropsLine);
+                newLines.push(closingLine);
                 modified = true;
-                i = closingBraceIndex - 1; // Continue from after the object
+                i = closingBraceIndex;
+                continue; // Skip processing the closing brace again
             }
         }
     }
