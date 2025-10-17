@@ -54,7 +54,9 @@ export class LettaServer {
         }
 
         // Initialize axios instance (keep for backward compatibility)
-        this.apiBase = `${this.apiBase}/v1`;
+        if (!this.apiBase.endsWith('/v1')) {
+            this.apiBase = `${this.apiBase}/v1`;
+        }
 
         // Configure HTTP/HTTPS agents with connection pooling
         // These settings follow best practices for production environments:
@@ -64,9 +66,9 @@ export class LettaServer {
         // - timeout: Socket timeout for connection establishment
         const httpAgent = new http.Agent({
             keepAlive: true,
-            maxSockets: 50,        // Max concurrent connections per host
-            maxFreeSockets: 10,    // Keep 10 connections warm in pool
-            timeout: 60000,        // 60s socket timeout
+            maxSockets: 50, // Max concurrent connections per host
+            maxFreeSockets: 10, // Keep 10 connections warm in pool
+            timeout: 60000, // 60s socket timeout
         });
 
         const httpsAgent = new https.Agent({
@@ -84,7 +86,7 @@ export class LettaServer {
             },
             httpAgent,
             httpsAgent,
-            timeout: 30000,        // 30s request timeout (same as SDK)
+            timeout: 30000, // 30s request timeout (same as SDK)
         });
 
         // Initialize Letta SDK client
@@ -212,9 +214,8 @@ export class LettaServer {
 
                 // Include response body if available
                 if (error.body) {
-                    const bodyStr = typeof error.body === 'string'
-                        ? error.body
-                        : JSON.stringify(error.body);
+                    const bodyStr =
+                        typeof error.body === 'string' ? error.body : JSON.stringify(error.body);
                     errorMessage += `\nBody: ${bodyStr}`;
                 }
             }
@@ -227,9 +228,10 @@ export class LettaServer {
 
                 // Include response data if available
                 if (error.response.data) {
-                    const dataStr = typeof error.response.data === 'string'
-                        ? error.response.data
-                        : JSON.stringify(error.response.data);
+                    const dataStr =
+                        typeof error.response.data === 'string'
+                            ? error.response.data
+                            : JSON.stringify(error.response.data);
                     errorMessage += ` - ${dataStr}`;
                 }
             }

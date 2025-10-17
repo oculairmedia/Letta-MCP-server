@@ -6,7 +6,6 @@ import { createMockLettaServer } from '../utils/mock-server.js';
 // Mock dependencies
 vi.mock('@modelcontextprotocol/sdk/server/index.js');
 vi.mock('axios');
-vi.mock('../../core/logger.js');
 
 describe('LettaServer Error Handling (LMP-83)', () => {
     let server;

@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { handleLettaToolManager, lettaToolManagerDefinition } from '../tools/letta-tool-manager.js';
 
-// Mock server with API client
+// Mock server with API client and SDK client
 const createMockServer = () => ({
     api: {
         get: vi.fn(),
@@ -12,6 +12,131 @@ const createMockServer = () => ({
         put: vi.fn(),
         delete: vi.fn(),
         patch: vi.fn(),
+    },
+    client: {
+        // Top-level tools methods
+        tools: {
+            list: vi.fn(),
+            retrieve: vi.fn(),
+            create: vi.fn(),
+            modify: vi.fn(),
+            delete: vi.fn(),
+            upsert: vi.fn(),
+            addMcpServer: vi.fn(),
+            updateMcpServer: vi.fn(),
+            deleteMcpServer: vi.fn(),
+            testMcpServer: vi.fn(),
+            connectMcpServer: vi.fn(),
+            listMcpServers: vi.fn(),
+            listMcpToolsByServer: vi.fn(),
+            addMcpTool: vi.fn(),
+            upsertBaseTools: vi.fn(),
+            runToolFromSource: vi.fn(),
+        },
+
+        // Agents methods
+        agents: {
+            list: vi.fn(),
+            retrieve: vi.fn(),
+            create: vi.fn(),
+            modify: vi.fn(),
+            delete: vi.fn(),
+            destroy: vi.fn(),
+
+            // Agent tools methods
+            tools: {
+                list: vi.fn(),
+                attach: vi.fn(),
+                detach: vi.fn(),
+            },
+
+            // Agent core memory methods
+            coreMemory: {
+                get: vi.fn(),
+                update: vi.fn(),
+            },
+
+            // Agent blocks methods
+            blocks: {
+                list: vi.fn(),
+                retrieve: vi.fn(),
+                create: vi.fn(),
+                update: vi.fn(),
+                destroy: vi.fn(),
+                attach: vi.fn(),
+                detach: vi.fn(),
+            },
+
+            // Agent passages methods
+            passages: {
+                list: vi.fn(),
+                retrieve: vi.fn(),
+                create: vi.fn(),
+                update: vi.fn(),
+                destroy: vi.fn(),
+            },
+
+            // Agent messages methods
+            messages: {
+                list: vi.fn(),
+                create: vi.fn(),
+            },
+
+            // Agent sources methods
+            sources: {
+                list: vi.fn(),
+                attach: vi.fn(),
+                detach: vi.fn(),
+            },
+
+            // Agent files methods
+            files: {
+                list: vi.fn(),
+                attach: vi.fn(),
+                detach: vi.fn(),
+            },
+
+            // Agent folders methods
+            folders: {
+                list: vi.fn(),
+                attach: vi.fn(),
+                detach: vi.fn(),
+            },
+        },
+
+        // Standalone blocks methods
+        blocks: {
+            list: vi.fn(),
+            retrieve: vi.fn(),
+            create: vi.fn(),
+            update: vi.fn(),
+            destroy: vi.fn(),
+        },
+
+        // Sources methods
+        sources: {
+            list: vi.fn(),
+            retrieve: vi.fn(),
+            create: vi.fn(),
+            modify: vi.fn(),
+            delete: vi.fn(),
+        },
+
+        // Jobs methods
+        jobs: {
+            list: vi.fn(),
+            retrieve: vi.fn(),
+            cancel: vi.fn(),
+        },
+
+        // Folders methods
+        folders: {
+            list: vi.fn(),
+            retrieve: vi.fn(),
+            create: vi.fn(),
+            update: vi.fn(),
+            delete: vi.fn(),
+        },
     },
     getApiHeaders: vi.fn(() => ({
         'Content-Type': 'application/json',
@@ -37,10 +162,13 @@ describe('letta_tool_manager', () => {
             expect(lettaToolManagerDefinition.inputSchema.properties.operation.enum).toEqual([
                 'list',
                 'get',
+                'create',
                 'update',
                 'delete',
                 'upsert',
+                'attach',
                 'detach',
+                'bulk_attach',
                 'generate_from_prompt',
                 'generate_schema',
                 'run_from_source',
@@ -60,16 +188,13 @@ describe('letta_tool_manager', () => {
                 { id: 'tool-2', name: 'Tool 2', description: 'Test tool 2', tags: ['demo'] },
             ];
 
-            mockServer.api.get.mockResolvedValue({ data: mockTools });
+            mockServer.client.tools.list.mockResolvedValue(mockTools);
 
             const result = await handleLettaToolManager(mockServer, {
                 operation: 'list',
             });
 
-            expect(mockServer.api.get).toHaveBeenCalledWith(
-                '/tools/',
-                expect.objectContaining({ headers: expect.any(Object) })
-            );
+            expect(mockServer.client.tools.list).toHaveBeenCalledWith({});
 
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
@@ -79,26 +204,24 @@ describe('letta_tool_manager', () => {
         });
 
         it('should apply pagination parameters', async () => {
-            mockServer.api.get.mockResolvedValue({ data: [] });
+            mockServer.client.tools.list.mockResolvedValue([]);
 
             await handleLettaToolManager(mockServer, {
                 operation: 'list',
                 options: {
                     pagination: {
                         limit: 10,
-                        offset: 20,
                     },
                 },
             });
 
-            expect(mockServer.api.get).toHaveBeenCalledWith(
-                '/tools/?limit=10&offset=20',
-                expect.any(Object)
-            );
+            expect(mockServer.client.tools.list).toHaveBeenCalledWith({
+                limit: 10,
+            });
         });
 
         it('should apply filter parameters', async () => {
-            mockServer.api.get.mockResolvedValue({ data: [] });
+            mockServer.client.tools.list.mockResolvedValue([]);
 
             await handleLettaToolManager(mockServer, {
                 operation: 'list',
@@ -111,11 +234,11 @@ describe('letta_tool_manager', () => {
                 },
             });
 
-            const callArg = mockServer.api.get.mock.calls[0][0];
-            expect(callArg).toContain('name=search');
-            expect(callArg).toContain('tags=python');
-            expect(callArg).toContain('tags=utility');
-            expect(callArg).toContain('source_type=python');
+            expect(mockServer.client.tools.list).toHaveBeenCalledWith({
+                name: 'search',
+                tags: ['python', 'utility'],
+                source_type: 'python',
+            });
         });
     });
 
@@ -130,17 +253,14 @@ describe('letta_tool_manager', () => {
                 json_schema: { type: 'object' },
             };
 
-            mockServer.api.get.mockResolvedValue({ data: mockTool });
+            mockServer.client.tools.retrieve.mockResolvedValue(mockTool);
 
             const result = await handleLettaToolManager(mockServer, {
                 operation: 'get',
                 tool_id: 'tool-123',
             });
 
-            expect(mockServer.api.get).toHaveBeenCalledWith(
-                '/tools/tool-123',
-                expect.any(Object)
-            );
+            expect(mockServer.client.tools.retrieve).toHaveBeenCalledWith('tool-123');
 
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
@@ -153,7 +273,7 @@ describe('letta_tool_manager', () => {
             await expect(
                 handleLettaToolManager(mockServer, {
                     operation: 'get',
-                })
+                }),
             ).rejects.toThrow('tool_id is required');
         });
     });
@@ -166,8 +286,9 @@ describe('letta_tool_manager', () => {
                 source_code: 'def updated(): pass',
             };
 
-            mockServer.api.put.mockResolvedValue({
-                data: { id: 'tool-123', ...toolData },
+            mockServer.client.tools.modify.mockResolvedValue({
+                id: 'tool-123',
+                ...toolData,
             });
 
             const result = await handleLettaToolManager(mockServer, {
@@ -176,11 +297,7 @@ describe('letta_tool_manager', () => {
                 tool_data: toolData,
             });
 
-            expect(mockServer.api.put).toHaveBeenCalledWith(
-                '/tools/tool-123',
-                toolData,
-                expect.any(Object)
-            );
+            expect(mockServer.client.tools.modify).toHaveBeenCalledWith('tool-123', toolData);
 
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
@@ -193,7 +310,7 @@ describe('letta_tool_manager', () => {
                 handleLettaToolManager(mockServer, {
                     operation: 'update',
                     tool_data: { name: 'test' },
-                })
+                }),
             ).rejects.toThrow('tool_id is required');
         });
 
@@ -202,24 +319,21 @@ describe('letta_tool_manager', () => {
                 handleLettaToolManager(mockServer, {
                     operation: 'update',
                     tool_id: 'tool-123',
-                })
+                }),
             ).rejects.toThrow('tool_data is required');
         });
     });
 
     describe('Delete Operation', () => {
         it('should successfully delete a tool', async () => {
-            mockServer.api.delete.mockResolvedValue({ data: {} });
+            mockServer.client.tools.delete.mockResolvedValue({});
 
             const result = await handleLettaToolManager(mockServer, {
                 operation: 'delete',
                 tool_id: 'tool-123',
             });
 
-            expect(mockServer.api.delete).toHaveBeenCalledWith(
-                '/tools/tool-123',
-                expect.any(Object)
-            );
+            expect(mockServer.client.tools.delete).toHaveBeenCalledWith('tool-123');
 
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
@@ -231,17 +345,15 @@ describe('letta_tool_manager', () => {
             await expect(
                 handleLettaToolManager(mockServer, {
                     operation: 'delete',
-                })
+                }),
             ).rejects.toThrow('tool_id is required');
         });
     });
 
     describe('Upsert Operation', () => {
         it('should create new tool when it does not exist', async () => {
-            mockServer.api.get.mockResolvedValue({ data: [] });
-            mockServer.api.post.mockResolvedValue({
-                data: { id: 'tool-new', name: 'New Tool', was_updated: false },
-            });
+            const mockTool = { id: 'tool-new', name: 'New Tool', was_updated: false };
+            mockServer.client.tools.upsert.mockResolvedValue(mockTool);
 
             const result = await handleLettaToolManager(mockServer, {
                 operation: 'upsert',
@@ -252,25 +364,21 @@ describe('letta_tool_manager', () => {
                 },
             });
 
-            expect(mockServer.api.post).toHaveBeenCalledWith(
-                '/tools/',
-                expect.any(Object),
-                expect.any(Object)
-            );
+            expect(mockServer.client.tools.upsert).toHaveBeenCalledWith({
+                name: 'New Tool',
+                description: 'A new tool',
+                sourceCode: 'def new(): pass',
+            });
 
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
             expect(response.operation).toBe('upsert');
-            expect(response.message).toContain('created');
+            expect(response.tool_id).toBe('tool-new');
         });
 
         it('should update existing tool when it exists', async () => {
-            mockServer.api.get.mockResolvedValue({
-                data: [{ id: 'tool-123', name: 'Existing Tool' }],
-            });
-            mockServer.api.put.mockResolvedValue({
-                data: { id: 'tool-123', name: 'Existing Tool', was_updated: true },
-            });
+            const mockTool = { id: 'tool-123', name: 'Existing Tool', was_updated: true };
+            mockServer.client.tools.upsert.mockResolvedValue(mockTool);
 
             const result = await handleLettaToolManager(mockServer, {
                 operation: 'upsert',
@@ -280,22 +388,21 @@ describe('letta_tool_manager', () => {
                 },
             });
 
-            expect(mockServer.api.put).toHaveBeenCalledWith(
-                '/tools/tool-123',
-                expect.any(Object),
-                expect.any(Object)
-            );
+            expect(mockServer.client.tools.upsert).toHaveBeenCalledWith({
+                name: 'Existing Tool',
+                description: 'Updated',
+            });
 
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
-            expect(response.message).toContain('updated');
+            expect(response.tool_id).toBe('tool-123');
         });
 
         it('should throw error when tool_data is missing', async () => {
             await expect(
                 handleLettaToolManager(mockServer, {
                     operation: 'upsert',
-                })
+                }),
             ).rejects.toThrow('tool_data is required');
         });
 
@@ -304,14 +411,15 @@ describe('letta_tool_manager', () => {
                 handleLettaToolManager(mockServer, {
                     operation: 'upsert',
                     tool_data: { description: 'test' },
-                })
+                }),
             ).rejects.toThrow('tool_data.name is required');
         });
     });
 
     describe('Detach Operation', () => {
         it('should successfully detach tool from agent', async () => {
-            mockServer.api.patch.mockResolvedValue({ data: {} });
+            const mockAgentState = { id: 'agent-123', name: 'Test Agent' };
+            mockServer.client.agents.tools.detach.mockResolvedValue(mockAgentState);
 
             const result = await handleLettaToolManager(mockServer, {
                 operation: 'detach',
@@ -319,10 +427,9 @@ describe('letta_tool_manager', () => {
                 tool_id: 'tool-456',
             });
 
-            expect(mockServer.api.patch).toHaveBeenCalledWith(
-                '/agents/agent-123/tools/detach/tool-456',
-                {},
-                expect.any(Object)
+            expect(mockServer.client.agents.tools.detach).toHaveBeenCalledWith(
+                'agent-123',
+                'tool-456',
             );
 
             const response = JSON.parse(result.content[0].text);
@@ -336,7 +443,7 @@ describe('letta_tool_manager', () => {
                 handleLettaToolManager(mockServer, {
                     operation: 'detach',
                     tool_id: 'tool-456',
-                })
+                }),
             ).rejects.toThrow('agent_id is required');
         });
 
@@ -345,7 +452,7 @@ describe('letta_tool_manager', () => {
                 handleLettaToolManager(mockServer, {
                     operation: 'detach',
                     agent_id: 'agent-123',
-                })
+                }),
             ).rejects.toThrow('tool_id is required');
         });
     });
@@ -367,7 +474,7 @@ describe('letta_tool_manager', () => {
             expect(mockServer.api.post).toHaveBeenCalledWith(
                 '/tools/generate',
                 { prompt: 'Create a tool that calculates fibonacci numbers' },
-                expect.any(Object)
+                expect.any(Object),
             );
 
             const response = JSON.parse(result.content[0].text);
@@ -380,7 +487,7 @@ describe('letta_tool_manager', () => {
             await expect(
                 handleLettaToolManager(mockServer, {
                     operation: 'generate_from_prompt',
-                })
+                }),
             ).rejects.toThrow('prompt is required');
         });
     });
@@ -404,7 +511,7 @@ describe('letta_tool_manager', () => {
             expect(mockServer.api.post).toHaveBeenCalledWith(
                 '/tools/schema',
                 { source_code: 'def my_tool(arg1: str): pass' },
-                expect.any(Object)
+                expect.any(Object),
             );
 
             const response = JSON.parse(result.content[0].text);
@@ -417,19 +524,18 @@ describe('letta_tool_manager', () => {
             await expect(
                 handleLettaToolManager(mockServer, {
                     operation: 'generate_schema',
-                })
+                }),
             ).rejects.toThrow('source_code is required');
         });
     });
 
     describe('Run From Source Operation', () => {
         it('should successfully run tool from source code', async () => {
-            mockServer.api.post.mockResolvedValue({
-                data: {
-                    result: 'success',
-                    output: 'Tool executed successfully',
-                },
-            });
+            const mockResult = {
+                result: 'success',
+                output: 'Tool executed successfully',
+            };
+            mockServer.client.tools.runToolFromSource.mockResolvedValue(mockResult);
 
             const result = await handleLettaToolManager(mockServer, {
                 operation: 'run_from_source',
@@ -437,14 +543,10 @@ describe('letta_tool_manager', () => {
                 tool_args: { arg1: 'value1' },
             });
 
-            expect(mockServer.api.post).toHaveBeenCalledWith(
-                '/tools/run',
-                {
-                    source_code: 'def my_tool(): return "Hello"',
-                    arguments: { arg1: 'value1' },
-                },
-                expect.any(Object)
-            );
+            expect(mockServer.client.tools.runToolFromSource).toHaveBeenCalledWith({
+                sourceCode: 'def my_tool(): return "Hello"',
+                args: { arg1: 'value1' },
+            });
 
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
@@ -453,8 +555,8 @@ describe('letta_tool_manager', () => {
         });
 
         it('should run without tool_args if not provided', async () => {
-            mockServer.api.post.mockResolvedValue({
-                data: { result: 'success' },
+            mockServer.client.tools.runToolFromSource.mockResolvedValue({
+                result: 'success',
             });
 
             await handleLettaToolManager(mockServer, {
@@ -462,40 +564,31 @@ describe('letta_tool_manager', () => {
                 source_code: 'def my_tool(): pass',
             });
 
-            expect(mockServer.api.post).toHaveBeenCalledWith(
-                '/tools/run',
-                {
-                    source_code: 'def my_tool(): pass',
-                    arguments: {},
-                },
-                expect.any(Object)
-            );
+            expect(mockServer.client.tools.runToolFromSource).toHaveBeenCalledWith({
+                sourceCode: 'def my_tool(): pass',
+                args: {},
+            });
         });
 
         it('should throw error when source_code is missing', async () => {
             await expect(
                 handleLettaToolManager(mockServer, {
                     operation: 'run_from_source',
-                })
+                }),
             ).rejects.toThrow('source_code is required');
         });
     });
 
     describe('Add Base Tools Operation', () => {
         it('should successfully add base tools', async () => {
-            mockServer.api.post.mockResolvedValue({
-                data: { count: 5, added: 5 },
-            });
+            const mockResult = { count: 5, added: 5 };
+            mockServer.client.tools.upsertBaseTools.mockResolvedValue(mockResult);
 
             const result = await handleLettaToolManager(mockServer, {
                 operation: 'add_base_tools',
             });
 
-            expect(mockServer.api.post).toHaveBeenCalledWith(
-                '/tools/add-base-tools',
-                {},
-                expect.any(Object)
-            );
+            expect(mockServer.client.tools.upsertBaseTools).toHaveBeenCalledWith();
 
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
@@ -504,9 +597,8 @@ describe('letta_tool_manager', () => {
         });
 
         it('should handle response with tools array', async () => {
-            mockServer.api.post.mockResolvedValue({
-                data: { tools: ['tool1', 'tool2', 'tool3'] },
-            });
+            const mockResult = ['tool1', 'tool2', 'tool3'];
+            mockServer.client.tools.upsertBaseTools.mockResolvedValue(mockResult);
 
             const result = await handleLettaToolManager(mockServer, {
                 operation: 'add_base_tools',
@@ -522,28 +614,28 @@ describe('letta_tool_manager', () => {
             await expect(
                 handleLettaToolManager(mockServer, {
                     operation: 'invalid',
-                })
+                }),
             ).rejects.toThrow('Unknown operation: invalid');
         });
 
         it('should propagate API errors', async () => {
-            mockServer.api.get.mockRejectedValue(new Error('API Error'));
+            mockServer.client.tools.list.mockRejectedValue(new Error('API Error'));
 
             await expect(
                 handleLettaToolManager(mockServer, {
                     operation: 'list',
-                })
+                }),
             ).rejects.toThrow('API Error');
         });
 
         it('should handle network timeout', async () => {
-            mockServer.api.get.mockRejectedValue(new Error('ETIMEDOUT'));
+            mockServer.client.tools.retrieve.mockRejectedValue(new Error('ETIMEDOUT'));
 
             await expect(
                 handleLettaToolManager(mockServer, {
                     operation: 'get',
                     tool_id: 'tool-123',
-                })
+                }),
             ).rejects.toThrow('ETIMEDOUT');
         });
     });

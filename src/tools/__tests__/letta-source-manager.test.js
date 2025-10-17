@@ -2,7 +2,10 @@
  * Tests for letta_source_manager tool
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { handleLettaSourceManager, lettaSourceManagerDefinition } from '../sources/letta-source-manager.js';
+import {
+    handleLettaSourceManager,
+    lettaSourceManagerDefinition,
+} from '../sources/letta-source-manager.js';
 
 const createMockServer = () => ({
     api: {
@@ -10,6 +13,32 @@ const createMockServer = () => ({
         post: vi.fn(),
         put: vi.fn(),
         delete: vi.fn(),
+    },
+    client: {
+        sources: {
+            list: vi.fn(),
+            create: vi.fn(),
+            retrieve: vi.fn(),
+            modify: vi.fn(),
+            delete: vi.fn(),
+            count: vi.fn(),
+            retrieveByName: vi.fn(),
+            files: {
+                upload: vi.fn(),
+                list: vi.fn(),
+                delete: vi.fn(),
+            },
+            passages: {
+                list: vi.fn(),
+            },
+        },
+        agents: {
+            sources: {
+                attach: vi.fn(),
+                detach: vi.fn(),
+                list: vi.fn(),
+            },
+        },
     },
     getApiHeaders: vi.fn(() => ({
         'Content-Type': 'application/json',
@@ -33,18 +62,30 @@ describe('letta_source_manager', () => {
 
         it('should have all 15 operations', () => {
             expect(lettaSourceManagerDefinition.inputSchema.properties.operation.enum).toEqual([
-                'list', 'create', 'get', 'update', 'delete', 'count', 'get_by_name',
-                'upload_file', 'list_files', 'delete_file', 'list_passages',
-                'get_metadata', 'attach_to_agent', 'detach_from_agent', 'list_agent_sources',
+                'list',
+                'create',
+                'get',
+                'update',
+                'delete',
+                'count',
+                'get_by_name',
+                'upload_file',
+                'list_files',
+                'delete_file',
+                'list_passages',
+                'get_metadata',
+                'attach_to_agent',
+                'detach_from_agent',
+                'list_agent_sources',
             ]);
         });
     });
 
     describe('CRUD Operations', () => {
         it('should list sources', async () => {
-            mockServer.api.get.mockResolvedValue({ data: [
-                { id: 's-1', name: 'Source 1', description: 'Test', num_passages: 5 }
-            ]});
+            mockServer.client.sources.list.mockResolvedValue([
+                { id: 's-1', name: 'Source 1', description: 'Test', num_passages: 5 },
+            ]);
 
             const result = await handleLettaSourceManager(mockServer, { operation: 'list' });
             const response = JSON.parse(result.content[0].text);
@@ -54,7 +95,7 @@ describe('letta_source_manager', () => {
         });
 
         it('should create source', async () => {
-            mockServer.api.post.mockResolvedValue({ data: { id: 's-new', name: 'New Source' }});
+            mockServer.client.sources.create.mockResolvedValue({ id: 's-new', name: 'New Source' });
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'create',
@@ -67,20 +108,20 @@ describe('letta_source_manager', () => {
         });
 
         it('should get source', async () => {
-            mockServer.api.get.mockResolvedValue({ data: { id: 's-1', name: 'Source' }});
+            mockServer.client.sources.retrieve.mockResolvedValue({ id: 's-1', name: 'Source' });
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'get',
                 source_id: 's-1',
             });
 
-            expect(mockServer.api.get).toHaveBeenCalledWith('/sources/s-1', expect.any(Object));
+            expect(mockServer.client.sources.retrieve).toHaveBeenCalledWith('s-1');
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
         });
 
         it('should update source', async () => {
-            mockServer.api.put.mockResolvedValue({ data: { id: 's-1', name: 'Updated' }});
+            mockServer.client.sources.modify.mockResolvedValue({ id: 's-1', name: 'Updated' });
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'update',
@@ -93,7 +134,7 @@ describe('letta_source_manager', () => {
         });
 
         it('should delete source', async () => {
-            mockServer.api.delete.mockResolvedValue({ data: {} });
+            mockServer.client.sources.delete.mockResolvedValue();
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'delete',
@@ -105,7 +146,7 @@ describe('letta_source_manager', () => {
         });
 
         it('should count sources', async () => {
-            mockServer.api.get.mockResolvedValue({ data: { count: 42 }});
+            mockServer.client.sources.count.mockResolvedValue(42);
 
             const result = await handleLettaSourceManager(mockServer, { operation: 'count' });
             const response = JSON.parse(result.content[0].text);
@@ -114,14 +155,16 @@ describe('letta_source_manager', () => {
         });
 
         it('should get source by name', async () => {
-            mockServer.api.get.mockResolvedValue({ data: { id: 's-1', name: 'Test' }});
+            mockServer.client.sources.retrieveByName.mockResolvedValue('s-1');
+            mockServer.client.sources.retrieve.mockResolvedValue({ id: 's-1', name: 'Test' });
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'get_by_name',
                 source_name: 'Test',
             });
 
-            expect(mockServer.api.get).toHaveBeenCalledWith('/sources/name/Test', expect.any(Object));
+            expect(mockServer.client.sources.retrieveByName).toHaveBeenCalledWith('Test');
+            expect(mockServer.client.sources.retrieve).toHaveBeenCalledWith('s-1');
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
         });
@@ -129,7 +172,7 @@ describe('letta_source_manager', () => {
 
     describe('File Operations', () => {
         it('should upload file', async () => {
-            mockServer.api.post.mockResolvedValue({ data: { id: 'f-1' }});
+            mockServer.client.sources.files.upload.mockResolvedValue({ id: 'f-1' });
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'upload_file',
@@ -137,15 +180,19 @@ describe('letta_source_manager', () => {
                 file_data: { file: 'base64data', filename: 'test.txt' },
             });
 
+            expect(mockServer.client.sources.files.upload).toHaveBeenCalledWith(
+                's-1',
+                expect.anything(),
+            );
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
             expect(response.file_id).toBe('f-1');
         });
 
         it('should list files', async () => {
-            mockServer.api.get.mockResolvedValue({ data: [
-                { id: 'f-1', filename: 'file1.txt', size: 1024 }
-            ]});
+            mockServer.client.sources.files.list.mockResolvedValue([
+                { id: 'f-1', filename: 'file1.txt', size: 1024 },
+            ]);
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'list_files',
@@ -157,7 +204,7 @@ describe('letta_source_manager', () => {
         });
 
         it('should delete file', async () => {
-            mockServer.api.delete.mockResolvedValue({ data: {} });
+            mockServer.client.sources.files.delete.mockResolvedValue();
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'delete_file',
@@ -165,7 +212,7 @@ describe('letta_source_manager', () => {
                 file_id: 'f-1',
             });
 
-            expect(mockServer.api.delete).toHaveBeenCalledWith('/sources/s-1/files/f-1', expect.any(Object));
+            expect(mockServer.client.sources.files.delete).toHaveBeenCalledWith('s-1', 'f-1');
             const response = JSON.parse(result.content[0].text);
             expect(response.success).toBe(true);
         });
@@ -173,9 +220,9 @@ describe('letta_source_manager', () => {
 
     describe('Passage Operations', () => {
         it('should list passages', async () => {
-            mockServer.api.get.mockResolvedValue({ data: [
-                { id: 'p-1', text: 'Passage text', doc_id: 'd-1' }
-            ]});
+            mockServer.client.sources.passages.list.mockResolvedValue([
+                { id: 'p-1', text: 'Passage text', doc_id: 'd-1' },
+            ]);
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'list_passages',
@@ -187,7 +234,7 @@ describe('letta_source_manager', () => {
         });
 
         it('should get metadata', async () => {
-            mockServer.api.get.mockResolvedValue({ data: { key: 'value' }});
+            mockServer.api.get.mockResolvedValue({ data: { key: 'value' } });
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'get_metadata',
@@ -201,7 +248,7 @@ describe('letta_source_manager', () => {
 
     describe('Agent Operations', () => {
         it('should attach source to agent', async () => {
-            mockServer.api.post.mockResolvedValue({ data: {} });
+            mockServer.client.agents.sources.attach.mockResolvedValue({});
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'attach_to_agent',
@@ -209,12 +256,13 @@ describe('letta_source_manager', () => {
                 source_id: 's-1',
             });
 
+            expect(mockServer.client.agents.sources.attach).toHaveBeenCalledWith('a-1', 's-1');
             const response = JSON.parse(result.content[0].text);
             expect(response.attached).toBe(true);
         });
 
         it('should detach source from agent', async () => {
-            mockServer.api.delete.mockResolvedValue({ data: {} });
+            mockServer.client.agents.sources.detach.mockResolvedValue({});
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'detach_from_agent',
@@ -222,20 +270,22 @@ describe('letta_source_manager', () => {
                 source_id: 's-1',
             });
 
+            expect(mockServer.client.agents.sources.detach).toHaveBeenCalledWith('a-1', 's-1');
             const response = JSON.parse(result.content[0].text);
             expect(response.detached).toBe(true);
         });
 
         it('should list agent sources', async () => {
-            mockServer.api.get.mockResolvedValue({ data: [
-                { id: 's-1', name: 'Source 1' }
-            ]});
+            mockServer.client.agents.sources.list.mockResolvedValue([
+                { id: 's-1', name: 'Source 1' },
+            ]);
 
             const result = await handleLettaSourceManager(mockServer, {
                 operation: 'list_agent_sources',
                 agent_id: 'a-1',
             });
 
+            expect(mockServer.client.agents.sources.list).toHaveBeenCalledWith('a-1');
             const response = JSON.parse(result.content[0].text);
             expect(response.sources).toHaveLength(1);
         });
@@ -244,27 +294,27 @@ describe('letta_source_manager', () => {
     describe('Error Handling', () => {
         it('should require source_id for get', async () => {
             await expect(
-                handleLettaSourceManager(mockServer, { operation: 'get' })
+                handleLettaSourceManager(mockServer, { operation: 'get' }),
             ).rejects.toThrow('source_id is required');
         });
 
         it('should require source_data for create', async () => {
             await expect(
-                handleLettaSourceManager(mockServer, { operation: 'create' })
+                handleLettaSourceManager(mockServer, { operation: 'create' }),
             ).rejects.toThrow('source_data is required');
         });
 
         it('should throw for unknown operation', async () => {
             await expect(
-                handleLettaSourceManager(mockServer, { operation: 'invalid' })
+                handleLettaSourceManager(mockServer, { operation: 'invalid' }),
             ).rejects.toThrow('Unknown operation');
         });
 
         it('should propagate API errors', async () => {
-            mockServer.api.get.mockRejectedValue(new Error('API Error'));
+            mockServer.client.sources.count.mockRejectedValue(new Error('API Error'));
 
             await expect(
-                handleLettaSourceManager(mockServer, { operation: 'count' })
+                handleLettaSourceManager(mockServer, { operation: 'count' }),
             ).rejects.toThrow('API Error');
         });
     });

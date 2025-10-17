@@ -170,13 +170,15 @@ describe('LettaServer Initialization (LMP-82)', () => {
 
             const server = new LettaServer();
 
-            expect(axios.create).toHaveBeenCalledWith({
-                baseURL: 'https://test.letta.com/v1',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
-            });
+            expect(axios.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    baseURL: 'https://test.letta.com/v1',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
+                }),
+            );
             expect(server.apiBase).toBe('https://test.letta.com/v1');
         });
 
@@ -186,13 +188,15 @@ describe('LettaServer Initialization (LMP-82)', () => {
 
             new LettaServer();
 
-            expect(axios.create).toHaveBeenCalledWith({
-                baseURL: 'https://test.letta.com/v1/v1',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
-            });
+            expect(axios.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    baseURL: 'https://test.letta.com/v1',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
+                }),
+            );
         });
 
         it('should create axios instance with correct default headers', () => {

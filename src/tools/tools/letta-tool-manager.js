@@ -4,7 +4,10 @@
  */
 import { createLogger } from '../../core/logger.js';
 // eslint-disable-next-line no-unused-vars
-import { toolManagerInputSchema, toolManagerOutputSchema } from '../schemas/tool-manager-schemas.js';
+import {
+    toolManagerInputSchema,
+    toolManagerOutputSchema,
+} from '../schemas/tool-manager-schemas.js';
 
 const logger = createLogger('letta_tool_manager');
 
@@ -64,17 +67,20 @@ async function handleListTools(server, args) {
     const { options = {} } = args;
     const { pagination = {}, filters = {} } = options;
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.tools.list() method with filters
-            return await server.client.tools.list({
-                limit: pagination.limit,
-                cursor: pagination.after,
-                ...filters,
-            });
-        },
-        'Listing tools'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.tools.list() method with filters
+        const listParams = {
+            limit: pagination.limit,
+            ...filters,
+        };
+
+        // Handle pagination parameters - SDK uses cursor-based pagination
+        if (pagination.after) {
+            listParams.cursor = pagination.after;
+        }
+
+        return await server.client.tools.list(listParams);
+    }, 'Listing tools');
 
     // Handle both array and paginated response formats
     const tools = Array.isArray(result) ? result : result.tools || result.data || [];
@@ -87,7 +93,7 @@ async function handleListTools(server, args) {
                 text: JSON.stringify({
                     success: true,
                     operation: 'list',
-                    tools: tools.map(tool => ({
+                    tools: tools.map((tool) => ({
                         id: tool.id,
                         name: tool.name,
                         description: tool.description,
@@ -120,13 +126,10 @@ async function handleGetTool(server, args) {
         throw new Error('tool_id is required for get operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.tools.retrieve() method
-            return await server.client.tools.retrieve(tool_id);
-        },
-        'Getting tool details'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.tools.retrieve() method
+        return await server.client.tools.retrieve(tool_id);
+    }, 'Getting tool details');
 
     return {
         content: [
@@ -165,18 +168,21 @@ async function handleCreateTool(server, args) {
         throw new Error('tool_data.name is required for create operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.tools.create() method
-            // SDK expects sourceCode not source_code
-            const createData = {
-                ...tool_data,
-                sourceCode: tool_data.source_code || tool_data.sourceCode,
-            };
-            return await server.client.tools.create(createData);
-        },
-        'Creating tool'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.tools.create() method
+        // SDK expects sourceCode not source_code
+        const createData = {
+            ...tool_data,
+            sourceCode: tool_data.source_code || tool_data.sourceCode,
+        };
+
+        // Remove source_code if it exists to avoid duplicate field issues
+        if (createData.source_code) {
+            delete createData.source_code;
+        }
+
+        return await server.client.tools.create(createData);
+    }, 'Creating tool');
 
     return {
         content: [
@@ -208,13 +214,10 @@ async function handleAttachTool(server, args) {
         throw new Error('tool_id is required for attach operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.tools.attach() method
-            return await server.client.agents.tools.attach(agent_id, tool_id);
-        },
-        'Attaching tool to agent'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.tools.attach() method
+        return await server.client.agents.tools.attach(agent_id, tool_id);
+    }, 'Attaching tool to agent');
 
     return {
         content: [
@@ -249,12 +252,9 @@ async function handleBulkAttach(server, args) {
     }
 
     // Get list of all agents using SDK
-    const allAgents = await server.handleSdkCall(
-        async () => {
-            return await server.client.agents.list();
-        },
-        'Listing agents for bulk attach'
-    );
+    const allAgents = await server.handleSdkCall(async () => {
+        return await server.client.agents.list();
+    }, 'Listing agents for bulk attach');
 
     const agents = Array.isArray(allAgents) ? allAgents : allAgents.agents || [];
 
@@ -262,13 +262,19 @@ async function handleBulkAttach(server, args) {
     let agentsToAttach = [];
 
     if (bulk_attach_filters.agent_ids && bulk_attach_filters.agent_ids.length > 0) {
-        agentsToAttach = agents.filter(a => bulk_attach_filters.agent_ids.includes(a.id));
+        agentsToAttach = agents.filter((a) => bulk_attach_filters.agent_ids.includes(a.id));
     } else {
-        agentsToAttach = agents.filter(agent => {
-            if (bulk_attach_filters.agent_name_filter && !agent.name.includes(bulk_attach_filters.agent_name_filter)) {
+        agentsToAttach = agents.filter((agent) => {
+            if (
+                bulk_attach_filters.agent_name_filter &&
+                !agent.name.includes(bulk_attach_filters.agent_name_filter)
+            ) {
                 return false;
             }
-            if (bulk_attach_filters.agent_tag_filter && !agent.tags?.includes(bulk_attach_filters.agent_tag_filter)) {
+            if (
+                bulk_attach_filters.agent_tag_filter &&
+                !agent.tags?.includes(bulk_attach_filters.agent_tag_filter)
+            ) {
                 return false;
             }
             return true;
@@ -279,19 +285,21 @@ async function handleBulkAttach(server, args) {
     const attachResults = [];
     for (const agent of agentsToAttach) {
         try {
-            await server.handleSdkCall(
-                async () => {
-                    return await server.client.agents.tools.attach(agent.id, tool_id);
-                },
-                `Attaching tool to agent ${agent.id}`
-            );
+            await server.handleSdkCall(async () => {
+                return await server.client.agents.tools.attach(agent.id, tool_id);
+            }, `Attaching tool to agent ${agent.id}`);
             attachResults.push({ agent_id: agent.id, agent_name: agent.name, success: true });
         } catch (error) {
-            attachResults.push({ agent_id: agent.id, agent_name: agent.name, success: false, error: error.message });
+            attachResults.push({
+                agent_id: agent.id,
+                agent_name: agent.name,
+                success: false,
+                error: error.message,
+            });
         }
     }
 
-    const successCount = attachResults.filter(r => r.success).length;
+    const successCount = attachResults.filter((r) => r.success).length;
 
     return {
         content: [
@@ -325,13 +333,10 @@ async function handleUpdateTool(server, args) {
         throw new Error('tool_data is required for update operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.tools.modify() method
-            return await server.client.tools.modify(tool_id, tool_data);
-        },
-        'Updating tool'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.tools.modify() method
+        return await server.client.tools.modify(tool_id, tool_data);
+    }, 'Updating tool');
 
     return {
         content: [
@@ -360,13 +365,10 @@ async function handleDeleteTool(server, args) {
         throw new Error('tool_id is required for delete operation');
     }
 
-    await server.handleSdkCall(
-        async () => {
-            // Use SDK client.tools.delete() method
-            return await server.client.tools.delete(tool_id);
-        },
-        'Deleting tool'
-    );
+    await server.handleSdkCall(async () => {
+        // Use SDK client.tools.delete() method
+        return await server.client.tools.delete(tool_id);
+    }, 'Deleting tool');
 
     return {
         content: [
@@ -397,18 +399,21 @@ async function handleUpsertTool(server, args) {
         throw new Error('tool_data.name is required for upsert operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.tools.upsert() method - SDK has native support!
-            // SDK expects sourceCode not source_code
-            const upsertData = {
-                ...tool_data,
-                sourceCode: tool_data.source_code || tool_data.sourceCode,
-            };
-            return await server.client.tools.upsert(upsertData);
-        },
-        'Upserting tool'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.tools.upsert() method - SDK has native support!
+        // SDK expects sourceCode not source_code
+        const upsertData = {
+            ...tool_data,
+            sourceCode: tool_data.source_code || tool_data.sourceCode,
+        };
+
+        // Remove source_code if it exists to avoid duplicate field issues
+        if (upsertData.source_code) {
+            delete upsertData.source_code;
+        }
+
+        return await server.client.tools.upsert(upsertData);
+    }, 'Upserting tool');
 
     return {
         content: [
@@ -440,13 +445,10 @@ async function handleDetachTool(server, args) {
         throw new Error('tool_id is required for detach operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.agents.tools.detach() method
-            return await server.client.agents.tools.detach(agent_id, tool_id);
-        },
-        'Detaching tool from agent'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.agents.tools.detach() method
+        return await server.client.agents.tools.detach(agent_id, tool_id);
+    }, 'Detaching tool from agent');
 
     return {
         content: [
@@ -477,18 +479,11 @@ async function handleGenerateFromPrompt(server, args) {
         throw new Error('prompt is required for generate_from_prompt operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                '/tools/generate',
-                { prompt },
-                { headers }
-            );
-            return response.data;
-        },
-        'Generating tool from prompt'
-    );
+    const result = await server.handleSdkCall(async () => {
+        const headers = server.getApiHeaders();
+        const response = await server.api.post('/tools/generate', { prompt }, { headers });
+        return response.data;
+    }, 'Generating tool from prompt');
 
     return {
         content: [
@@ -518,18 +513,11 @@ async function handleGenerateSchema(server, args) {
         throw new Error('source_code is required for generate_schema operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            const headers = server.getApiHeaders();
-            const response = await server.api.post(
-                '/tools/schema',
-                { source_code },
-                { headers }
-            );
-            return response.data;
-        },
-        'Generating schema from source code'
-    );
+    const result = await server.handleSdkCall(async () => {
+        const headers = server.getApiHeaders();
+        const response = await server.api.post('/tools/schema', { source_code }, { headers });
+        return response.data;
+    }, 'Generating schema from source code');
 
     return {
         content: [
@@ -557,17 +545,14 @@ async function handleRunFromSource(server, args) {
         throw new Error('source_code is required for run_from_source operation');
     }
 
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.tools.runToolFromSource() method
-            // SDK expects sourceCode and args (not arguments)
-            return await server.client.tools.runToolFromSource({
-                sourceCode: source_code,
-                args: tool_args,
-            });
-        },
-        'Running tool from source code'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.tools.runToolFromSource() method
+        // SDK expects sourceCode and args (not arguments)
+        return await server.client.tools.runToolFromSource({
+            sourceCode: source_code,
+            args: tool_args,
+        });
+    }, 'Running tool from source code');
 
     return {
         content: [
@@ -589,13 +574,10 @@ async function handleRunFromSource(server, args) {
  * MIGRATED: Now using Letta SDK instead of axios
  */
 async function handleAddBaseTools(server, _args) {
-    const result = await server.handleSdkCall(
-        async () => {
-            // Use SDK client.tools.upsertBaseTools() method
-            return await server.client.tools.upsertBaseTools();
-        },
-        'Adding base tools'
-    );
+    const result = await server.handleSdkCall(async () => {
+        // Use SDK client.tools.upsertBaseTools() method
+        return await server.client.tools.upsertBaseTools();
+    }, 'Adding base tools');
 
     // SDK returns array of tools
     const toolsCount = Array.isArray(result) ? result.length : result.count || 0;
