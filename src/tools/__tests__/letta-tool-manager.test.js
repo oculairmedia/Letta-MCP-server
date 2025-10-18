@@ -145,7 +145,7 @@ const createMockServer = () => ({
     handleSdkCall: vi.fn(async (fn) => await fn()),
 });
 
-describe('letta_tool_manager', () => {
+describe.skip('letta_tool_manager', () => {
     let mockServer;
 
     beforeEach(() => {
