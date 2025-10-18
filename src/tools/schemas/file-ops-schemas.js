@@ -35,9 +35,13 @@ export const fileOpsInputSchema = {
             type: 'string',
             description: 'Folder ID (required for attach/detach/list_agents_in_folder)',
         },
+        request_heartbeat: {
+            type: 'boolean',
+            description: 'Ignored parameter (for MCP client compatibility)',
+        },
     },
     required: ['operation'],
-    additionalProperties: false,
+    additionalProperties: true,
 };
 
 /**

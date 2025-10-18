@@ -204,9 +204,13 @@ export const agentAdvancedInputSchema = {
             additionalProperties: false,
             description: 'Pagination options for list operation',
         },
+        request_heartbeat: {
+            type: 'boolean',
+            description: 'Ignored parameter (for MCP client compatibility)',
+        },
     },
     required: ['operation'],
-    additionalProperties: false,
+    additionalProperties: true,
 };
 
 /**

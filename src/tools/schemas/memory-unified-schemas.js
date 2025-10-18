@@ -171,9 +171,13 @@ export const memoryUnifiedInputSchema = {
             ...PaginationSchema,
             description: 'Pagination options (for list operations)',
         },
+        request_heartbeat: {
+            type: 'boolean',
+            description: 'Ignored parameter (for MCP client compatibility)',
+        },
     },
     required: ['operation'],
-    additionalProperties: false,
+    additionalProperties: true,
 };
 
 /**

@@ -45,9 +45,13 @@ export const jobMonitorInputSchema = {
             ...JobFiltersSchema,
             description: 'Filter options for list operations',
         },
+        request_heartbeat: {
+            type: 'boolean',
+            description: 'Ignored parameter (for MCP client compatibility)',
+        },
     },
     required: ['operation'],
-    additionalProperties: false,
+    additionalProperties: true,
 };
 
 /**
