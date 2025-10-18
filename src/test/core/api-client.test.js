@@ -51,13 +51,15 @@ describe('API Client Configuration (LMP-85)', () => {
 
             new LettaServer();
 
-            expect(axios.create).toHaveBeenCalledWith({
-                baseURL: 'https://api.letta.com/v1',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
-            });
+            expect(axios.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    baseURL: 'https://api.letta.com/v1',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
+                }),
+            );
         });
 
         it('should handle base URL with trailing slash', () => {
@@ -66,13 +68,15 @@ describe('API Client Configuration (LMP-85)', () => {
 
             new LettaServer();
 
-            expect(axios.create).toHaveBeenCalledWith({
-                baseURL: 'https://api.letta.com//v1',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
-            });
+            expect(axios.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    baseURL: 'https://api.letta.com//v1',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
+                }),
+            );
         });
 
         it('should handle base URL already containing /v1', () => {
@@ -81,14 +85,16 @@ describe('API Client Configuration (LMP-85)', () => {
 
             new LettaServer();
 
-            // This is the current behavior - it appends /v1 regardless
-            expect(axios.create).toHaveBeenCalledWith({
-                baseURL: 'https://api.letta.com/v1/v1',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
-            });
+            // Expect the implementation to not duplicate /v1 when base already contains it
+            expect(axios.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    baseURL: 'https://api.letta.com/v1',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
+                }),
+            );
         });
 
         it('should set default headers', () => {

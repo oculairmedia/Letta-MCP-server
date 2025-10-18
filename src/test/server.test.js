@@ -55,7 +55,7 @@ describe('LettaServer', () => {
 
         const server = new LettaServer();
 
-        expect(server.api.defaults.baseURL).toBe('https://test.letta.com/v1/v1');
+        expect(server.api.defaults.baseURL).toBe('https://test.letta.com/v1');
         // No default timeout is set in the current implementation
     });
 

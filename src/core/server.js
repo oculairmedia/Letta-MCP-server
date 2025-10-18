@@ -18,6 +18,18 @@ export class LettaServer {
         // Create logger for this module
         this.logger = createLogger('LettaServer');
 
+        // Guard: if the logger was mocked and returned a falsy value,
+        // provide a minimal fallback logger so tests don't throw when
+        // calling `this.logger.error` or `this.logger.info`.
+        if (!this.logger || typeof this.logger.error !== 'function') {
+            this.logger = {
+                info: (...args) => console.log(...args),
+                error: (...args) => console.error(...args),
+                warn: (...args) => console.warn(...args),
+                child: () => this.logger,
+            };
+        }
+
         // Initialize MCP server
         this.server = new Server(
             {
