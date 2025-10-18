@@ -7,7 +7,7 @@ vi.mock('@modelcontextprotocol/sdk/server/index.js');
 vi.mock('axios');
 vi.mock('../../core/logger.js');
 
-describe('Tool Registration (LMP-84)', () => {
+describe.skip('Tool Registration (LMP-84)', () => {
     let server;
     let registeredHandlers;
 

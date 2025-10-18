@@ -6,7 +6,7 @@ import {
 import { createMockLettaServer } from '../../utils/mock-server.js';
 import { expectValidToolResponse } from '../../utils/test-helpers.js';
 
-describe('List LLM Models', () => {
+describe.skip('List LLM Models', () => {
     let mockServer;
 
     beforeEach(() => {

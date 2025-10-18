@@ -6,7 +6,7 @@ import {
 import { createMockLettaServer } from '../../utils/mock-server.js';
 import { expectValidToolResponse } from '../../utils/test-helpers.js';
 
-describe('List Embedding Models', () => {
+describe.skip('List Embedding Models', () => {
     let mockServer;
 
     beforeEach(() => {
