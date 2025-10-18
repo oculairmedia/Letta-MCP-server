@@ -21,11 +21,13 @@ export function enhanceToolDefinition(toolDefinition) {
             : deprecationNotice;
     }
 
-    // Add output schema if available
-    const outputSchema = getOutputSchema(toolDefinition.name);
-    if (outputSchema) {
-        enhanced.outputSchema = outputSchema;
-    }
+    // DISABLED: Output schemas conflict with MCP content format
+    // Tools return { content: [{type: 'text', text: '...'}] } not direct JSON
+    // If Letta detects outputSchema, it expects structured content
+    // const outputSchema = getOutputSchema(toolDefinition.name);
+    // if (outputSchema) {
+    //     enhanced.outputSchema = outputSchema;
+    // }
 
     // Add annotations if available
     const annotations = getToolAnnotations(toolDefinition.name);
