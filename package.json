@@ -47,13 +47,13 @@
     "postversion": "git push && git push --tags"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.16.0",
-    "axios": "^1.10.0",
+    "@modelcontextprotocol/sdk": "1.22.0",
+    "axios": "^1.13.2",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "form-data": "^4.0.4",
-    "winston": "^3.17.0",
+    "winston": "^3.18.3",
     "zod": "^3.25.76",
     "zod-to-json-schema": "^3.24.6"
   },
