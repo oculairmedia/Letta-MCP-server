@@ -33,6 +33,10 @@ import {
     handleCreateMemoryBlock,
     createMemoryBlockToolDefinition,
 } from './memory/create-memory-block.js';
+import {
+    handleDeleteMemoryBlock,
+    deleteMemoryBlockToolDefinition,
+} from './memory/delete-memory-block.js';
 
 // Passage-related imports
 import { handleListPassages, listPassagesDefinition } from './passages/list-passages.js';
@@ -95,6 +99,7 @@ export function registerToolHandlers(server) {
         updateMemoryBlockToolDefinition,
         attachMemoryBlockToolDefinition,
         createMemoryBlockToolDefinition,
+        deleteMemoryBlockToolDefinition,
         uploadToolToolDefinition,
         listMcpToolsByServerDefinition,
         listMcpServersDefinition,
@@ -149,6 +154,8 @@ export function registerToolHandlers(server) {
                 return handleAttachMemoryBlock(server, request.params.arguments);
             case 'create_memory_block':
                 return handleCreateMemoryBlock(server, request.params.arguments);
+            case 'delete_memory_block':
+                return handleDeleteMemoryBlock(server, request.params.arguments);
             case 'upload_tool':
                 return handleUploadTool(server, request.params.arguments);
             case 'list_mcp_tools_by_server':
@@ -212,6 +219,7 @@ export const toolDefinitions = enhanceAllTools([
     updateMemoryBlockToolDefinition,
     attachMemoryBlockToolDefinition,
     createMemoryBlockToolDefinition,
+    deleteMemoryBlockToolDefinition,
     uploadToolToolDefinition,
     listMcpToolsByServerDefinition,
     listMcpServersDefinition,
@@ -247,6 +255,7 @@ export const toolHandlers = {
     handleUpdateMemoryBlock,
     handleAttachMemoryBlock,
     handleCreateMemoryBlock,
+    handleDeleteMemoryBlock,
     handleUploadTool,
     handleListMcpToolsByServer,
     handleListMcpServers,
