@@ -48,3 +48,15 @@ rust/target/
 **/*.orig
 **/*.rlib
 **/deps/
+
+# Test scripts (local development only)
+rust/test_*.sh
+*_IMPLEMENTATION_SUMMARY.md
+
+# Editor/tool directories
+.letta/
+.serena/
+
+# Backup and reject files
+*.backup
+*.rej
