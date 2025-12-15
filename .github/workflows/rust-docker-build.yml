@@ -115,14 +115,16 @@ jobs:
 
             - name: Image digest
               if: github.event_name != 'pull_request'
-              run: echo "Rust image digest:" && echo ${{ steps.meta.outputs.tags }}
+              run: |
+                  echo "Rust image digest:"
+                  echo "${{ steps.meta.outputs.tags }}"
 
             - name: Post build info
               if: github.event_name != 'pull_request'
               run: |
                   echo "✅ Rust Docker image built and pushed successfully!"
                   echo "Images pushed:"
-                  echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n'
+                  echo "${{ steps.meta.outputs.tags }}"
                   echo ""
                   echo "Pull the image with:"
                   echo "docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest"
