@@ -84,7 +84,7 @@ jobs:
               run: cargo test --tests --verbose
 
             - name: Test with all features
-              run: cargo test --all-features --verbose
+              run: cargo test --all-features --tests --verbose
 
             - name: Generate test report
               if: matrix.rust == 'stable'
