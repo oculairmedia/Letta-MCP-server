@@ -129,12 +129,13 @@ docker pull ghcr.io/oculairmedia/letta-mcp-server:nodejs-consolidated-tools
 ### 🦀 Rust Implementation (Performance-focused alternative)
 **Branch:** `rust-implementation`
 
-High-performance implementation built with Rust and the TurboMCP framework.
+High-performance implementation built with Rust and the TurboMCP framework, featuring advanced response size optimizations.
 
 **Best for:**
 - Resource-constrained environments
 - Maximum performance requirements
 - Low memory footprint needs
+- LLM context window optimization
 - Teams familiar with Rust
 
 **Docker Images:**
@@ -152,18 +153,26 @@ docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-implementation
 - Compile-time type safety and validation
 - Lower memory usage and faster execution
 - Multi-architecture Docker builds (amd64, arm64)
+- **Response Size Optimizations** (68-96% reduction):
+  - Default pagination on all list operations (15-25 items)
+  - Summary mode excludes heavy fields (system prompts, source code)
+  - Field truncation with clear indicators
+  - Helpful hints for getting more data
+- **Letta 0.15.1 Compatible**: Full support for new ToolRule types
 
 ### Comparison
 
 | Feature | Node.js | Rust |
 |---------|---------|------|
-| **Maturity** | ✅ Production-ready | 🟡 Stable, newer |
+| **Maturity** | ✅ Production-ready | ✅ Production-ready |
 | **Performance** | Good | Excellent |
 | **Memory Usage** | ~50-100MB | ~10-30MB |
 | **Startup Time** | ~1-2s | ~100-500ms |
 | **SDK Integration** | 93% official SDK | Custom API client |
 | **Type Safety** | TypeScript (runtime) | Rust (compile-time) |
 | **Package Manager** | npm | Docker/Cargo |
+| **Response Optimization** | Standard | 68-96% size reduction |
+| **Letta Compatibility** | 0.14.x | 0.15.1+ (full ToolRule support) |
 | **Test Coverage** | Comprehensive | Core operations verified |
 | **Documentation** | Extensive | Good |
 
