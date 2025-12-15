@@ -6,37 +6,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use turbomcp::McpError;
+use turbomcp_macros::FlattenTool;
 use letta_types::{Message, Pagination, StandardResponse};
 use letta::LettaClient;
-
-/// Wrapper for serde_json::Value that implements JsonSchema with explicit type information.
-/// This allows schemars to properly detect Option<JsonValue> as optional while still
-/// providing the type information that Letta requires.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(transparent)]
-pub struct JsonValue(pub Value);
-
-impl schemars::JsonSchema for JsonValue {
-    fn schema_name() -> std::borrow::Cow<'static, str> {
-        "JsonValue".into()
-    }
-
-    fn schema_id() -> std::borrow::Cow<'static, str> {
-        concat!(module_path!(), "::JsonValue").into()
-    }
-
-    fn json_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        // Letta prefers simple type definitions without anyOf
-        schemars::json_schema!({
-            "type": "object"
-        })
-    }
-
-    // Force inlining instead of using $ref - Letta may not resolve $refs properly
-    fn inline_schema() -> bool {
-        true
-    }
-}
 
 /// Agent operation discriminator
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
@@ -68,9 +40,22 @@ pub enum AgentOperation {
     Count,
 }
 
+// ===================================================
+// Response Optimization Helper Functions (LMS-48)
+// ===================================================
+
+/// Truncate text with indicator showing how many chars were truncated
+fn truncate_text(text: &str, max_chars: usize) -> String {
+    if text.len() <= max_chars {
+        text.to_string()
+    } else {
+        let remaining = text.len() - max_chars;
+        format!("{}...[truncated, {} more chars]", &text[..max_chars], remaining)
+    }
+}
+
 /// Bulk delete filters
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
+#[derive(Debug, Deserialize, schemars::JsonSchema, FlattenTool)]
 pub struct BulkDeleteFilters {
     /// Filter agents by name pattern
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -86,8 +71,7 @@ pub struct BulkDeleteFilters {
 }
 
 /// Search filters for messages
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
+#[derive(Debug, Deserialize, schemars::JsonSchema, FlattenTool)]
 pub struct SearchFilters {
     /// Filter messages after this date (ISO 8601 format)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -103,7 +87,7 @@ pub struct SearchFilters {
 }
 
 /// Agent advanced request - all parameters are optional except operation
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, schemars::JsonSchema, FlattenTool)]
 pub struct AgentAdvancedRequest {
     /// The operation to perform (list, create, get, update, delete, send_message, etc.)
     pub operation: AgentOperation,
@@ -126,18 +110,22 @@ pub struct AgentAdvancedRequest {
 
     /// LLM configuration object (for create/update operations)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub llm_config: Option<JsonValue>,
+    #[schemars(schema_with = "value_object_schema")]
+    pub llm_config: Option<Value>,
 
     /// Embedding model configuration (for create/update operations)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub embedding_config: Option<JsonValue>,
+    #[schemars(schema_with = "value_object_schema")]
+    pub embedding_config: Option<Value>,
 
     /// Tool IDs to attach to agent (for create/update operations)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_ids: Option<JsonValue>,
+    #[schemars(schema_with = "value_object_schema")]
+    pub tool_ids: Option<Value>,
 
     /// Pagination settings (for list operations)
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(schema_with = "pagination_schema")]
     pub pagination: Option<Pagination>,
 
     /// Messages to send to agent (for send_message operation)
@@ -150,6 +138,7 @@ pub struct AgentAdvancedRequest {
 
     /// Filters for bulk delete operation (agent_name_filter, agent_tag_filter, agent_ids)
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(schema_with = "bulk_delete_filters_schema")]
     pub filters: Option<BulkDeleteFilters>,
 
     /// Search query text (for search_messages operation)
@@ -158,53 +147,47 @@ pub struct AgentAdvancedRequest {
 
     /// Search filters (for search_messages operation: start_date, end_date, role)
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(schema_with = "search_filters_schema")]
     pub search_filters: Option<SearchFilters>,
 
     /// Agent export data (for import operation)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub export_data: Option<JsonValue>,
+    #[schemars(schema_with = "value_object_schema")]
+    pub export_data: Option<Value>,
 
     /// Update data object (for update operation)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub update_data: Option<JsonValue>,
+    #[schemars(schema_with = "value_object_schema")]
+    pub update_data: Option<Value>,
 }
 
-/// Schema helper for Pagination - inline object schema without $ref
-fn pagination_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    schemars::json_schema!({
-        "type": "object",
-        "properties": {
-            "limit": {"type": "integer"},
-            "offset": {"type": "integer"}
-        },
-        "additionalProperties": false
-    })
+/// Schema helper for Value fields - generates object type
+fn value_object_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({ "type": "object" })
 }
 
-/// Schema helper for BulkDeleteFilters - inline object schema without $ref
-fn bulk_delete_filters_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    schemars::json_schema!({
-        "type": "object",
-        "properties": {
-            "agent_name_filter": {"type": "string"},
-            "agent_tag_filter": {"type": "string"},
-            "agent_ids": {"type": "array", "items": {"type": "string"}}
-        },
-        "additionalProperties": false
-    })
+/// Schema helper for Pagination - adds explicit type to $ref
+fn pagination_schema(gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    let mut base_schema = gen.subschema_for::<Pagination>();
+    // Insert the type field into the schema
+    base_schema.insert("type".to_string(), serde_json::json!("object"));
+    base_schema
 }
 
-/// Schema helper for SearchFilters - inline object schema without $ref
-fn search_filters_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    schemars::json_schema!({
-        "type": "object",
-        "properties": {
-            "start_date": {"type": "string"},
-            "end_date": {"type": "string"},
-            "role": {"type": "string"}
-        },
-        "additionalProperties": false
-    })
+/// Schema helper for BulkDeleteFilters - adds explicit type to $ref
+fn bulk_delete_filters_schema(gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    let mut base_schema = gen.subschema_for::<BulkDeleteFilters>();
+    // Insert the type field into the schema
+    base_schema.insert("type".to_string(), serde_json::json!("object"));
+    base_schema
+}
+
+/// Schema helper for SearchFilters - adds explicit type to $ref
+fn search_filters_schema(gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    let mut base_schema = gen.subschema_for::<SearchFilters>();
+    // Insert the type field into the schema
+    base_schema.insert("type".to_string(), serde_json::json!("object"));
+    base_schema
 }
 
 /// Main handler for agent advanced operations
@@ -252,10 +235,24 @@ async fn handle_list_agents(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let pagination = request.pagination.unwrap_or_default();
+    // LMS-48: Apply optimized defaults: limit=15, max=50
+    let mut pagination = request.pagination.unwrap_or_default();
+    
+    // Override default limit from 50 to 15
+    if pagination.limit.is_none() || pagination.limit == Some(50) {
+        pagination.limit = Some(15);
+    }
+    
+    // Cap at max limit of 50
+    if let Some(limit) = pagination.limit {
+        if limit > 50 {
+            pagination.limit = Some(50);
+        }
+    }
+    
+    let offset = pagination.offset.unwrap_or(0);
 
     // Use Letta SDK's cursor-based pagination
-    // Note: SDK uses cursor-based pagination (before/after), not offset
     let params = letta::types::ListAgentsParams {
         limit: pagination.limit.map(|l| l as u32),
         ..Default::default()
@@ -268,12 +265,65 @@ async fn handle_list_agents(
         .await
         .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
 
-    let count = agents.len();
+    // Get total count for pagination metadata
+    let total = client
+        .agents()
+        .count()
+        .await
+        .unwrap_or(agents.len() as u32);
+
+    // LMS-48: Create optimized agent summaries
+    // Exclude: system, tools (full objects), memory, llm_config (full), embedding_config
+    let agent_summaries: Vec<serde_json::Value> = agents
+        .iter()
+        .map(|agent| {
+            // Extract just the model name from llm_config
+            let model = agent
+                .llm_config
+                .as_ref()
+                .map(|config| config.model.clone());
+
+            // Truncate description to 100 chars
+            let description = agent.description.as_ref().map(|d| {
+                truncate_text(d, 100)
+            });
+
+            serde_json::json!({
+                "id": agent.id.to_string(),
+                "name": agent.name,
+                "description": description,
+                "model": model,
+                "created_at": agent.created_at.to_string(),
+                "tool_count": agent.tools.len(),
+            })
+        })
+        .collect();
+
+    let returned = agent_summaries.len() as u32;
+    let has_more = total > (offset as u32 + returned);
+
+    // Create pagination metadata with helpful hints
+    let mut hints = vec![
+        "Use 'get' with agent_id for full details".to_string(),
+    ];
+    if has_more {
+        let next_offset = offset + (returned as usize);
+        hints.push(format!("Use offset={} for next page", next_offset));
+    }
+
+    let response_data = serde_json::json!({
+        "total": total,
+        "returned": returned,
+        "offset": offset,
+        "has_more": has_more,
+        "agents": agent_summaries,
+        "hints": hints,
+    });
 
     Ok(StandardResponse::success(
         "list",
-        serde_json::to_value(agents)?,
-        format!("Retrieved {} agents", count),
+        response_data,
+        format!("Retrieved {} of {} agents (summary mode)", returned, total),
     ))
 }
 
@@ -297,20 +347,20 @@ async fn handle_create_agent(
     }
 
     // For complex types, parse from JSON Value to SDK types
-    if let Some(llm_config_wrapper) = request.llm_config {
-        let llm_config: letta::types::LLMConfig = serde_json::from_value(llm_config_wrapper.0)
+    if let Some(llm_config_value) = request.llm_config {
+        let llm_config: letta::types::LLMConfig = serde_json::from_value(llm_config_value)
             .map_err(|e| McpError::invalid_request(format!("Invalid llm_config: {}", e)))?;
         agent_request.llm_config = Some(llm_config);
     }
 
-    if let Some(embedding_config_wrapper) = request.embedding_config {
-        let embedding_config: letta::types::EmbeddingConfig = serde_json::from_value(embedding_config_wrapper.0)
+    if let Some(embedding_config_value) = request.embedding_config {
+        let embedding_config: letta::types::EmbeddingConfig = serde_json::from_value(embedding_config_value)
             .map_err(|e| McpError::invalid_request(format!("Invalid embedding_config: {}", e)))?;
         agent_request.embedding_config = Some(embedding_config);
     }
 
-    if let Some(tool_ids_wrapper) = request.tool_ids {
-        let tool_ids: Vec<letta::types::LettaId> = serde_json::from_value(tool_ids_wrapper.0)
+    if let Some(tool_ids_value) = request.tool_ids {
+        let tool_ids: Vec<letta::types::LettaId> = serde_json::from_value(tool_ids_value)
             .map_err(|e| McpError::invalid_request(format!("Invalid tool_ids: {}", e)))?;
         agent_request.tool_ids = Some(tool_ids);
     }
@@ -347,10 +397,42 @@ async fn handle_get_agent(
         .await
         .map_err(|e| McpError::internal(format!("Failed to get agent: {}", e)))?;
 
+    // LMS-48: Optimize response - truncate system prompt, return tool IDs only
+    let mut agent_value = serde_json::to_value(&agent)?;
+    
+    // Truncate system prompt to 500 chars
+    if let Some(system) = agent_value.get("system").and_then(|s| s.as_str()) {
+        agent_value["system"] = serde_json::json!(truncate_text(system, 500));
+    }
+    
+    // Truncate description to 200 chars
+    if let Some(description) = agent_value.get("description").and_then(|d| d.as_str()) {
+        agent_value["description"] = serde_json::json!(truncate_text(description, 200));
+    }
+    
+    // Replace full tool objects with tool_ids array and tool_count
+    let tool_ids: Vec<String> = agent.tools
+        .iter()
+        .filter_map(|tool_ref| {
+            match tool_ref {
+                letta::types::agent::ToolReference::Id(id) => Some(id.clone()),
+                letta::types::agent::ToolReference::Object(obj) => {
+                    obj.get("id").and_then(|v| v.as_str()).map(|s| s.to_string())
+                }
+            }
+        })
+        .collect();
+    let tool_count = tool_ids.len();
+    
+    agent_value["tool_ids"] = serde_json::json!(tool_ids);
+    agent_value["tool_count"] = serde_json::json!(tool_count);
+    // Remove full tools array to save space
+    agent_value.as_object_mut().unwrap().remove("tools");
+
     Ok(StandardResponse::success(
         "get",
-        serde_json::to_value(agent)?,
-        "Agent retrieved successfully",
+        agent_value,
+        "Agent retrieved successfully (compact mode)",
     ))
 }
 
@@ -429,9 +511,28 @@ async fn handle_send_message(
         .await
         .map_err(|e| McpError::internal(format!("Failed to send message: {}", e)))?;
 
+    // LMS-48: Truncate assistant response to 1000 chars
+    let mut response_value = serde_json::to_value(&response)?;
+    
+    // Try to find and truncate assistant message content
+    if let Some(messages) = response_value.get_mut("messages").and_then(|m| m.as_array_mut()) {
+        for msg in messages.iter_mut() {
+            if let Some(content) = msg.get("text").and_then(|t| t.as_str()) {
+                let original_length = content.len();
+                if original_length > 1000 {
+                    msg["text"] = serde_json::json!(truncate_text(content, 1000));
+                    msg["full_response_length"] = serde_json::json!(original_length);
+                }
+            }
+        }
+    }
+    
+    // Add hint about full response
+    response_value["hint"] = serde_json::json!("Full response visible in agent's message history");
+
     Ok(StandardResponse::success(
         "send_message",
-        serde_json::to_value(response)?,
+        response_value,
         "Message sent successfully",
     ))
 }
@@ -454,10 +555,47 @@ async fn handle_list_tools(
         .await
         .map_err(|e| McpError::internal(format!("Failed to list agent tools: {}", e)))?;
 
+    // LMS-48: Default limit=25, return summary mode only
+    let default_limit = 25;
+    let limit = request.pagination
+        .and_then(|p| p.limit)
+        .unwrap_or(default_limit as usize)
+        .min(default_limit);
+    
+    // Create tool summaries - exclude source_code, json_schema
+    let tool_summaries: Vec<serde_json::Value> = tools
+        .iter()
+        .take(limit)
+        .map(|tool| {
+            let description = tool.description.as_ref().map(|d| truncate_text(d, 80));
+            let id = tool.id.as_ref().map(|id| id.to_string()).unwrap_or_default();
+            
+            serde_json::json!({
+                "id": id,
+                "name": tool.name,
+                "description": description,
+                "source_type": tool.source_type,
+                // Exclude: source_code, json_schema, args_schema
+            })
+        })
+        .collect();
+
+    let total = tools.len();
+    let returned = tool_summaries.len();
+    let has_more = total > returned;
+    
+    let response_data = serde_json::json!({
+        "total": total,
+        "returned": returned,
+        "has_more": has_more,
+        "tools": tool_summaries,
+        "hint": "Use tool manager for full tool details including source code",
+    });
+
     Ok(StandardResponse::success(
         "list_tools",
-        serde_json::to_value(&tools)?,
-        format!("Found {} tools", tools.len()),
+        response_data,
+        format!("Retrieved {} of {} tools (summary mode)", returned, total),
     ))
 }
 
@@ -854,10 +992,69 @@ async fn handle_search_messages(
         .await
         .map_err(|e| McpError::internal(format!("Failed to search messages: {}", e)))?;
 
+    // LMS-48: Default limit=10, max=50, truncate message content to 200 chars
+    let default_limit = 10;
+    let max_limit = 50;
+    let limit = request.pagination
+        .and_then(|p| p.limit)
+        .unwrap_or(default_limit)
+        .min(max_limit);
+    
+    // Create message summaries
+    let message_summaries: Vec<serde_json::Value> = results
+        .iter()
+        .take(limit)
+        .map(|msg| {
+            // Convert message to JSON to access fields
+            let msg_value = serde_json::to_value(msg).unwrap_or(serde_json::json!({}));
+            
+            // Try to extract text content from different possible locations
+            let content = msg_value.get("text")
+                .or_else(|| msg_value.get("content"))
+                .and_then(|c| c.as_str())
+                .unwrap_or("");
+            
+            let content_length = content.len();
+            let content_preview = truncate_text(content, 200);
+            
+            let role = msg_value.get("role")
+                .and_then(|r| r.as_str())
+                .unwrap_or("unknown");
+            
+            let created_at = msg_value.get("created_at")
+                .and_then(|c| c.as_str())
+                .unwrap_or("");
+            
+            let id = msg_value.get("id")
+                .and_then(|i| i.as_str())
+                .unwrap_or("");
+            
+            serde_json::json!({
+                "id": id,
+                "role": role,
+                "content_preview": content_preview,
+                "content_length": content_length,
+                "created_at": created_at,
+            })
+        })
+        .collect();
+
+    let total = results.len();
+    let returned = message_summaries.len();
+    let has_more = total > returned;
+    
+    let response_data = serde_json::json!({
+        "total": total,
+        "returned": returned,
+        "has_more": has_more,
+        "messages": message_summaries,
+        "hint": "Use get_message with message_id for full content",
+    });
+
     Ok(StandardResponse::success(
         "search_messages",
-        serde_json::to_value(&results)?,
-        format!("Found {} messages", results.len()),
+        response_data,
+        format!("Found {} of {} messages (preview mode)", returned, total),
     ))
 }
 

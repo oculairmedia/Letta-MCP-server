@@ -37,54 +37,39 @@ pub enum MemoryOperation {
 /// Memory unified request
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct MemoryUnifiedRequest {
-    /// The operation to perform (get_core_memory, update_core_memory, list_blocks, create_block, etc.)
     pub operation: MemoryOperation,
 
-    /// Agent ID (required for agent-specific operations)
+    // Common parameters
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
-
-    /// Memory block ID (required for block operations)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub block_id: Option<String>,
-
-    /// Memory block label (for get_block_by_label operation)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub block_label: Option<String>,
-
-    /// Passage ID (required for passage operations)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub passage_id: Option<String>,
 
-    /// Block label (for create/update block operations)
+    // Create/Update data
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
-
-    /// Memory block value/content (for create/update block operations)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
-
-    /// Passage text content (for create/update passage operations)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
-
-    /// Search query text (for search_archival operation)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub query: Option<String>,
 
-    /// Maximum number of results to return (for list/search operations)
+    // Pagination
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
-
-    /// Number of results to skip (for pagination)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offset: Option<i32>,
 
-    /// Whether the block is a template (for create/update block operations)
+    // Block-specific
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_template: Option<bool>,
 
-    /// Ignored parameter for MCP client compatibility
+    // Ignored parameter
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
 }
@@ -119,29 +104,27 @@ pub struct MemoryUnifiedResponse {
 pub async fn handle_memory_unified(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<String, McpError> {
+) -> Result<MemoryUnifiedResponse, McpError> {
     let operation_str = format!("{:?}", request.operation).to_lowercase();
     info!(operation = %operation_str, "Executing memory operation");
 
-    let response = match request.operation {
-        MemoryOperation::GetCoreMemory => handle_get_core_memory(client, request).await?,
-        MemoryOperation::UpdateCoreMemory => handle_update_core_memory(client, request).await?,
-        MemoryOperation::GetBlockByLabel => handle_get_block_by_label(client, request).await?,
-        MemoryOperation::ListBlocks => handle_list_blocks(client, request).await?,
-        MemoryOperation::CreateBlock => handle_create_block(client, request).await?,
-        MemoryOperation::GetBlock => handle_get_block(client, request).await?,
-        MemoryOperation::UpdateBlock => handle_update_block(client, request).await?,
-        MemoryOperation::AttachBlock => handle_attach_block(client, request).await?,
-        MemoryOperation::DetachBlock => handle_detach_block(client, request).await?,
-        MemoryOperation::ListAgentsUsingBlock => handle_list_agents_using_block(client, request).await?,
-        MemoryOperation::SearchArchival => handle_search_archival(client, request).await?,
-        MemoryOperation::ListPassages => handle_list_passages(client, request).await?,
-        MemoryOperation::CreatePassage => handle_create_passage(client, request).await?,
-        MemoryOperation::UpdatePassage => handle_update_passage(client, request).await?,
-        MemoryOperation::DeletePassage => handle_delete_passage(client, request).await?,
-    };
-
-    Ok(serde_json::to_string_pretty(&response)?)
+    match request.operation {
+        MemoryOperation::GetCoreMemory => handle_get_core_memory(client, request).await,
+        MemoryOperation::UpdateCoreMemory => handle_update_core_memory(client, request).await,
+        MemoryOperation::GetBlockByLabel => handle_get_block_by_label(client, request).await,
+        MemoryOperation::ListBlocks => handle_list_blocks(client, request).await,
+        MemoryOperation::CreateBlock => handle_create_block(client, request).await,
+        MemoryOperation::GetBlock => handle_get_block(client, request).await,
+        MemoryOperation::UpdateBlock => handle_update_block(client, request).await,
+        MemoryOperation::AttachBlock => handle_attach_block(client, request).await,
+        MemoryOperation::DetachBlock => handle_detach_block(client, request).await,
+        MemoryOperation::ListAgentsUsingBlock => handle_list_agents_using_block(client, request).await,
+        MemoryOperation::SearchArchival => handle_search_archival(client, request).await,
+        MemoryOperation::ListPassages => handle_list_passages(client, request).await,
+        MemoryOperation::CreatePassage => handle_create_passage(client, request).await,
+        MemoryOperation::UpdatePassage => handle_update_passage(client, request).await,
+        MemoryOperation::DeletePassage => handle_delete_passage(client, request).await,
+    }
 }
 
 // ===================================================

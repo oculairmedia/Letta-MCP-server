@@ -4,6 +4,12 @@
 //! Implements 8 operations:
 //! - File Sessions: list_files, open_file, close_file, close_all_files
 //! - Folders: list_folders, attach_folder, detach_folder, list_agents_in_folder
+//!
+//! Response size optimizations (LMS-54):
+//! - list_files: Default limit=25, NEVER includes file content
+//! - list_folders: Default limit=20, truncates descriptions
+//! - open_file: Returns minimal confirmation (content retrieval via separate API)
+//! - All list operations include pagination metadata
 
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
@@ -11,6 +17,22 @@ use serde_json::Value;
 use std::str::FromStr;
 use tracing::{error, info};
 use turbomcp::McpError;
+
+/// Constants for response size optimization
+const DEFAULT_FILE_LIMIT: usize = 25;
+const MAX_FILE_LIMIT: usize = 100;
+const DEFAULT_FOLDER_LIMIT: usize = 20;
+const MAX_FOLDER_LIMIT: usize = 50;
+const MAX_DESCRIPTION_LENGTH: usize = 100;
+
+/// Truncate a string to a maximum length with ellipsis
+fn truncate_string(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...[truncated]", &s[..max_len.saturating_sub(15)])
+    }
+}
 
 /// File/folder operation request
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -30,12 +52,20 @@ pub struct FileFolderRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folder_id: Option<String>,
 
+    /// Maximum number of results to return (for list operations)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+
+    /// Number of results to skip (for pagination)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<usize>,
+
     /// Ignored parameter (for MCP client compatibility)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
 }
 
-/// File metadata
+/// File metadata (optimized for list operations - no content)
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct FileMetadata {
     pub id: String,
@@ -48,6 +78,7 @@ pub struct FileMetadata {
     pub is_open: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub opened_at: Option<String>,
+    // Note: File content is NEVER included in list operations
 }
 
 /// Folder metadata
@@ -84,6 +115,16 @@ pub struct FileFolderResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folder_id: Option<String>,
 
+    // Pagination metadata
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub returned: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hints: Option<Vec<String>>,
+
     // Operation-specific fields
     #[serde(skip_serializing_if = "Option::is_none")]
     pub files: Option<Vec<FileMetadata>>,
@@ -109,35 +150,41 @@ pub struct FileFolderResponse {
     pub agent_ids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agents: Option<Vec<AgentReference>>,
+    
+    // For open_file operation (if content retrieval is added in future)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_length: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub truncated: Option<bool>,
 }
 
 /// Handle letta_file_folder_ops tool requests
 pub async fn handle_file_folder_ops(
     client: &LettaClient,
     request: FileFolderRequest,
-) -> Result<String, McpError> {
+) -> Result<FileFolderResponse, McpError> {
     let operation = request.operation.as_str();
     info!(operation = %operation, "Executing file/folder operation");
 
-    let response = match operation {
-        "list_files" => handle_list_files(client, request).await?,
-        "open_file" => handle_open_file(client, request).await?,
-        "close_file" => handle_close_file(client, request).await?,
-        "close_all_files" => handle_close_all_files(client, request).await?,
-        "list_folders" => handle_list_folders(client, request).await?,
-        "attach_folder" => handle_attach_folder(client, request).await?,
-        "detach_folder" => handle_detach_folder(client, request).await?,
-        "list_agents_in_folder" => handle_list_agents_in_folder(client, request).await?,
+    match operation {
+        "list_files" => handle_list_files(client, request).await,
+        "open_file" => handle_open_file(client, request).await,
+        "close_file" => handle_close_file(client, request).await,
+        "close_all_files" => handle_close_all_files(client, request).await,
+        "list_folders" => handle_list_folders(client, request).await,
+        "attach_folder" => handle_attach_folder(client, request).await,
+        "detach_folder" => handle_detach_folder(client, request).await,
+        "list_agents_in_folder" => handle_list_agents_in_folder(client, request).await,
         _ => {
             error!(operation = %operation, "Unknown operation");
             Err(McpError::invalid_request(format!(
                 "Unknown operation: {}",
                 operation
-            )))?
+            )))
         }
-    };
-
-    Ok(serde_json::to_string_pretty(&response)?)
+    }
 }
 
 /// List files for an agent
@@ -152,6 +199,10 @@ async fn handle_list_files(
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
 
+    // Apply pagination limits
+    let limit = request.limit.unwrap_or(DEFAULT_FILE_LIMIT).min(MAX_FILE_LIMIT);
+    let offset = request.offset.unwrap_or(0);
+
     // Use SDK to list agent files
     let result = client
         .agents()
@@ -160,9 +211,14 @@ async fn handle_list_files(
         .await
         .map_err(|e| McpError::internal(format!("Failed to list files: {}", e)))?;
 
+    let total = result.files.len();
+    
+    // Apply pagination - NEVER include file content in list operations
     let files: Vec<FileMetadata> = result
         .files
         .into_iter()
+        .skip(offset)
+        .take(limit)
         .map(|f| FileMetadata {
             id: f.id.to_string(),
             filename: f.filename.clone(),
@@ -173,13 +229,22 @@ async fn handle_list_files(
         })
         .collect();
 
-    let count = files.len();
+    let returned = files.len();
+    let mut hints = vec!["File content is NEVER included in list operations".to_string()];
+    
+    if total > offset + returned {
+        hints.push(format!("More files available. Use offset={} to see next page", offset + returned));
+    }
 
     Ok(FileFolderResponse {
         success: true,
         operation: "list_files".to_string(),
-        message: format!("Found {} files", count),
+        message: format!("Returned {} of {} files", returned, total),
         agent_id: Some(agent_id),
+        total: Some(total),
+        returned: Some(returned),
+        offset: Some(offset),
+        hints: Some(hints),
         files: Some(files),
         file_id: None,
         folder_id: None,
@@ -194,6 +259,9 @@ async fn handle_list_files(
         agent_state: None,
         agent_ids: None,
         agents: None,
+        file_content: None,
+        content_length: None,
+        truncated: None,
     })
 }
 
@@ -222,6 +290,10 @@ async fn handle_open_file(
         .await
         .map_err(|e| McpError::internal(format!("Failed to open file: {}", e)))?;
 
+    // Note: The SDK open() method marks the file as open in the agent's context
+    // It does NOT return file content. Content retrieval would require a separate API call.
+    let hints = vec!["File marked as open in agent context. Content retrieval requires separate API call.".to_string()];
+
     Ok(FileFolderResponse {
         success: true,
         operation: "open_file".to_string(),
@@ -230,6 +302,7 @@ async fn handle_open_file(
         file_id: Some(file_id),
         opened: Some(true),
         evicted_files: Some(evicted),
+        hints: Some(hints),
         folder_id: None,
         files: None,
         closed: None,
@@ -241,6 +314,12 @@ async fn handle_open_file(
         agent_state: None,
         agent_ids: None,
         agents: None,
+        total: None,
+        returned: None,
+        offset: None,
+        file_content: None,
+        content_length: None,
+        truncated: None,
     })
 }
 
@@ -269,6 +348,7 @@ async fn handle_close_file(
         .await
         .map_err(|e| McpError::internal(format!("Failed to close file: {}", e)))?;
 
+    // Minimal response as per LMS-54 requirements
     Ok(FileFolderResponse {
         success: true,
         operation: "close_file".to_string(),
@@ -288,6 +368,13 @@ async fn handle_close_file(
         agent_state: None,
         agent_ids: None,
         agents: None,
+        total: None,
+        returned: None,
+        offset: None,
+        hints: None,
+        file_content: None,
+        content_length: None,
+        truncated: None,
     })
 }
 
@@ -313,6 +400,7 @@ async fn handle_close_all_files(
 
     let count = closed.len();
 
+    // Minimal response - just file IDs, not full metadata (LMS-54)
     Ok(FileFolderResponse {
         success: true,
         operation: "close_all_files".to_string(),
@@ -332,14 +420,25 @@ async fn handle_close_all_files(
         agent_state: None,
         agent_ids: None,
         agents: None,
+        total: None,
+        returned: None,
+        offset: None,
+        hints: None,
+        file_content: None,
+        content_length: None,
+        truncated: None,
     })
 }
 
 /// List all folders
 async fn handle_list_folders(
     client: &LettaClient,
-    _request: FileFolderRequest,
+    request: FileFolderRequest,
 ) -> Result<FileFolderResponse, McpError> {
+    // Apply pagination limits
+    let limit = request.limit.unwrap_or(DEFAULT_FOLDER_LIMIT).min(MAX_FOLDER_LIMIT);
+    let offset = request.offset.unwrap_or(0);
+
     // Use SDK to list folders
     let result = client
         .folders()
@@ -347,23 +446,37 @@ async fn handle_list_folders(
         .await
         .map_err(|e| McpError::internal(format!("Failed to list folders: {}", e)))?;
 
+    let total = result.len();
+
+    // Apply pagination and truncate descriptions (LMS-54)
     let folders: Vec<FolderMetadata> = result
         .into_iter()
+        .skip(offset)
+        .take(limit)
         .map(|f| FolderMetadata {
             id: f.id.to_string(),
             name: f.name.clone(),
-            description: f.description.clone(),
+            description: f.description.as_ref().map(|d| truncate_string(d, MAX_DESCRIPTION_LENGTH)),
             file_count: None, // Not included in SDK response
             agent_count: None, // Not included in SDK response
         })
         .collect();
 
-    let count = folders.len();
+    let returned = folders.len();
+    let mut hints = Vec::new();
+    
+    if total > offset + returned {
+        hints.push(format!("More folders available. Use offset={} to see next page", offset + returned));
+    }
 
     Ok(FileFolderResponse {
         success: true,
         operation: "list_folders".to_string(),
-        message: format!("Found {} folders", count),
+        message: format!("Returned {} of {} folders", returned, total),
+        total: Some(total),
+        returned: Some(returned),
+        offset: Some(offset),
+        hints: if hints.is_empty() { None } else { Some(hints) },
         folders: Some(folders),
         agent_id: None,
         file_id: None,
@@ -379,6 +492,9 @@ async fn handle_list_folders(
         agent_state: None,
         agent_ids: None,
         agents: None,
+        file_content: None,
+        content_length: None,
+        truncated: None,
     })
 }
 
@@ -400,13 +516,14 @@ async fn handle_attach_folder(
         .map_err(|e| McpError::invalid_request(format!("Invalid folder_id: {}", e)))?;
 
     // Use SDK to attach folder - returns AgentState
-    let agent_state = client
+    let _agent_state = client
         .folders()
         .agent(letta_agent_id)
         .attach(&letta_folder_id)
         .await
         .map_err(|e| McpError::internal(format!("Failed to attach folder: {}", e)))?;
 
+    // Minimal response - don't include full agent state (LMS-54)
     Ok(FileFolderResponse {
         success: true,
         operation: "attach_folder".to_string(),
@@ -414,7 +531,6 @@ async fn handle_attach_folder(
         agent_id: Some(agent_id),
         folder_id: Some(folder_id),
         attached: Some(true),
-        agent_state: Some(serde_json::to_value(&agent_state).unwrap_or(Value::Null)),
         file_id: None,
         files: None,
         opened: None,
@@ -424,8 +540,16 @@ async fn handle_attach_folder(
         closed_files: None,
         folders: None,
         detached: None,
+        agent_state: None, // Excluded to reduce response size
         agent_ids: None,
         agents: None,
+        total: None,
+        returned: None,
+        offset: None,
+        hints: None,
+        file_content: None,
+        content_length: None,
+        truncated: None,
     })
 }
 
@@ -447,13 +571,14 @@ async fn handle_detach_folder(
         .map_err(|e| McpError::invalid_request(format!("Invalid folder_id: {}", e)))?;
 
     // Use SDK to detach folder - returns AgentState
-    let agent_state = client
+    let _agent_state = client
         .folders()
         .agent(letta_agent_id)
         .detach(&letta_folder_id)
         .await
         .map_err(|e| McpError::internal(format!("Failed to detach folder: {}", e)))?;
 
+    // Minimal response - don't include full agent state (LMS-54)
     Ok(FileFolderResponse {
         success: true,
         operation: "detach_folder".to_string(),
@@ -461,7 +586,6 @@ async fn handle_detach_folder(
         agent_id: Some(agent_id),
         folder_id: Some(folder_id),
         detached: Some(true),
-        agent_state: Some(serde_json::to_value(&agent_state).unwrap_or(Value::Null)),
         file_id: None,
         files: None,
         opened: None,
@@ -471,8 +595,16 @@ async fn handle_detach_folder(
         closed_files: None,
         folders: None,
         attached: None,
+        agent_state: None, // Excluded to reduce response size
         agent_ids: None,
         agents: None,
+        total: None,
+        returned: None,
+        offset: None,
+        hints: None,
+        file_content: None,
+        content_length: None,
+        truncated: None,
     })
 }
 
@@ -497,6 +629,7 @@ async fn handle_list_agents_in_folder(
             McpError::internal(format!("Failed to list agents in folder: {}", e))
         })?;
 
+    // Return IDs only - already optimized (LMS-54)
     let agents: Vec<AgentReference> = agent_ids
         .iter()
         .map(|id| AgentReference { id: id.clone() })
@@ -523,5 +656,12 @@ async fn handle_list_agents_in_folder(
         attached: None,
         detached: None,
         agent_state: None,
+        total: None,
+        returned: None,
+        offset: None,
+        hints: None,
+        file_content: None,
+        content_length: None,
+        truncated: None,
     })
 }
