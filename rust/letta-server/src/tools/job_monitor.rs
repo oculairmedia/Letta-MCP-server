@@ -204,11 +204,7 @@ async fn handle_get_job(
             }
         }
     }
-    if details
-        .callback_error
-        .as_ref()
-        .is_some_and(|e| e.truncated)
-    {
+    if details.callback_error.as_ref().is_some_and(|e| e.truncated) {
         hints.push("Error details truncated; use direct API for full error".to_string());
     }
 
