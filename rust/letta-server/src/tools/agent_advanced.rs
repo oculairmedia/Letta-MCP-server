@@ -20,6 +20,7 @@ pub enum AgentOperation {
     Get,
     Update,
     Delete,
+    Search,
     ListTools,
     SendMessage,
     Export,
@@ -141,9 +142,13 @@ pub struct AgentAdvancedRequest {
     #[schemars(schema_with = "bulk_delete_filters_schema")]
     pub filters: Option<BulkDeleteFilters>,
 
-    /// Search query text (for search_messages operation)
+    /// Search query text (for search_messages and search operations)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub query: Option<String>,
+
+    /// Tags to filter by (for search operation)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
 
     /// Search filters (for search_messages operation: start_date, end_date, role)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -205,6 +210,7 @@ pub async fn handle_agent_advanced(
         AgentOperation::Get => handle_get_agent(client, request).await?,
         AgentOperation::Update => handle_update_agent(client, request).await?,
         AgentOperation::Delete => handle_delete_agent(client, request).await?,
+        AgentOperation::Search => handle_search_agents(client, request).await?,
         AgentOperation::SendMessage => handle_send_message(client, request).await?,
         AgentOperation::ListTools => handle_list_tools(client, request).await?,
         AgentOperation::Export => handle_export_agent(client, request).await?,
@@ -324,6 +330,89 @@ async fn handle_list_agents(
         "list",
         response_data,
         format!("Retrieved {} of {} agents (summary mode)", returned, total),
+    ))
+}
+
+/// Search agents by name, tags, or query text
+async fn handle_search_agents(
+    client: &LettaClient,
+    request: AgentAdvancedRequest,
+) -> Result<StandardResponse, McpError> {
+    // At least one search parameter must be provided
+    if request.name.is_none() && request.tags.is_none() && request.query.is_none() {
+        return Err(McpError::invalid_request(
+            "At least one search parameter required: name, tags, or query".to_string(),
+        ));
+    }
+
+    // Build search parameters using SDK types
+    let params = letta::types::ListAgentsParams {
+        name: request.name.clone(),
+        tags: request.tags.clone(),
+        query_text: request.query.clone(),
+        limit: Some(50), // Max results for search
+        ..Default::default()
+    };
+
+    // Execute search
+    let agents = client
+        .agents()
+        .list(Some(params))
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to search agents: {}", e)))?;
+
+    // Build search criteria for response message
+    let mut criteria = Vec::new();
+    if let Some(ref name) = request.name {
+        criteria.push(format!("name='{}'", name));
+    }
+    if let Some(ref tags) = request.tags {
+        criteria.push(format!("tags={:?}", tags));
+    }
+    if let Some(ref query) = request.query {
+        criteria.push(format!("query='{}'", query));
+    }
+    let criteria_str = criteria.join(", ");
+
+    // Create optimized agent summaries (same as list)
+    let agent_summaries: Vec<serde_json::Value> = agents
+        .iter()
+        .map(|agent| {
+            let model = agent
+                .llm_config
+                .as_ref()
+                .map(|config| config.model.clone());
+
+            let description = agent.description.as_ref().map(|d| truncate_text(d, 100));
+
+            serde_json::json!({
+                "id": agent.id.to_string(),
+                "name": agent.name,
+                "description": description,
+                "model": model,
+                "created_at": agent.created_at.to_string(),
+                "tool_count": agent.tools.len(),
+            })
+        })
+        .collect();
+
+    let count = agent_summaries.len();
+
+    let response_data = serde_json::json!({
+        "count": count,
+        "agents": agent_summaries,
+        "search_criteria": {
+            "name": request.name,
+            "tags": request.tags,
+            "query": request.query,
+        },
+        "hint": "Use 'get' with agent_id for full details",
+    });
+
+    Ok(StandardResponse::success(
+        "search",
+        response_data,
+        format!("Found {} agents matching: {}", count, criteria_str),
     ))
 }
 
