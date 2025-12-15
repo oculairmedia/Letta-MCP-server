@@ -6,11 +6,11 @@
 //! - File operations (upload, list, delete)
 //! - Response optimization and pagination
 
-use serde_json::json;
 use letta_server::tools::source_manager::{
-    SourceManagerRequest, SourceOperation, SourceSummary, FileSummary, 
-    AgentReference, PaginationMetadata
+    AgentReference, FileSummary, PaginationMetadata, SourceManagerRequest, SourceOperation,
+    SourceSummary,
 };
+use serde_json::json;
 
 // ============================================================
 // Request Parsing Tests
@@ -21,7 +21,7 @@ fn test_parse_list_sources() {
     let json_input = json!({
         "operation": "list"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::List));
 }
@@ -33,7 +33,7 @@ fn test_parse_list_with_pagination() {
         "limit": 50,
         "include_content": false
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::List));
     assert_eq!(request.limit, Some(50));
@@ -46,7 +46,7 @@ fn test_parse_get_source() {
         "operation": "get",
         "source_id": "source-12345"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::Get));
     assert_eq!(request.source_id.unwrap(), "source-12345");
@@ -59,7 +59,7 @@ fn test_parse_create_source() {
         "name": "my_knowledge_base",
         "description": "A collection of documents"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::Create));
     assert_eq!(request.name.unwrap(), "my_knowledge_base");
@@ -73,7 +73,7 @@ fn test_parse_update_source() {
         "source_id": "source-12345",
         "description": "Updated description"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::Update));
     assert_eq!(request.source_id.unwrap(), "source-12345");
@@ -85,7 +85,7 @@ fn test_parse_delete_source() {
         "operation": "delete",
         "source_id": "source-12345"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::Delete));
 }
@@ -97,7 +97,7 @@ fn test_parse_attach_source() {
         "source_id": "source-12345",
         "agent_id": "agent-67890"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::Attach));
     assert_eq!(request.source_id.unwrap(), "source-12345");
@@ -111,7 +111,7 @@ fn test_parse_detach_source() {
         "source_id": "source-12345",
         "agent_id": "agent-67890"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::Detach));
 }
@@ -122,7 +122,7 @@ fn test_parse_list_attached() {
         "operation": "list_attached",
         "agent_id": "agent-67890"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::ListAttached));
     assert_eq!(request.agent_id.unwrap(), "agent-67890");
@@ -137,7 +137,7 @@ fn test_parse_upload_file() {
         "file_data": "base64encodeddata",
         "content_type": "application/pdf"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::Upload));
     assert_eq!(request.file_name.unwrap(), "document.pdf");
@@ -151,7 +151,7 @@ fn test_parse_delete_files() {
         "source_id": "source-12345",
         "file_id": "file-99999"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::DeleteFiles));
     assert_eq!(request.file_id.unwrap(), "file-99999");
@@ -164,7 +164,7 @@ fn test_parse_list_files() {
         "source_id": "source-12345",
         "limit": 100
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::ListFiles));
     assert_eq!(request.limit, Some(100));
@@ -175,7 +175,7 @@ fn test_parse_count_sources() {
     let json_input = json!({
         "operation": "count"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, SourceOperation::Count));
 }
@@ -186,9 +186,12 @@ fn test_parse_list_agents_using() {
         "operation": "list_agents_using",
         "source_id": "source-12345"
     });
-    
+
     let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
-    assert!(matches!(request.operation, SourceOperation::ListAgentsUsing));
+    assert!(matches!(
+        request.operation,
+        SourceOperation::ListAgentsUsing
+    ));
     assert_eq!(request.source_id.unwrap(), "source-12345");
 }
 
@@ -199,12 +202,21 @@ fn test_parse_list_agents_using() {
 #[test]
 fn test_all_source_operations_parse() {
     let operations = vec![
-        "list", "get", "create", "update", "delete",
-        "attach", "detach", "list_attached",
-        "upload", "delete_files", "list_files",
-        "count", "list_agents_using"
+        "list",
+        "get",
+        "create",
+        "update",
+        "delete",
+        "attach",
+        "detach",
+        "list_attached",
+        "upload",
+        "delete_files",
+        "list_files",
+        "count",
+        "list_agents_using",
     ];
-    
+
     for op in operations {
         let json_input = json!({"operation": op});
         let result: Result<SourceManagerRequest, _> = serde_json::from_value(json_input);
@@ -227,7 +239,7 @@ fn test_source_summary_serialization() {
         file_count: 5,
         attached_agent_count: 3,
     };
-    
+
     let json = serde_json::to_value(&summary).unwrap();
     assert_eq!(json["id"], "source-123");
     assert_eq!(json["name"], "My Source");
@@ -246,7 +258,7 @@ fn test_source_summary_optional_fields() {
         file_count: 0,
         attached_agent_count: 0,
     };
-    
+
     let json = serde_json::to_value(&summary).unwrap();
     assert!(!json.as_object().unwrap().contains_key("description"));
     assert!(!json.as_object().unwrap().contains_key("created_at"));
@@ -265,7 +277,7 @@ fn test_source_summary_truncated_description() {
         file_count: 0,
         attached_agent_count: 0,
     };
-    
+
     let json = serde_json::to_value(&summary).unwrap();
     let desc = json["description"].as_str().unwrap();
     // In actual implementation, description should be truncated to 100 chars
@@ -286,7 +298,7 @@ fn test_file_summary_serialization() {
         created_at: Some("2024-01-01T00:00:00Z".to_string()),
         processing_status: Some("completed".to_string()),
     };
-    
+
     let json = serde_json::to_value(&file_summary).unwrap();
     assert_eq!(json["id"], "file-456");
     assert_eq!(json["file_name"], "document.pdf");
@@ -303,7 +315,7 @@ fn test_file_summary_optional_fields() {
         created_at: None,
         processing_status: None,
     };
-    
+
     let json = serde_json::to_value(&file_summary).unwrap();
     assert!(!json.as_object().unwrap().contains_key("content_type"));
     assert!(!json.as_object().unwrap().contains_key("size_bytes"));
@@ -320,7 +332,7 @@ fn test_file_summary_never_includes_content() {
         created_at: None,
         processing_status: None,
     };
-    
+
     let json = serde_json::to_value(&file_summary).unwrap();
     assert!(!json.as_object().unwrap().contains_key("content"));
 }
@@ -335,11 +347,11 @@ fn test_agent_reference_serialization() {
         id: "agent-789".to_string(),
         name: "TestAgent".to_string(),
     };
-    
+
     let json = serde_json::to_value(&agent_ref).unwrap();
     assert_eq!(json["id"], "agent-789");
     assert_eq!(json["name"], "TestAgent");
-    
+
     // Should only have id and name fields
     assert_eq!(json.as_object().unwrap().len(), 2);
 }
@@ -356,7 +368,7 @@ fn test_pagination_metadata() {
         limit: 20,
         hint: Some("Use limit parameter to see more".to_string()),
     };
-    
+
     let json = serde_json::to_value(&pagination).unwrap();
     assert_eq!(json["total"], 100);
     assert_eq!(json["returned"], 20);
@@ -372,7 +384,7 @@ fn test_pagination_no_hint_when_all_returned() {
         limit: 20,
         hint: None,
     };
-    
+
     let json = serde_json::to_value(&pagination).unwrap();
     assert_eq!(json["total"], 15);
     assert_eq!(json["returned"], 15);
@@ -401,7 +413,7 @@ mod response_format {
             },
             "data": []
         });
-        
+
         assert_eq!(response_data["success"], true);
         assert_eq!(response_data["operation"], "list");
         assert!(response_data["pagination"].is_object());
@@ -419,7 +431,7 @@ mod response_format {
                 "file_count": 5
             }
         });
-        
+
         assert_eq!(response_data["success"], true);
         assert!(response_data["data"].is_object());
     }
@@ -435,7 +447,7 @@ mod response_format {
                 "name": "New Source"
             }
         });
-        
+
         assert_eq!(response_data["operation"], "create");
     }
 
@@ -447,7 +459,7 @@ mod response_format {
             "message": "Counted sources successfully",
             "count": 42
         });
-        
+
         assert_eq!(response_data["count"], 42);
     }
 
@@ -464,7 +476,7 @@ mod response_format {
                 "size_bytes": 1024000
             }
         });
-        
+
         assert_eq!(response_data["data"]["file_id"], "file-123");
     }
 }
@@ -482,9 +494,12 @@ mod edge_cases {
             "operation": "create",
             "name": ""
         });
-        
+
         let request: Result<SourceManagerRequest, _> = serde_json::from_value(json_input);
-        assert!(request.is_ok(), "Empty name should parse but fail validation later");
+        assert!(
+            request.is_ok(),
+            "Empty name should parse but fail validation later"
+        );
     }
 
     #[test]
@@ -493,7 +508,7 @@ mod edge_cases {
             "operation": "list",
             "limit": 0
         });
-        
+
         let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(0));
     }
@@ -504,7 +519,7 @@ mod edge_cases {
             "operation": "list",
             "limit": -1
         });
-        
+
         let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(-1));
         // Should be clamped to 0 in handler
@@ -516,7 +531,7 @@ mod edge_cases {
             "operation": "list",
             "limit": 999999
         });
-        
+
         let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(999999));
         // Should be clamped to MAX_LIMIT (100) in handler
@@ -527,9 +542,12 @@ mod edge_cases {
         let json_input = json!({
             "operation": "get"
         });
-        
+
         let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
-        assert!(request.source_id.is_none(), "Missing source_id should parse but fail in handler");
+        assert!(
+            request.source_id.is_none(),
+            "Missing source_id should parse but fail in handler"
+        );
     }
 
     #[test]
@@ -538,9 +556,12 @@ mod edge_cases {
             "operation": "attach",
             "source_id": "source-123"
         });
-        
+
         let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
-        assert!(request.agent_id.is_none(), "Should parse but fail validation");
+        assert!(
+            request.agent_id.is_none(),
+            "Should parse but fail validation"
+        );
     }
 
     #[test]
@@ -552,7 +573,7 @@ mod edge_cases {
             "file_name": "test.txt",
             "file_data": base64_data
         });
-        
+
         let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.file_data.unwrap(), base64_data);
     }
@@ -563,7 +584,7 @@ mod edge_cases {
             "operation": "create",
             "name": "测试源 🚀"
         });
-        
+
         let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.name.unwrap(), "测试源 🚀");
     }
@@ -575,7 +596,7 @@ mod edge_cases {
             "name": "Test",
             "description": null
         });
-        
+
         let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.description.is_none());
     }
@@ -594,9 +615,12 @@ mod limits {
         let json_input = json!({
             "operation": "list"
         });
-        
+
         let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
-        assert!(request.limit.is_none(), "No limit specified should use default");
+        assert!(
+            request.limit.is_none(),
+            "No limit specified should use default"
+        );
     }
 
     #[test]
@@ -606,7 +630,7 @@ mod limits {
             "operation": "list",
             "limit": 150
         });
-        
+
         let request: SourceManagerRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(150));
         // Should be clamped to 100 in handler
@@ -625,7 +649,7 @@ mod limits {
             file_count: 0,
             attached_agent_count: 0,
         };
-        
+
         // The actual truncation happens in the handler via truncate_string()
         // Here we just verify the struct can hold long descriptions
         assert_eq!(summary.description.unwrap().len(), 200);
@@ -639,7 +663,7 @@ mod limits {
 #[test]
 fn test_operation_count() {
     // Verify we have exactly 13 operations (not 15 - ListFolders and GetFolderContents moved)
-    let operations = vec![
+    let operations = [
         SourceOperation::List,
         SourceOperation::Get,
         SourceOperation::Create,
@@ -654,6 +678,6 @@ fn test_operation_count() {
         SourceOperation::Count,
         SourceOperation::ListAgentsUsing,
     ];
-    
+
     assert_eq!(operations.len(), 13, "Should have exactly 13 operations");
 }

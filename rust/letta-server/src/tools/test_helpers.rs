@@ -3,8 +3,8 @@
 //! Provides utilities for unit testing tool handlers without requiring
 //! a live Letta server connection.
 
-use serde_json::{json, Value};
 use letta_types::StandardResponse;
+use serde_json::{json, Value};
 
 /// Create a mock agent state for testing
 pub fn mock_agent(id: &str, name: &str) -> Value {
@@ -191,7 +191,7 @@ pub fn assert_count(response: &StandardResponse, field: &str, expected: usize) {
     let arr = data
         .get(field)
         .and_then(|v| v.as_array())
-        .expect(&format!("Expected array field '{}'", field));
+        .unwrap_or_else(|| panic!("Expected array field '{}'", field));
     assert_eq!(
         arr.len(),
         expected,
@@ -205,8 +205,7 @@ pub fn assert_count(response: &StandardResponse, field: &str, expected: usize) {
 /// Extract a string field from response data
 pub fn get_string_field(response: &StandardResponse, field: &str) -> Option<String> {
     let data = response.data.as_ref()?;
-    data
-        .get(field)
+    data.get(field)
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
 }
@@ -216,7 +215,6 @@ pub fn get_number_field(response: &StandardResponse, field: &str) -> Option<u64>
     let data = response.data.as_ref()?;
     data.get(field).and_then(|v| v.as_u64())
 }
-
 
 /// Generate a list of mock agents
 pub fn mock_agent_list(count: usize) -> Vec<Value> {
@@ -276,7 +274,8 @@ pub fn is_truncated(text: &str) -> bool {
 /// Test helper for checking pagination hints
 /// Test helper for checking pagination hints
 pub fn has_pagination_hint(response: &StandardResponse) -> bool {
-    response.data
+    response
+        .data
         .as_ref()
         .and_then(|d| d.get("hints"))
         .and_then(|v| v.as_array())
@@ -315,7 +314,7 @@ mod tests {
     fn test_mock_agent_list() {
         let agents = mock_agent_list(10);
         assert_eq!(agents.len(), 10);
-        
+
         // Check alternating models
         assert_eq!(agents[0]["llm_config"]["model"], "gpt-4");
         assert_eq!(agents[1]["llm_config"]["model"], "claude-3");

@@ -238,7 +238,7 @@ async fn handle_delete_server(
         .server_name
         .ok_or_else(|| McpError::invalid_request("server_name required".to_string()))?;
 
-    let result = client
+    client
         .tools()
         .delete_mcp_server(&server_name)
         .await
@@ -248,7 +248,7 @@ async fn handle_delete_server(
         success: true,
         operation: "delete".to_string(),
         message: "MCP server deleted successfully".to_string(),
-        data: Some(serde_json::to_value(&result)?),
+        data: None,
         servers: None,
         tools: None,
         server_name: Some(server_name),

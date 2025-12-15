@@ -676,7 +676,7 @@ mod active_jobs {
 #[test]
 fn test_operation_count() {
     // Verify we have exactly 4 operations
-    let operations = vec![
+    let operations = [
         JobOperation::List,
         JobOperation::Get,
         JobOperation::Cancel,

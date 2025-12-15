@@ -5,9 +5,6 @@
 use letta_server::LettaServer;
 use std::env;
 
-#[cfg(feature = "http")]
-use turbomcp::prelude::*;
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing/logging
@@ -54,8 +51,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Use custom HTTP runner with permissive security for development
             server.run_http_custom(&addr).await?;
         }
-        "stdio" | _ => {
-            tracing::info!("🚀 Starting stdio transport");
+        _ => {
+            tracing::info!("🚀 Starting stdio transport (default)");
             tracing::info!("Ready for MCP client connections");
 
             server.run_stdio().await?;

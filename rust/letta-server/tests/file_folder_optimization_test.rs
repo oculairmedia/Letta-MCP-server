@@ -18,7 +18,7 @@ fn test_file_metadata_excludes_content() {
         is_open: Some(false),
         opened_at: None,
     };
-    
+
     // Serialize to JSON and verify no content field exists
     let json = serde_json::to_value(&file_meta).unwrap();
     assert!(json.get("content").is_none());
@@ -59,7 +59,7 @@ fn test_list_files_response_structure() {
         content_length: None,
         truncated: None,
     };
-    
+
     assert_eq!(response.total, Some(100));
     assert_eq!(response.returned, Some(25));
     assert!(response.hints.is_some());
@@ -98,7 +98,7 @@ fn test_list_folders_response_structure() {
         content_length: None,
         truncated: None,
     };
-    
+
     assert_eq!(response.total, Some(50));
     assert_eq!(response.returned, Some(20));
     assert!(response.hints.is_some());
@@ -116,7 +116,8 @@ fn test_open_file_minimal_response() {
         opened: Some(true),
         evicted_files: Some(vec![]),
         hints: Some(vec![
-            "File marked as open in agent context. Content retrieval requires separate API call.".to_string(),
+            "File marked as open in agent context. Content retrieval requires separate API call."
+                .to_string(),
         ]),
         folder_id: None,
         files: None,
@@ -136,7 +137,7 @@ fn test_open_file_minimal_response() {
         content_length: None,
         truncated: None,
     };
-    
+
     assert_eq!(response.opened, Some(true));
     assert!(response.file_content.is_none());
     assert!(response.agent_state.is_none());
@@ -172,7 +173,7 @@ fn test_close_file_minimal_response() {
         content_length: None,
         truncated: None,
     };
-    
+
     assert_eq!(response.closed, Some(true));
     assert!(response.files.is_none());
     assert!(response.agent_state.is_none());
@@ -214,7 +215,7 @@ fn test_close_all_files_minimal_response() {
         content_length: None,
         truncated: None,
     };
-    
+
     assert_eq!(response.closed_count, Some(5));
     assert!(response.closed_files.is_some());
     assert_eq!(response.closed_files.unwrap().len(), 5);
@@ -254,7 +255,7 @@ fn test_list_agents_in_folder_minimal_response() {
         content_length: None,
         truncated: None,
     };
-    
+
     assert!(response.agent_ids.is_some());
     assert_eq!(response.agent_ids.unwrap().len(), 3);
     // Should not include full agent objects with names, configs, etc.
@@ -290,7 +291,7 @@ fn test_attach_folder_excludes_agent_state() {
         content_length: None,
         truncated: None,
     };
-    
+
     assert_eq!(response.attached, Some(true));
     assert!(response.agent_state.is_none());
 }
@@ -325,7 +326,7 @@ fn test_detach_folder_excludes_agent_state() {
         content_length: None,
         truncated: None,
     };
-    
+
     assert_eq!(response.detached, Some(true));
     assert!(response.agent_state.is_none());
 }
@@ -341,7 +342,7 @@ fn test_folder_metadata_truncates_description() {
         file_count: Some(50),
         agent_count: Some(10),
     };
-    
+
     // In actual implementation, truncation happens in handle_list_folders
     // This test just validates the struct can hold the data
     assert!(folder.description.is_some());
@@ -359,7 +360,7 @@ fn test_file_folder_request_defaults() {
         offset: None,
         request_heartbeat: None,
     };
-    
+
     assert_eq!(request.operation, "list_files");
     assert!(request.limit.is_none());
     assert!(request.offset.is_none());

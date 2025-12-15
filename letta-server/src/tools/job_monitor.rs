@@ -207,7 +207,7 @@ async fn handle_get_job(
     if details
         .callback_error
         .as_ref()
-        .map_or(false, |e| e.truncated)
+        .is_some_and(|e| e.truncated)
     {
         hints.push("Error details truncated; use direct API for full error".to_string());
     }

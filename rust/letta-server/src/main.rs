@@ -5,9 +5,6 @@
 use letta_server::LettaServer;
 use std::env;
 
-#[cfg(feature = "http")]
-use turbomcp::prelude::*;
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing/logging
@@ -21,10 +18,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     // Get configuration from environment
-    let base_url = env::var("LETTA_BASE_URL")
-        .expect("LETTA_BASE_URL environment variable is required");
-    let password = env::var("LETTA_PASSWORD")
-        .expect("LETTA_PASSWORD environment variable is required");
+    let base_url =
+        env::var("LETTA_BASE_URL").expect("LETTA_BASE_URL environment variable is required");
+    let password =
+        env::var("LETTA_PASSWORD").expect("LETTA_PASSWORD environment variable is required");
     let transport = env::var("TRANSPORT").unwrap_or_else(|_| "stdio".to_string());
     let port: u16 = env::var("PORT")
         .unwrap_or_else(|_| "3001".to_string())
@@ -54,8 +51,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Use custom HTTP runner with permissive security for development
             server.run_http_custom(&addr).await?;
         }
-        "stdio" | _ => {
-            tracing::info!("🚀 Starting stdio transport");
+        _ => {
+            tracing::info!("🚀 Starting stdio transport (default)");
             tracing::info!("Ready for MCP client connections");
 
             server.run_stdio().await?;

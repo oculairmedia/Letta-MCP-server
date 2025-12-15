@@ -9,7 +9,7 @@ use letta_server::tools::agent_advanced::{
     AgentAdvancedRequest, AgentOperation, BulkDeleteFilters,
 };
 use letta_types::Pagination;
-use serde_json::{json, Value};
+use serde_json::json;
 
 // ============================================================
 // Request Parsing Tests
@@ -494,7 +494,7 @@ mod summary_format {
         assert_eq!(response_data["total"], 100);
         assert_eq!(response_data["returned"], 15);
         assert_eq!(response_data["has_more"], true);
-        assert!(response_data["hints"].as_array().unwrap().len() > 0);
+        assert!(!response_data["hints"].as_array().unwrap().is_empty());
     }
 
     #[test]

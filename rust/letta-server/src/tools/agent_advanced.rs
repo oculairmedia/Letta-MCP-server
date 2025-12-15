@@ -3,12 +3,12 @@
 //! Consolidated tool for all advanced agent operations using discriminator pattern.
 //! This maintains backward compatibility with the Node.js implementation.
 
+use letta::LettaClient;
+use letta_types::{Message, Pagination, StandardResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use turbomcp::McpError;
 use turbomcp_macros::FlattenTool;
-use letta_types::{Message, Pagination, StandardResponse};
-use letta::LettaClient;
 
 /// Agent operation discriminator
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
@@ -51,7 +51,11 @@ fn truncate_text(text: &str, max_chars: usize) -> String {
         text.to_string()
     } else {
         let remaining = text.len() - max_chars;
-        format!("{}...[truncated, {} more chars]", &text[..max_chars], remaining)
+        format!(
+            "{}...[truncated, {} more chars]",
+            &text[..max_chars],
+            remaining
+        )
     }
 }
 
@@ -243,19 +247,19 @@ async fn handle_list_agents(
 ) -> Result<StandardResponse, McpError> {
     // LMS-48: Apply optimized defaults: limit=15, max=50
     let mut pagination = request.pagination.unwrap_or_default();
-    
+
     // Override default limit from 50 to 15
     if pagination.limit.is_none() || pagination.limit == Some(50) {
         pagination.limit = Some(15);
     }
-    
+
     // Cap at max limit of 50
     if let Some(limit) = pagination.limit {
         if limit > 50 {
             pagination.limit = Some(50);
         }
     }
-    
+
     let offset = pagination.offset.unwrap_or(0);
 
     // Use Letta SDK's cursor-based pagination
@@ -272,11 +276,7 @@ async fn handle_list_agents(
         .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
 
     // Get total count for pagination metadata
-    let total = client
-        .agents()
-        .count()
-        .await
-        .unwrap_or(agents.len() as u32);
+    let total = client.agents().count().await.unwrap_or(agents.len() as u32);
 
     // LMS-48: Create optimized agent summaries
     // Exclude: system, tools (full objects), memory, llm_config (full), embedding_config
@@ -284,15 +284,10 @@ async fn handle_list_agents(
         .iter()
         .map(|agent| {
             // Extract just the model name from llm_config
-            let model = agent
-                .llm_config
-                .as_ref()
-                .map(|config| config.model.clone());
+            let model = agent.llm_config.as_ref().map(|config| config.model.clone());
 
             // Truncate description to 100 chars
-            let description = agent.description.as_ref().map(|d| {
-                truncate_text(d, 100)
-            });
+            let description = agent.description.as_ref().map(|d| truncate_text(d, 100));
 
             serde_json::json!({
                 "id": agent.id.to_string(),
@@ -309,9 +304,7 @@ async fn handle_list_agents(
     let has_more = total > (offset as u32 + returned);
 
     // Create pagination metadata with helpful hints
-    let mut hints = vec![
-        "Use 'get' with agent_id for full details".to_string(),
-    ];
+    let mut hints = vec!["Use 'get' with agent_id for full details".to_string()];
     if has_more {
         let next_offset = offset + (returned as usize);
         hints.push(format!("Use offset={} for next page", next_offset));
@@ -378,10 +371,7 @@ async fn handle_search_agents(
     let agent_summaries: Vec<serde_json::Value> = agents
         .iter()
         .map(|agent| {
-            let model = agent
-                .llm_config
-                .as_ref()
-                .map(|config| config.model.clone());
+            let model = agent.llm_config.as_ref().map(|config| config.model.clone());
 
             let description = agent.description.as_ref().map(|d| truncate_text(d, 100));
 
@@ -420,9 +410,9 @@ async fn handle_create_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let name = request
-        .name
-        .ok_or_else(|| McpError::invalid_request("name is required for create operation".to_string()))?;
+    let name = request.name.ok_or_else(|| {
+        McpError::invalid_request("name is required for create operation".to_string())
+    })?;
 
     // Build the agent request with SDK types
     let mut agent_request = letta::types::CreateAgentRequest {
@@ -443,8 +433,10 @@ async fn handle_create_agent(
     }
 
     if let Some(embedding_config_value) = request.embedding_config {
-        let embedding_config: letta::types::EmbeddingConfig = serde_json::from_value(embedding_config_value)
-            .map_err(|e| McpError::invalid_request(format!("Invalid embedding_config: {}", e)))?;
+        let embedding_config: letta::types::EmbeddingConfig =
+            serde_json::from_value(embedding_config_value).map_err(|e| {
+                McpError::invalid_request(format!("Invalid embedding_config: {}", e))
+            })?;
         agent_request.embedding_config = Some(embedding_config);
     }
 
@@ -471,9 +463,9 @@ async fn handle_get_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id is required for get operation".to_string()))?;
+    let agent_id = request.agent_id.ok_or_else(|| {
+        McpError::invalid_request("agent_id is required for get operation".to_string())
+    })?;
 
     // Parse agent_id as LettaId
     let letta_id: letta::types::LettaId = agent_id
@@ -488,31 +480,31 @@ async fn handle_get_agent(
 
     // LMS-48: Optimize response - truncate system prompt, return tool IDs only
     let mut agent_value = serde_json::to_value(&agent)?;
-    
+
     // Truncate system prompt to 500 chars
     if let Some(system) = agent_value.get("system").and_then(|s| s.as_str()) {
         agent_value["system"] = serde_json::json!(truncate_text(system, 500));
     }
-    
+
     // Truncate description to 200 chars
     if let Some(description) = agent_value.get("description").and_then(|d| d.as_str()) {
         agent_value["description"] = serde_json::json!(truncate_text(description, 200));
     }
-    
+
     // Replace full tool objects with tool_ids array and tool_count
-    let tool_ids: Vec<String> = agent.tools
+    let tool_ids: Vec<String> = agent
+        .tools
         .iter()
-        .filter_map(|tool_ref| {
-            match tool_ref {
-                letta::types::agent::ToolReference::Id(id) => Some(id.clone()),
-                letta::types::agent::ToolReference::Object(obj) => {
-                    obj.get("id").and_then(|v| v.as_str()).map(|s| s.to_string())
-                }
-            }
+        .filter_map(|tool_ref| match tool_ref {
+            letta::types::agent::ToolReference::Id(id) => Some(id.clone()),
+            letta::types::agent::ToolReference::Object(obj) => obj
+                .get("id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
         })
         .collect();
     let tool_count = tool_ids.len();
-    
+
     agent_value["tool_ids"] = serde_json::json!(tool_ids);
     agent_value["tool_count"] = serde_json::json!(tool_count);
     // Remove full tools array to save space
@@ -534,7 +526,8 @@ async fn handle_update_agent(
     // For now, return a not implemented error
     Err(McpError::internal(
         "Agent update operation not yet implemented in SDK v0.1.2. \
-         Please use specific update operations (memory, tools, etc.)".to_string(),
+         Please use specific update operations (memory, tools, etc.)"
+            .to_string(),
     ))
 }
 
@@ -542,9 +535,9 @@ async fn handle_delete_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id is required for delete operation".to_string()))?;
+    let agent_id = request.agent_id.ok_or_else(|| {
+        McpError::invalid_request("agent_id is required for delete operation".to_string())
+    })?;
 
     // Parse agent_id as LettaId
     let letta_id: letta::types::LettaId = agent_id
@@ -602,9 +595,12 @@ async fn handle_send_message(
 
     // LMS-48: Truncate assistant response to 1000 chars
     let mut response_value = serde_json::to_value(&response)?;
-    
+
     // Try to find and truncate assistant message content
-    if let Some(messages) = response_value.get_mut("messages").and_then(|m| m.as_array_mut()) {
+    if let Some(messages) = response_value
+        .get_mut("messages")
+        .and_then(|m| m.as_array_mut())
+    {
         for msg in messages.iter_mut() {
             if let Some(content) = msg.get("text").and_then(|t| t.as_str()) {
                 let original_length = content.len();
@@ -615,7 +611,7 @@ async fn handle_send_message(
             }
         }
     }
-    
+
     // Add hint about full response
     response_value["hint"] = serde_json::json!("Full response visible in agent's message history");
 
@@ -645,20 +641,25 @@ async fn handle_list_tools(
         .map_err(|e| McpError::internal(format!("Failed to list agent tools: {}", e)))?;
 
     // LMS-48: Default limit=25, return summary mode only
-    let default_limit = 25;
-    let limit = request.pagination
+    let default_limit: usize = 25;
+    let limit = request
+        .pagination
         .and_then(|p| p.limit)
-        .unwrap_or(default_limit as usize)
+        .unwrap_or(default_limit)
         .min(default_limit);
-    
+
     // Create tool summaries - exclude source_code, json_schema
     let tool_summaries: Vec<serde_json::Value> = tools
         .iter()
         .take(limit)
         .map(|tool| {
             let description = tool.description.as_ref().map(|d| truncate_text(d, 80));
-            let id = tool.id.as_ref().map(|id| id.to_string()).unwrap_or_default();
-            
+            let id = tool
+                .id
+                .as_ref()
+                .map(|id| id.to_string())
+                .unwrap_or_default();
+
             serde_json::json!({
                 "id": id,
                 "name": tool.name,
@@ -672,7 +673,7 @@ async fn handle_list_tools(
     let total = tools.len();
     let returned = tool_summaries.len();
     let has_more = total > returned;
-    
+
     let response_data = serde_json::json!({
         "total": total,
         "returned": returned,
@@ -1024,14 +1025,10 @@ async fn handle_preview_payload(
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
     let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request(
-            "agent_id is required for preview_payload operation".to_string(),
-        )
+        McpError::invalid_request("agent_id is required for preview_payload operation".to_string())
     })?;
     let messages = request.messages.ok_or_else(|| {
-        McpError::invalid_request(
-            "messages are required for preview_payload operation".to_string(),
-        )
+        McpError::invalid_request("messages are required for preview_payload operation".to_string())
     })?;
 
     let letta_id: letta::types::LettaId = agent_id
@@ -1084,11 +1081,12 @@ async fn handle_search_messages(
     // LMS-48: Default limit=10, max=50, truncate message content to 200 chars
     let default_limit = 10;
     let max_limit = 50;
-    let limit = request.pagination
+    let limit = request
+        .pagination
         .and_then(|p| p.limit)
         .unwrap_or(default_limit)
         .min(max_limit);
-    
+
     // Create message summaries
     let message_summaries: Vec<serde_json::Value> = results
         .iter()
@@ -1096,28 +1094,29 @@ async fn handle_search_messages(
         .map(|msg| {
             // Convert message to JSON to access fields
             let msg_value = serde_json::to_value(msg).unwrap_or(serde_json::json!({}));
-            
+
             // Try to extract text content from different possible locations
-            let content = msg_value.get("text")
+            let content = msg_value
+                .get("text")
                 .or_else(|| msg_value.get("content"))
                 .and_then(|c| c.as_str())
                 .unwrap_or("");
-            
+
             let content_length = content.len();
             let content_preview = truncate_text(content, 200);
-            
-            let role = msg_value.get("role")
+
+            let role = msg_value
+                .get("role")
                 .and_then(|r| r.as_str())
                 .unwrap_or("unknown");
-            
-            let created_at = msg_value.get("created_at")
+
+            let created_at = msg_value
+                .get("created_at")
                 .and_then(|c| c.as_str())
                 .unwrap_or("");
-            
-            let id = msg_value.get("id")
-                .and_then(|i| i.as_str())
-                .unwrap_or("");
-            
+
+            let id = msg_value.get("id").and_then(|i| i.as_str()).unwrap_or("");
+
             serde_json::json!({
                 "id": id,
                 "role": role,
@@ -1131,7 +1130,7 @@ async fn handle_search_messages(
     let total = results.len();
     let returned = message_summaries.len();
     let has_more = total > returned;
-    
+
     let response_data = serde_json::json!({
         "total": total,
         "returned": returned,

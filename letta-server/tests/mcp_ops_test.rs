@@ -697,14 +697,14 @@ mod tool_args {
             "operation": "execute",
             "tool_args": {
                 "count": 42,
-                "ratio": 3.14
+                "ratio": 2.5
             }
         });
 
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let args = request.tool_args.unwrap();
         assert_eq!(args["count"], 42);
-        assert_eq!(args["ratio"], 3.14);
+        assert_eq!(args["ratio"], 2.5);
     }
 
     #[test]
@@ -766,7 +766,7 @@ mod tool_args {
 #[test]
 fn test_operation_count() {
     // Verify we have exactly 10 operations
-    let operations = vec![
+    let operations = [
         McpOperation::Add,
         McpOperation::Update,
         McpOperation::Delete,

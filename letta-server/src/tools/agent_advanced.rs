@@ -641,11 +641,11 @@ async fn handle_list_tools(
         .map_err(|e| McpError::internal(format!("Failed to list agent tools: {}", e)))?;
 
     // LMS-48: Default limit=25, return summary mode only
-    let default_limit = 25;
+    let default_limit: usize = 25;
     let limit = request
         .pagination
         .and_then(|p| p.limit)
-        .unwrap_or(default_limit as usize)
+        .unwrap_or(default_limit)
         .min(default_limit);
 
     // Create tool summaries - exclude source_code, json_schema

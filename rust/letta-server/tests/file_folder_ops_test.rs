@@ -5,8 +5,8 @@
 //! - Folder operations (list, attach, detach, list_agents_in_folder)
 //! - Response optimization and pagination
 
-use serde_json::json;
 use letta_server::tools::file_folder_ops::{FileFolderRequest, FileMetadata, FolderMetadata};
+use serde_json::json;
 
 // ============================================================
 // Request Parsing Tests - File Operations
@@ -18,7 +18,7 @@ fn test_parse_list_files() {
         "operation": "list_files",
         "agent_id": "agent-12345"
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.operation, "list_files");
     assert_eq!(request.agent_id.unwrap(), "agent-12345");
@@ -32,7 +32,7 @@ fn test_parse_list_files_with_pagination() {
         "limit": 50,
         "offset": 10
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.limit, Some(50));
     assert_eq!(request.offset, Some(10));
@@ -45,7 +45,7 @@ fn test_parse_open_file() {
         "agent_id": "agent-12345",
         "file_id": "file-67890"
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.operation, "open_file");
     assert_eq!(request.file_id.unwrap(), "file-67890");
@@ -58,7 +58,7 @@ fn test_parse_close_file() {
         "agent_id": "agent-12345",
         "file_id": "file-67890"
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.operation, "close_file");
 }
@@ -69,7 +69,7 @@ fn test_parse_close_all_files() {
         "operation": "close_all_files",
         "agent_id": "agent-12345"
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.operation, "close_all_files");
 }
@@ -83,7 +83,7 @@ fn test_parse_list_folders() {
     let json_input = json!({
         "operation": "list_folders"
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.operation, "list_folders");
 }
@@ -95,7 +95,7 @@ fn test_parse_list_folders_with_pagination() {
         "limit": 30,
         "offset": 5
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.limit, Some(30));
 }
@@ -107,7 +107,7 @@ fn test_parse_attach_folder() {
         "agent_id": "agent-12345",
         "folder_id": "folder-99999"
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.operation, "attach_folder");
     assert_eq!(request.folder_id.unwrap(), "folder-99999");
@@ -120,7 +120,7 @@ fn test_parse_detach_folder() {
         "agent_id": "agent-12345",
         "folder_id": "folder-99999"
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.operation, "detach_folder");
 }
@@ -131,7 +131,7 @@ fn test_parse_list_agents_in_folder() {
         "operation": "list_agents_in_folder",
         "folder_id": "folder-99999"
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.operation, "list_agents_in_folder");
 }
@@ -143,10 +143,16 @@ fn test_parse_list_agents_in_folder() {
 #[test]
 fn test_all_file_folder_operations_parse() {
     let operations = vec![
-        "list_files", "open_file", "close_file", "close_all_files",
-        "list_folders", "attach_folder", "detach_folder", "list_agents_in_folder"
+        "list_files",
+        "open_file",
+        "close_file",
+        "close_all_files",
+        "list_folders",
+        "attach_folder",
+        "detach_folder",
+        "list_agents_in_folder",
     ];
-    
+
     for op in operations {
         let json_input = json!({"operation": op});
         let result: Result<FileFolderRequest, _> = serde_json::from_value(json_input);
@@ -168,7 +174,7 @@ fn test_file_metadata_serialization() {
         is_open: Some(true),
         opened_at: Some("2024-01-01T00:00:00Z".to_string()),
     };
-    
+
     let json = serde_json::to_value(&file_meta).unwrap();
     assert_eq!(json["id"], "file-123");
     assert_eq!(json["filename"], "document.pdf");
@@ -185,7 +191,7 @@ fn test_file_metadata_optional_fields() {
         is_open: None,
         opened_at: None,
     };
-    
+
     let json = serde_json::to_value(&file_meta).unwrap();
     assert!(!json.as_object().unwrap().contains_key("size"));
     assert!(!json.as_object().unwrap().contains_key("mime_type"));
@@ -202,7 +208,7 @@ fn test_file_metadata_never_includes_content() {
         is_open: Some(false),
         opened_at: None,
     };
-    
+
     let json = serde_json::to_value(&file_meta).unwrap();
     assert!(!json.as_object().unwrap().contains_key("content"));
 }
@@ -217,7 +223,7 @@ fn test_file_is_open_status() {
         is_open: Some(true),
         opened_at: Some("2024-01-01T10:00:00Z".to_string()),
     };
-    
+
     let json = serde_json::to_value(&file_meta).unwrap();
     assert_eq!(json["is_open"], true);
     assert!(json["opened_at"].is_string());
@@ -236,7 +242,7 @@ fn test_folder_metadata_serialization() {
         file_count: Some(15),
         agent_count: Some(3),
     };
-    
+
     let json = serde_json::to_value(&folder_meta).unwrap();
     assert_eq!(json["id"], "folder-456");
     assert_eq!(json["name"], "Documents");
@@ -252,7 +258,7 @@ fn test_folder_metadata_optional_fields() {
         file_count: None,
         agent_count: None,
     };
-    
+
     let json = serde_json::to_value(&folder_meta).unwrap();
     assert!(!json.as_object().unwrap().contains_key("description"));
     assert!(!json.as_object().unwrap().contains_key("file_count"));
@@ -268,7 +274,7 @@ fn test_folder_metadata_truncated_description() {
         file_count: Some(0),
         agent_count: Some(0),
     };
-    
+
     // Truncation happens in handler, not in struct
     let json = serde_json::to_value(&folder_meta).unwrap();
     let desc = json["description"].as_str().unwrap();
@@ -297,7 +303,7 @@ mod response_format {
             "returned": 10,
             "hints": ["File content not included in list"]
         });
-        
+
         assert_eq!(response_data["success"], true);
         assert!(response_data["files"].is_array());
         assert!(response_data["hints"].is_array());
@@ -313,7 +319,7 @@ mod response_format {
             "file_id": "file-456",
             "opened": true
         });
-        
+
         assert_eq!(response_data["opened"], true);
         assert_eq!(response_data["file_id"], "file-456");
     }
@@ -328,7 +334,7 @@ mod response_format {
             "file_id": "file-456",
             "closed": true
         });
-        
+
         assert_eq!(response_data["closed"], true);
     }
 
@@ -342,7 +348,7 @@ mod response_format {
             "closed_count": 5,
             "closed_files": ["file-1", "file-2", "file-3", "file-4", "file-5"]
         });
-        
+
         assert_eq!(response_data["closed_count"], 5);
         assert!(response_data["closed_files"].is_array());
     }
@@ -360,7 +366,7 @@ mod response_format {
             "total": 8,
             "returned": 8
         });
-        
+
         assert!(response_data["folders"].is_array());
         assert_eq!(response_data["total"], 8);
     }
@@ -375,7 +381,7 @@ mod response_format {
             "folder_id": "folder-789",
             "attached": true
         });
-        
+
         assert_eq!(response_data["attached"], true);
     }
 
@@ -389,7 +395,7 @@ mod response_format {
             "folder_id": "folder-789",
             "detached": true
         });
-        
+
         assert_eq!(response_data["detached"], true);
     }
 
@@ -403,7 +409,7 @@ mod response_format {
             "agent_ids": ["agent-1", "agent-2", "agent-3"],
             "total": 3
         });
-        
+
         assert!(response_data["agent_ids"].is_array());
         assert_eq!(response_data["total"], 3);
     }
@@ -421,9 +427,12 @@ mod edge_cases {
         let json_input = json!({
             "operation": "list_files"
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
-        assert!(request.agent_id.is_none(), "Should parse but fail in handler");
+        assert!(
+            request.agent_id.is_none(),
+            "Should parse but fail in handler"
+        );
     }
 
     #[test]
@@ -432,7 +441,7 @@ mod edge_cases {
             "operation": "open_file",
             "agent_id": "agent-123"
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.file_id.is_none());
     }
@@ -443,7 +452,7 @@ mod edge_cases {
             "operation": "attach_folder",
             "agent_id": "agent-123"
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.folder_id.is_none());
     }
@@ -454,7 +463,7 @@ mod edge_cases {
             "operation": "list_files",
             "limit": 0
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(0));
     }
@@ -465,7 +474,7 @@ mod edge_cases {
             "operation": "list_files",
             "limit": 999999
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(999999));
         // Should be clamped to MAX_FILE_LIMIT (100) in handler
@@ -477,7 +486,7 @@ mod edge_cases {
             "operation": "list_files",
             "offset": 0  // Using 0 instead of negative since usize
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.offset, Some(0));
     }
@@ -492,7 +501,7 @@ mod edge_cases {
             is_open: None,
             opened_at: None,
         };
-        
+
         let json = serde_json::to_value(&file_meta).unwrap();
         assert_eq!(json["filename"], "文档.txt 🚀");
     }
@@ -506,7 +515,7 @@ mod edge_cases {
             file_count: None,
             agent_count: None,
         };
-        
+
         let json = serde_json::to_value(&folder_meta).unwrap();
         assert_eq!(json["name"], "我的文件夹 📁");
     }
@@ -519,7 +528,7 @@ mod edge_cases {
             "file_id": null,
             "limit": null
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.file_id.is_none());
         assert!(request.limit.is_none());
@@ -540,7 +549,7 @@ mod pagination {
             "limit": 25,
             "offset": 50
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(25));
         assert_eq!(request.offset, Some(50));
@@ -554,7 +563,7 @@ mod pagination {
             "offset": 0,
             "hints": ["Use limit and offset for pagination"]
         });
-        
+
         assert_eq!(response_data["total"], 100);
         assert_eq!(response_data["returned"], 25);
     }
@@ -566,7 +575,7 @@ mod pagination {
             "limit": 20,
             "offset": 10
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(20));
     }
@@ -585,7 +594,7 @@ mod limits {
         let json_input = json!({
             "operation": "list_files"
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.limit.is_none());
         // Handler should use DEFAULT_FILE_LIMIT (25)
@@ -598,7 +607,7 @@ mod limits {
             "operation": "list_files",
             "limit": 200
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(200));
         // Should be clamped to 100 in handler
@@ -610,7 +619,7 @@ mod limits {
         let json_input = json!({
             "operation": "list_folders"
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.limit.is_none());
     }
@@ -622,7 +631,7 @@ mod limits {
             "operation": "list_folders",
             "limit": 100
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(100));
         // Should be clamped to 50 in handler
@@ -651,7 +660,7 @@ mod file_operations {
             "agent_id": "agent-123",
             "file_id": "file-456"
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.operation, "open_file");
         assert!(request.agent_id.is_some());
@@ -665,7 +674,7 @@ mod file_operations {
             "agent_id": "agent-123",
             "file_id": "file-456"
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.operation, "close_file");
     }
@@ -676,10 +685,13 @@ mod file_operations {
             "operation": "close_all_files",
             "agent_id": "agent-123"
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.operation, "close_all_files");
-        assert!(request.file_id.is_none(), "close_all shouldn't need file_id");
+        assert!(
+            request.file_id.is_none(),
+            "close_all shouldn't need file_id"
+        );
     }
 }
 
@@ -697,7 +709,7 @@ mod folder_operations {
             "agent_id": "agent-123",
             "folder_id": "folder-789"
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.operation, "attach_folder");
         assert!(request.folder_id.is_some());
@@ -710,7 +722,7 @@ mod folder_operations {
             "agent_id": "agent-123",
             "folder_id": "folder-789"
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.operation, "detach_folder");
     }
@@ -721,9 +733,12 @@ mod folder_operations {
             "operation": "list_agents_in_folder",
             "folder_id": "folder-789"
         });
-        
+
         let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
-        assert!(request.agent_id.is_none(), "list_agents_in_folder shouldn't need agent_id");
+        assert!(
+            request.agent_id.is_none(),
+            "list_agents_in_folder shouldn't need agent_id"
+        );
         assert!(request.folder_id.is_some());
     }
 }
@@ -735,11 +750,17 @@ mod folder_operations {
 #[test]
 fn test_operation_count() {
     // Verify we have exactly 8 operations
-    let operations = vec![
-        "list_files", "open_file", "close_file", "close_all_files",
-        "list_folders", "attach_folder", "detach_folder", "list_agents_in_folder"
+    let operations = [
+        "list_files",
+        "open_file",
+        "close_file",
+        "close_all_files",
+        "list_folders",
+        "attach_folder",
+        "detach_folder",
+        "list_agents_in_folder",
     ];
-    
+
     assert_eq!(operations.len(), 8, "Should have exactly 8 operations");
 }
 
@@ -753,7 +774,7 @@ fn test_request_heartbeat_true() {
         "operation": "list_files",
         "request_heartbeat": true
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.request_heartbeat, Some(true));
 }
@@ -764,7 +785,7 @@ fn test_request_heartbeat_false() {
         "operation": "list_files",
         "request_heartbeat": false
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.request_heartbeat, Some(false));
 }
@@ -774,7 +795,7 @@ fn test_request_heartbeat_omitted() {
     let json_input = json!({
         "operation": "list_files"
     });
-    
+
     let request: FileFolderRequest = serde_json::from_value(json_input).unwrap();
     assert!(request.request_heartbeat.is_none());
 }
@@ -796,7 +817,7 @@ mod mime_types {
             is_open: None,
             opened_at: None,
         };
-        
+
         let json = serde_json::to_value(&file_meta).unwrap();
         assert_eq!(json["mime_type"], "application/pdf");
     }
@@ -811,7 +832,7 @@ mod mime_types {
             is_open: None,
             opened_at: None,
         };
-        
+
         let json = serde_json::to_value(&file_meta).unwrap();
         assert_eq!(json["mime_type"], "text/plain");
     }
@@ -826,7 +847,7 @@ mod mime_types {
             is_open: None,
             opened_at: None,
         };
-        
+
         let json = serde_json::to_value(&file_meta).unwrap();
         assert_eq!(json["mime_type"], "application/json");
     }
@@ -849,7 +870,7 @@ mod file_sizes {
             is_open: None,
             opened_at: None,
         };
-        
+
         let json = serde_json::to_value(&file_meta).unwrap();
         assert_eq!(json["size"], 100);
     }
@@ -864,7 +885,7 @@ mod file_sizes {
             is_open: None,
             opened_at: None,
         };
-        
+
         let json = serde_json::to_value(&file_meta).unwrap();
         assert_eq!(json["size"], 1024 * 1024 * 100);
     }
@@ -879,7 +900,7 @@ mod file_sizes {
             is_open: None,
             opened_at: None,
         };
-        
+
         let json = serde_json::to_value(&file_meta).unwrap();
         assert_eq!(json["size"], 0);
     }

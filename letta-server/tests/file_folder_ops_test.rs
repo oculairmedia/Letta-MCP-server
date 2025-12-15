@@ -750,7 +750,7 @@ mod folder_operations {
 #[test]
 fn test_operation_count() {
     // Verify we have exactly 8 operations
-    let operations = vec![
+    let operations = [
         "list_files",
         "open_file",
         "close_file",

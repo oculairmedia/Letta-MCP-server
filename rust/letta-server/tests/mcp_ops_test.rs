@@ -5,8 +5,8 @@
 //! - Tool operations (list, register, execute)
 //! - Response optimization and pagination
 
+use letta_server::tools::mcp_ops::{McpOperation, McpOpsRequest};
 use serde_json::json;
-use letta_server::tools::mcp_ops::{McpOpsRequest, McpOperation};
 
 // ============================================================
 // Request Parsing Tests
@@ -23,7 +23,7 @@ fn test_parse_add_server() {
             }
         }
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, McpOperation::Add));
     assert!(request.server_config.is_some());
@@ -41,7 +41,7 @@ fn test_parse_update_server() {
             }
         }
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, McpOperation::Update));
     assert_eq!(request.server_name.unwrap(), "test-server");
@@ -53,7 +53,7 @@ fn test_parse_delete_server() {
         "operation": "delete",
         "server_name": "test-server"
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, McpOperation::Delete));
     assert_eq!(request.server_name.unwrap(), "test-server");
@@ -65,7 +65,7 @@ fn test_parse_test_server() {
         "operation": "test",
         "server_name": "test-server"
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, McpOperation::Test));
 }
@@ -76,7 +76,7 @@ fn test_parse_connect_server() {
         "operation": "connect",
         "server_name": "test-server"
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, McpOperation::Connect));
 }
@@ -87,7 +87,7 @@ fn test_parse_resync_server() {
         "operation": "resync",
         "server_name": "test-server"
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, McpOperation::Resync));
 }
@@ -101,7 +101,7 @@ fn test_parse_list_servers() {
             "offset": 0
         }
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, McpOperation::ListServers));
     assert!(request.pagination.is_some());
@@ -116,7 +116,7 @@ fn test_parse_list_tools() {
             "limit": 50
         }
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, McpOperation::ListTools));
 }
@@ -128,7 +128,7 @@ fn test_parse_register_tool() {
         "server_name": "test-server",
         "tool_name": "my_tool"
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, McpOperation::RegisterTool));
     assert_eq!(request.tool_name.unwrap(), "my_tool");
@@ -145,7 +145,7 @@ fn test_parse_execute_tool() {
             "param2": 42
         }
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, McpOperation::Execute));
     assert!(request.tool_args.is_some());
@@ -158,10 +158,18 @@ fn test_parse_execute_tool() {
 #[test]
 fn test_all_mcp_operations_parse() {
     let operations = vec![
-        "add", "update", "delete", "test", "connect", "resync",
-        "execute", "list_servers", "list_tools", "register_tool"
+        "add",
+        "update",
+        "delete",
+        "test",
+        "connect",
+        "resync",
+        "execute",
+        "list_servers",
+        "list_tools",
+        "register_tool",
     ];
-    
+
     for op in operations {
         let json_input = json!({"operation": op});
         let result: Result<McpOpsRequest, _> = serde_json::from_value(json_input);
@@ -187,7 +195,7 @@ mod server_config {
                 }
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let config = request.server_config.unwrap();
         assert!(config.get("sse").is_some());
@@ -205,7 +213,7 @@ mod server_config {
                 }
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let config = request.server_config.unwrap();
         assert!(config.get("stdio").is_some());
@@ -222,7 +230,7 @@ mod server_config {
                 }
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let config = request.server_config.unwrap();
         assert!(config.get("streamable_http").is_some());
@@ -243,7 +251,7 @@ mod server_config {
                 "client_secret": "test-secret"
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.oauth_config.is_some());
     }
@@ -264,7 +272,7 @@ mod pagination {
                 "limit": 25
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let pagination = request.pagination.unwrap();
         assert_eq!(pagination["limit"], 25);
@@ -279,7 +287,7 @@ mod pagination {
                 "offset": 10
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let pagination = request.pagination.unwrap();
         assert_eq!(pagination["offset"], 10);
@@ -290,7 +298,7 @@ mod pagination {
         let json_input = json!({
             "operation": "list_servers"
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.pagination.is_none());
         // Should use DEFAULT_SERVERS_LIMIT (20) in handler
@@ -304,7 +312,7 @@ mod pagination {
                 "limit": 50
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let pagination = request.pagination.unwrap();
         assert_eq!(pagination["limit"], 50);
@@ -330,7 +338,7 @@ mod response_format {
                 "type": "sse"
             }
         });
-        
+
         assert_eq!(response_data["success"], true);
         assert_eq!(response_data["operation"], "add");
         assert!(response_data["server_name"].is_string());
@@ -349,7 +357,7 @@ mod response_format {
             "total": 2,
             "returned": 2
         });
-        
+
         assert!(response_data["servers"].is_array());
         assert_eq!(response_data["total"], 2);
     }
@@ -368,7 +376,7 @@ mod response_format {
             "returned": 2,
             "server_name": "test-server"
         });
-        
+
         assert!(response_data["tools"].is_array());
         assert_eq!(response_data["server_name"], "test-server");
     }
@@ -386,7 +394,7 @@ mod response_format {
                 "output": "Tool execution result"
             }
         });
-        
+
         assert_eq!(response_data["tool_name"], "my_tool");
         assert!(response_data["data"].is_object());
     }
@@ -403,7 +411,7 @@ mod response_format {
                 "latency_ms": 123
             }
         });
-        
+
         assert_eq!(response_data["operation"], "test");
     }
 
@@ -421,7 +429,7 @@ mod response_format {
                 "Use pagination to retrieve more results"
             ]
         });
-        
+
         assert_eq!(response_data["truncated"], true);
         assert!(response_data["hints"].is_array());
     }
@@ -439,9 +447,12 @@ mod edge_cases {
         let json_input = json!({
             "operation": "delete"
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
-        assert!(request.server_name.is_none(), "Should parse but fail in handler");
+        assert!(
+            request.server_name.is_none(),
+            "Should parse but fail in handler"
+        );
     }
 
     #[test]
@@ -449,9 +460,12 @@ mod edge_cases {
         let json_input = json!({
             "operation": "add"
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
-        assert!(request.server_config.is_none(), "Should parse but fail validation");
+        assert!(
+            request.server_config.is_none(),
+            "Should parse but fail validation"
+        );
     }
 
     #[test]
@@ -460,7 +474,7 @@ mod edge_cases {
             "operation": "execute",
             "server_name": "test-server"
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.tool_name.is_none());
     }
@@ -473,7 +487,7 @@ mod edge_cases {
             "tool_name": "my_tool",
             "tool_args": {}
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.tool_args.is_some());
         assert!(request.tool_args.unwrap().as_object().unwrap().is_empty());
@@ -494,7 +508,7 @@ mod edge_cases {
                 "number": 42
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let args = request.tool_args.unwrap();
         assert!(args["nested"].is_object());
@@ -512,7 +526,7 @@ mod edge_cases {
                 }
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.server_config.is_some());
     }
@@ -525,7 +539,7 @@ mod edge_cases {
                 "limit": 0
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let pagination = request.pagination.unwrap();
         assert_eq!(pagination["limit"], 0);
@@ -540,7 +554,7 @@ mod edge_cases {
                 "limit": 999999
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let pagination = request.pagination.unwrap();
         assert_eq!(pagination["limit"], 999999);
@@ -555,7 +569,7 @@ mod edge_cases {
                 "offset": -10
             }
         });
-        
+
         // Should fail to parse or be handled as 0
         let result: Result<McpOpsRequest, _> = serde_json::from_value(json_input);
         // Depending on implementation, this might fail or treat as 0
@@ -569,7 +583,7 @@ mod edge_cases {
             "server_name": null,
             "pagination": null
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.server_name.is_none());
         assert!(request.pagination.is_none());
@@ -589,7 +603,7 @@ mod constants {
         let json_input = json!({
             "operation": "list_servers"
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.pagination.is_none());
         // Handler should use DEFAULT_SERVERS_LIMIT (20)
@@ -604,7 +618,7 @@ mod constants {
                 "limit": 100
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let pagination = request.pagination.unwrap();
         assert_eq!(pagination["limit"], 100);
@@ -617,7 +631,7 @@ mod constants {
         let json_input = json!({
             "operation": "list_tools"
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.pagination.is_none());
         // Handler should use DEFAULT_TOOLS_LIMIT (30)
@@ -632,7 +646,7 @@ mod constants {
                 "limit": 200
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let pagination = request.pagination.unwrap();
         assert_eq!(pagination["limit"], 200);
@@ -671,7 +685,7 @@ mod tool_args {
                 "input": "test string"
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let args = request.tool_args.unwrap();
         assert_eq!(args["input"], "test string");
@@ -683,14 +697,14 @@ mod tool_args {
             "operation": "execute",
             "tool_args": {
                 "count": 42,
-                "ratio": 3.14
+                "ratio": 2.5
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let args = request.tool_args.unwrap();
         assert_eq!(args["count"], 42);
-        assert_eq!(args["ratio"], 3.14);
+        assert_eq!(args["ratio"], 2.5);
     }
 
     #[test]
@@ -702,7 +716,7 @@ mod tool_args {
                 "verbose": false
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let args = request.tool_args.unwrap();
         assert_eq!(args["enabled"], true);
@@ -717,7 +731,7 @@ mod tool_args {
                 "items": ["a", "b", "c"]
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let args = request.tool_args.unwrap();
         assert!(args["items"].is_array());
@@ -738,7 +752,7 @@ mod tool_args {
                 }
             }
         });
-        
+
         let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
         let args = request.tool_args.unwrap();
         assert!(args["config"]["level1"]["level2"]["value"].is_string());
@@ -752,7 +766,7 @@ mod tool_args {
 #[test]
 fn test_operation_count() {
     // Verify we have exactly 10 operations
-    let operations = vec![
+    let operations = [
         McpOperation::Add,
         McpOperation::Update,
         McpOperation::Delete,
@@ -764,7 +778,7 @@ fn test_operation_count() {
         McpOperation::ListTools,
         McpOperation::RegisterTool,
     ];
-    
+
     assert_eq!(operations.len(), 10, "Should have exactly 10 operations");
 }
 
@@ -778,7 +792,7 @@ fn test_request_heartbeat_true() {
         "operation": "list_servers",
         "request_heartbeat": true
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.request_heartbeat, Some(true));
 }
@@ -789,7 +803,7 @@ fn test_request_heartbeat_false() {
         "operation": "list_servers",
         "request_heartbeat": false
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.request_heartbeat, Some(false));
 }
@@ -799,7 +813,7 @@ fn test_request_heartbeat_omitted() {
     let json_input = json!({
         "operation": "list_servers"
     });
-    
+
     let request: McpOpsRequest = serde_json::from_value(json_input).unwrap();
     assert!(request.request_heartbeat.is_none());
 }

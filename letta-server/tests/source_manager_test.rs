@@ -663,7 +663,7 @@ mod limits {
 #[test]
 fn test_operation_count() {
     // Verify we have exactly 13 operations (not 15 - ListFolders and GetFolderContents moved)
-    let operations = vec![
+    let operations = [
         SourceOperation::List,
         SourceOperation::Get,
         SourceOperation::Create,

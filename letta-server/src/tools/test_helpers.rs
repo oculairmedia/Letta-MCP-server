@@ -191,7 +191,7 @@ pub fn assert_count(response: &StandardResponse, field: &str, expected: usize) {
     let arr = data
         .get(field)
         .and_then(|v| v.as_array())
-        .expect(&format!("Expected array field '{}'", field));
+        .unwrap_or_else(|| panic!("Expected array field '{}'", field));
     assert_eq!(
         arr.len(),
         expected,

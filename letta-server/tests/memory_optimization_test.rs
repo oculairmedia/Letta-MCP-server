@@ -94,7 +94,7 @@ fn test_truncate_block_value() {
     let was_truncated = truncate_block_value(&mut block, 2000);
 
     assert!(was_truncated);
-    assert_eq!(block.get("truncated").unwrap().as_bool().unwrap(), true);
+    assert!(block.get("truncated").unwrap().as_bool().unwrap());
     assert_eq!(block.get("value_length").unwrap().as_u64().unwrap(), 3000);
 
     let value_str = block.get("value").unwrap().as_str().unwrap();
