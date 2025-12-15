@@ -8,7 +8,7 @@ use std::sync::Arc;
 use turbomcp::prelude::*;
 use serde_json::Value;
 
-mod tools;
+pub mod tools;
 
 // Use official Letta SDK
 use letta::{auth::AuthConfig, ClientConfig, LettaClient};

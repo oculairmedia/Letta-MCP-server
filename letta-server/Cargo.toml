@@ -39,6 +39,10 @@ letta-types = { path = "../letta-types" }
 
 [dev-dependencies]
 tokio-test = "0.4"
+mockall = "0.13"
+async-trait = "0.1"
+wiremock = "0.6"
+pretty_assertions = "1.4"
 
 [features]
 default = ["http", "schemars"]
