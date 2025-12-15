@@ -1,0 +1,50 @@
+name: Rust CI/CD Pipeline
+
+on:
+    push:
+        branches: [rust-implementation, main, master]
+    pull_request:
+        branches: [rust-implementation, main, master]
+
+jobs:
+    # Stage 1: Run all tests
+    test:
+        name: Run Tests
+        uses: ./.github/workflows/rust-test.yml
+        secrets: inherit
+
+    # Stage 2: Build Docker image (only if tests pass)
+    docker-build:
+        name: Build Docker Image
+        needs: test
+        if: github.event_name == 'push' && github.ref == 'refs/heads/rust-implementation'
+        uses: ./.github/workflows/rust-docker-build.yml
+        secrets: inherit
+        permissions:
+            contents: read
+            packages: write
+            security-events: write
+
+    # Stage 3: Deploy notification (future)
+    notify:
+        name: Notify Success
+        needs: [test, docker-build]
+        runs-on: ubuntu-latest
+        if: success() && github.event_name == 'push'
+
+        steps:
+            - name: Summary
+              run: |
+                  echo "## 🎉 CI/CD Pipeline Complete!" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+                  echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "### ✅ Pipeline Stages:" >> $GITHUB_STEP_SUMMARY
+                  echo "- Tests: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
+                  echo "- Docker Build: ${{ needs.docker-build.result }}" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "### 📦 Docker Image:" >> $GITHUB_STEP_SUMMARY
+                  echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+                  echo "docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest" >> $GITHUB_STEP_SUMMARY
+                  echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

@@ -1,118 +1,126 @@
 name: Rust Docker Build and Push
 
 on:
-  push:
-    branches: [ rust-implementation ]
-    paths:
-      - 'rust/**'
-      - 'letta-server/**'
-      - 'letta-types/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'Dockerfile.rust'
-      - 'docker-compose.rust.yml'
-      - '.github/workflows/rust-docker-build.yml'
-  pull_request:
-    branches: [ rust-implementation ]
-    paths:
-      - 'rust/**'
-      - 'letta-server/**'
-      - 'letta-types/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'Dockerfile.rust'
-      - 'docker-compose.rust.yml'
+    push:
+        branches: [rust-implementation]
+        paths:
+            - 'rust/**'
+            - 'letta-server/**'
+            - 'letta-types/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - 'Dockerfile.rust'
+            - 'docker-compose.rust.yml'
+            - '.github/workflows/rust-docker-build.yml'
+    pull_request:
+        branches: [rust-implementation]
+        paths:
+            - 'rust/**'
+            - 'letta-server/**'
+            - 'letta-types/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - 'Dockerfile.rust'
+            - 'docker-compose.rust.yml'
+    workflow_run:
+        workflows: ['Rust Tests']
+        types: [completed]
+        branches: [rust-implementation]
 
 jobs:
-  build-rust:
-    runs-on: ubuntu-latest
+    build-rust:
+        # Only build if tests passed or this is a direct push
+        if: >
+            github.event_name == 'push' ||
+            github.event_name == 'pull_request' ||
+            (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
+            security-events: write
 
-    permissions:
-      contents: read
-      packages: write
-      security-events: write
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+            - name: Set up QEMU
+              uses: docker/setup-qemu-action@v3
+              with:
+                  platforms: linux/amd64,linux/arm64
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: linux/amd64,linux/arm64
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+              with:
+                  driver-opts: |
+                      image=moby/buildkit:latest
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:latest
+            - name: Login to GitHub Container Registry
+              if: github.event_name != 'pull_request'
+              uses: docker/login-action@v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+            - name: Docker metadata
+              id: meta
+              uses: docker/metadata-action@v5
+              with:
+                  images: ghcr.io/oculairmedia/letta-mcp-server-rust
+                  tags: |
+                      type=ref,event=branch
+                      type=ref,event=pr
+                      type=sha,prefix=rust-
+                      type=raw,value=rust-latest
+                      type=raw,value=rust-{{branch}}-{{sha}}
+                  flavor: |
+                      latest=false
 
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/oculairmedia/letta-mcp-server-rust
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix=rust-
-            type=raw,value=rust-latest
-            type=raw,value=rust-{{branch}}-{{sha}}
-          flavor: |
-            latest=false
+            - name: Build and push Rust image
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  file: ./Dockerfile.rust
+                  platforms: linux/amd64,linux/arm64
+                  push: ${{ github.event_name != 'pull_request' }}
+                  tags: ${{ steps.meta.outputs.tags }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  cache-from: type=gha,scope=rust
+                  cache-to: type=gha,mode=max,scope=rust
+                  build-args: |
+                      VERSION=${{ github.ref_name }}
+                      COMMIT_SHA=${{ github.sha }}
+                      BUILD_DATE=${{ github.event.head_commit.timestamp }}
 
-      - name: Build and push Rust image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile.rust
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=rust
-          cache-to: type=gha,mode=max,scope=rust
-          build-args: |
-            VERSION=${{ github.ref_name }}
-            COMMIT_SHA=${{ github.sha }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            - name: Run Trivy vulnerability scanner on Rust image
+              if: github.event_name != 'pull_request'
+              uses: aquasecurity/trivy-action@master
+              with:
+                  image-ref: ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest
+                  format: 'sarif'
+                  output: 'trivy-results-rust.sarif'
+                  severity: 'CRITICAL,HIGH'
+              continue-on-error: true
 
-      - name: Run Trivy vulnerability scanner on Rust image
-        if: github.event_name != 'pull_request'
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest
-          format: 'sarif'
-          output: 'trivy-results-rust.sarif'
-          severity: 'CRITICAL,HIGH'
-        continue-on-error: true
+            - name: Upload Trivy scan results to GitHub Security
+              if: github.event_name != 'pull_request'
+              uses: github/codeql-action/upload-sarif@v3
+              with:
+                  sarif_file: 'trivy-results-rust.sarif'
+                  category: 'rust-image'
+              continue-on-error: true
 
-      - name: Upload Trivy scan results to GitHub Security
-        if: github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results-rust.sarif'
-          category: 'rust-image'
-        continue-on-error: true
+            - name: Image digest
+              if: github.event_name != 'pull_request'
+              run: echo "Rust image digest:" && echo ${{ steps.meta.outputs.tags }}
 
-      - name: Image digest
-        if: github.event_name != 'pull_request'
-        run: echo "Rust image digest:" && echo ${{ steps.meta.outputs.tags }}
-
-      - name: Post build info
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "✅ Rust Docker image built and pushed successfully!"
-          echo "Images pushed:"
-          echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n'
-          echo ""
-          echo "Pull the image with:"
-          echo "docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest"
+            - name: Post build info
+              if: github.event_name != 'pull_request'
+              run: |
+                  echo "✅ Rust Docker image built and pushed successfully!"
+                  echo "Images pushed:"
+                  echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n'
+                  echo ""
+                  echo "Pull the image with:"
+                  echo "docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest"
