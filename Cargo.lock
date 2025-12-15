@@ -1406,7 +1406,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 [[package]]
 name = "letta"
 version = "0.1.3"
-source = "git+https://github.com/oculairmedia/letta-rs.git?branch=add-missing-endpoints#a901dc65a4aff55131f419c32842a33bdcd55bdd"
+source = "git+https://github.com/oculairmedia/letta-rs.git?branch=add-missing-endpoints#387fe38df85fd2eeb5426714be2c8075d116eb61"
 dependencies = [
  "bon",
  "bytes",
