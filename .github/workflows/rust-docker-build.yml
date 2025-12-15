@@ -26,6 +26,8 @@ on:
         workflows: ['Rust Tests']
         types: [completed]
         branches: [rust-implementation]
+    workflow_call:
+        # Allow this workflow to be called by other workflows
 
 jobs:
     build-rust:

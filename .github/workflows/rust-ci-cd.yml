@@ -20,10 +20,6 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/rust-implementation'
         uses: ./.github/workflows/rust-docker-build.yml
         secrets: inherit
-        permissions:
-            contents: read
-            packages: write
-            security-events: write
 
     # Stage 3: Deploy notification (future)
     notify:

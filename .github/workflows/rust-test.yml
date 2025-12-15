@@ -18,6 +18,8 @@ on:
             - 'letta-types/**'
             - 'Cargo.toml'
             - 'Cargo.lock'
+    workflow_call:
+        # Allow this workflow to be called by other workflows
 
 env:
     CARGO_TERM_COLOR: always
