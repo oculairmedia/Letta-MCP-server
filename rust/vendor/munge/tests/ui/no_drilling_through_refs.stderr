@@ -1,0 +1,19 @@
+error[E0277]: munge may not destructure through references
+ --> tests/ui/no_drilling_through_refs.rs:9:20
+  |
+9 |     munge!(let Foo((a, _)) = &mut value);
+  |                    ^^^^^^ destructuring with this pattern causes an implicit dereference
+  |
+  = help: the trait `MustBeAValue` is not implemented for `Reference`
+  = note: only values may be destructured
+  = note: required for the cast from `&Reference` to `&dyn MustBeAValue`
+
+error[E0277]: munge may not destructure through references
+  --> tests/ui/no_drilling_through_refs.rs:13:20
+   |
+13 |     munge!(let Foo((a, _)) = &mut mu);
+   |                    ^^^^^^ destructuring with this pattern causes an implicit dereference
+   |
+   = help: the trait `MustBeAValue` is not implemented for `Reference`
+   = note: only values may be destructured
+   = note: required for the cast from `&Reference` to `&dyn MustBeAValue`

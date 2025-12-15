@@ -1,0 +1,85 @@
+name: Quality
+
+on: [push]
+
+jobs:
+  clippy_check:
+    strategy:
+      matrix:
+        rustflags:
+          - flags: "-C target-cpu=native"
+            name: "avx2"
+          - flags: "-C target-cpu=native -C target-feature=-avx2"
+            name: "sse"
+        features:
+          - "128bit"
+          - "custom-types"
+          - "c-abi"
+          - "hashbrown"
+          - "halfbrown"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: "1.64.0"
+          override: true
+          components: clippy, rustfmt
+      - name: Validate cargo format
+        run: cargo fmt -- --check
+      - name: Check workflow permissions
+        id: check_permissions
+        uses: scherermichael-oss/action-has-permission@1.0.6
+        with:
+          required-permission: write
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run clippy action to produce annotations
+        uses: actions-rs/clippy-check@v1
+        if: steps.check_permissions.outputs.has-permission
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all --features ${{ matrix.features }}
+      - name: Run clippy manually without annotations
+        if: ${{ !steps.check_permissions.outputs.has-permission }}
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags.flags }}
+        run: cargo clippy --all --features ${{ matrix.features }}
+  coverage:
+    strategy:
+      matrix:
+        rustflags:
+          - flags: "-C target-cpu=native"
+            name: "avx2"
+          - flags: "-C target-cpu=native -C target-feature=-avx2"
+            name: "sse"
+        features:
+          - "128bit"
+          - "custom-types"
+          - "c-abi"
+          - "hashbrown"
+          - "halfbrown"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: "1.64.0"
+          override: true
+          components: llvm-tools-preview
+      - name: Install cargo-llcm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Generate code coverage
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags.flags }}
+          PROPTEST_CASES: 512
+        run: cargo llvm-cov --lcov --output-path lcov.txt --features ${{ matrix.features }}
+      - uses: codecov/codecov-action@v3
+        with:
+          # token: ${{secrets.CODECOV_TOKEN}} # not required, we are a public repo
+          file: ./lcov.txt
+          flags: "${{ matrix.features }}-${{ matrix.rustflags.name }}"
+          fail_ci_if_error: ${{ github.event_name == 'pull_request' }}
+          verbose: true

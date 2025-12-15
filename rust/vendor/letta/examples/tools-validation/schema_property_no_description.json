@@ -1,0 +1,13 @@
+{
+  "name": "process_text",
+  "description": "Property missing description field",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string"
+      }
+    },
+    "required": ["text"]
+  }
+}

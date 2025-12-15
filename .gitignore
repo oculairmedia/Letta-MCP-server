@@ -39,7 +39,7 @@ coverage/
 target/
 Cargo.lock
 rust/target/
-rust/vendor/
+# rust/vendor/ - tracked for SDK patches
 *.pdb
 .git-rewrite/
 

@@ -1,0 +1,7 @@
+error[E0133]: access to union field is unsafe and requires unsafe function or block
+  --> tests/ui/no_accessing_through_unions.rs:11:22
+   |
+11 |     munge!(let Foo { b } = foo);
+   |                      ^ access to union field
+   |
+   = note: the field may not be properly initialized: using uninitialized data will cause undefined behavior

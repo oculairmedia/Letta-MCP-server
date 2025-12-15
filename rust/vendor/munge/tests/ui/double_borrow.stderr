@@ -1,0 +1,10 @@
+error[E0499]: cannot borrow `mu` as mutable more than once at a time
+  --> tests/ui/double_borrow.rs:16:43
+   |
+12 |     munge!(let Example { a: a1, b: b1 } = &mut mu);
+   |                                           ------- first mutable borrow occurs here
+...
+16 |     munge!(let Example { a: a2, b: b2 } = &mut mu);
+   |                                           ^^^^^^^ second mutable borrow occurs here
+17 |     assert_eq!(a1.write(3), &3);
+   |                -- first borrow later used here

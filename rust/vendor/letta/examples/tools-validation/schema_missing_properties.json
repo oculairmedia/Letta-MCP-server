@@ -1,0 +1,7 @@
+{
+  "name": "process_text",
+  "description": "Parameters missing 'properties' field",
+  "parameters": {
+    "type": "object"
+  }
+}

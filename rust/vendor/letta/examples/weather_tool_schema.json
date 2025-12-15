@@ -1,0 +1,20 @@
+{
+  "name": "get_weather",
+  "description": "Get current weather for a location",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "location": {
+        "type": "string",
+        "description": "The city or location to get weather for"
+      },
+      "units": {
+        "type": "string",
+        "description": "Temperature units - either 'celsius' or 'fahrenheit'",
+        "enum": ["celsius", "fahrenheit"],
+        "default": "celsius"
+      }
+    },
+    "required": ["location"]
+  }
+}

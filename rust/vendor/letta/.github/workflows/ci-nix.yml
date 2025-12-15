@@ -1,0 +1,21 @@
+name: "CI Nix"
+on:
+  # run manually
+  workflow_dispatch:
+  # Run only when pushing to main branch, and making PRs
+  # push:
+  #   branches:
+  #     - master
+  # pull_request:
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-14]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Install omnix
+        run: nix --accept-flake-config profile install "github:juspay/omnix"
+      - run: om ci

@@ -1,0 +1,17 @@
+error[E0277]: munge may not destructure a rest pattern by move
+  --> tests/ui/rest_patterns_ref_only.rs:17:28
+   |
+17 |     munge!(let Struct { a, .. } = mu);
+   |                            ^^ this rest pattern requires destructuring by borrow
+   |
+   = help: the trait `MustBeBorrow` is not implemented for `Move`
+   = note: required for the cast from `&Move` to `&dyn MustBeBorrow`
+
+error[E0277]: munge may not destructure a rest pattern by move
+  --> tests/ui/rest_patterns_ref_only.rs:25:25
+   |
+25 |     munge!(let Tuple(a, ..) = mu);
+   |                         ^^ this rest pattern requires destructuring by borrow
+   |
+   = help: the trait `MustBeBorrow` is not implemented for `Move`
+   = note: required for the cast from `&Move` to `&dyn MustBeBorrow`

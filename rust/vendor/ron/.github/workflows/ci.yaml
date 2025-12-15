@@ -1,0 +1,106 @@
+name: CI
+on:
+  push:
+    branches:
+    - master
+    - 'v*.*'
+  pull_request:
+    branches:
+    - master
+    - 'v*.*'
+  schedule:
+    - cron: '0 0 * * 0'
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        rust: [1.64.0, stable, nightly]
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
+        with:
+          key: test-${{ matrix.rust }}
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+      - run: cargo test
+      - run: cargo test --features integer128
+      - run: cargo test --features indexmap
+      - run: cargo test --all-features
+
+  clippy:
+    name: "Clippy: stable"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
+        with:
+          key: clippy-stable
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: clippy
+          override: true
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ github.token }}
+  
+  rustfmt:
+    name: "Format: stable"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
+        with:
+          key: rustfmt-stable
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: rustfmt
+          override: true
+      - run: cargo fmt -- --check
+
+  coverage:
+    name: "Coverage: nightly"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
+        with:
+          key: coverage
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          components: llvm-tools-preview
+          override: true
+      - run: cargo install grcov --force
+        env:
+          CARGO_TARGET_DIR: target/
+      - run: |
+          cargo test --all-features --all-targets
+          grcov . -s . --binary-path ./target/debug/ \
+            -t cobertura -o cobertura.xml --branch \
+            --keep-only "src/*" \
+            --keep-only "tests/*" \
+            --ignore-not-existing \
+            --excl-line GRCOV_EXCL_LINE \
+            --excl-start GRCOV_EXCL_START \
+            --excl-stop GRCOV_EXCL_STOP
+        env:
+          RUSTFLAGS: -Cinstrument-coverage
+          RUSTDOCFLAGS: -Cinstrument-coverage
+          LLVM_PROFILE_FILE: codecov-%p-%m.profraw
+      - uses: codecov/codecov-action@v1
+        with:
+          fail_ci_if_error: true

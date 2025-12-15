@@ -1,0 +1,14 @@
+error[E0505]: cannot move out of `mu` because it is borrowed
+  --> tests/ui/move_while_borrowed.rs:17:26
+   |
+10 |     let mut mu = MaybeUninit::<Example>::uninit();
+   |         ------ binding `mu` declared here
+11 |
+12 |     munge!(let Example { a, b } = &mut mu);
+   |                                   ------- borrow of `mu` occurs here
+...
+17 |     let value = unsafe { mu.assume_init() };
+   |                          ^^ move out of `mu` occurs here
+...
+21 |     a.write(3);
+   |     - borrow later used here

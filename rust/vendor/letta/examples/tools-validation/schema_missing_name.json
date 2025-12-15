@@ -1,0 +1,13 @@
+{
+  "description": "This schema is missing the required 'name' field",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "The text to process"
+      }
+    },
+    "required": ["text"]
+  }
+}

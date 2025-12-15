@@ -1,0 +1,20 @@
+{
+  "name": "process_text",
+  "description": "Process text according to the specified mode",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "The input text to process"
+      },
+      "mode": {
+        "type": "string",
+        "description": "The processing mode - either 'upper', 'lower', or 'title'",
+        "enum": ["upper", "lower", "title"],
+        "default": "upper"
+      }
+    },
+    "required": ["text"]
+  }
+}

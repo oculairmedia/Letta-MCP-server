@@ -1,0 +1,11 @@
+error[E0308]: mismatched types
+  --> tests/ui/no_drilling_through_deref.rs:22:25
+   |
+22 |     munge!(let Bar { a: (_, _) } = value);
+   |     --------------------^^^^^^-----------
+   |     |                   |
+   |     |                   expected `Foo<(u32, u32)>`, found `(_, _)`
+   |     this expression has type `Bar`
+   |
+   = note: expected struct `Foo<(u32, u32)>`
+               found tuple `(_, _)`

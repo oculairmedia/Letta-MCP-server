@@ -1,0 +1,43 @@
+name: Rust (sanity checks)
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  clippy_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Validate cargo format
+        run: cargo fmt -- --check
+      - name: Install clippy
+        run: rustup component add clippy
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all
+  tarpaulin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config cmake zlib1g-dev
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: install tarpaulin
+        run: cargo install cargo-tarpaulin -f
+      - name: run tarpaulin
+        run: cargo tarpaulin --out Xml
+      - uses: codecov/codecov-action@v3
+        with:
+          #token: ${{secrets.CODECOV_TOKEN}} not needed for public repos
+          file: ./cobertura.xml     

@@ -1,0 +1,14 @@
+name: letta
+
+services:
+  letta-server:
+    image: letta/letta:latest
+    volumes:
+      - letta-pgdata:/var/lib/postgresql/data
+    network_mode: host
+    env_file:
+      - path: server.env
+        required: true
+
+volumes:
+  letta-pgdata:
