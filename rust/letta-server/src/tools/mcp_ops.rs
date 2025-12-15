@@ -45,7 +45,7 @@ pub struct McpOpsRequest {
     pub request_heartbeat: Option<bool>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Default)]
 pub struct McpOpsResponse {
     pub success: bool,
     pub operation: String,
@@ -72,6 +72,44 @@ pub struct McpOpsResponse {
     pub hints: Option<Vec<String>>,
 }
 
+impl McpOpsResponse {
+    /// Create a success response with operation and message
+    fn success(operation: &str, message: &str) -> Self {
+        Self {
+            success: true,
+            operation: operation.to_string(),
+            message: message.to_string(),
+            data: None,
+            servers: None,
+            tools: None,
+            server_name: None,
+            tool_name: None,
+            total: None,
+            returned: None,
+            truncated: None,
+            output_length: None,
+            hints: None,
+        }
+    }
+
+    fn with_data(mut self, data: Value) -> Self {
+        self.data = Some(data);
+        self
+    }
+
+    fn with_server_name(mut self, name: String) -> Self {
+        self.server_name = Some(name);
+        self
+    }
+
+    fn with_hint(mut self, hint: &str) -> Self {
+        self.hints
+            .get_or_insert_with(Vec::new)
+            .push(hint.to_string());
+        self
+    }
+}
+
 // Constants for response size optimization
 const DEFAULT_SERVERS_LIMIT: usize = 20;
 const MAX_SERVERS_LIMIT: usize = 50;
@@ -79,6 +117,11 @@ const DEFAULT_TOOLS_LIMIT: usize = 30;
 const MAX_TOOLS_LIMIT: usize = 100;
 const MAX_DESCRIPTION_LENGTH: usize = 80;
 const MAX_OUTPUT_LENGTH: usize = 3000;
+
+// Common hint messages
+mod hints {
+    pub const TEST_CONNECTION: &str = "Use 'test' operation to verify connection";
+}
 
 pub async fn handle_mcp_ops(
     client: &LettaClient,
@@ -141,7 +184,7 @@ async fn handle_add_server(
 ) -> Result<McpOpsResponse, McpError> {
     let server_config_value = request
         .server_config
-        .ok_or_else(|| McpError::invalid_request("server_config required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("server_config required"))?;
 
     // Deserialize Value to McpServerConfig
     let server_config: McpServerConfig = serde_json::from_value(server_config_value)
@@ -154,35 +197,23 @@ async fn handle_add_server(
         McpServerConfig::StreamableHttp(config) => (config.server_name.clone(), "http"),
     };
 
-    let _result = client
+    client
         .tools()
         .add_mcp_server(server_config)
         .await
         .map_err(|e| McpError::internal(format!("Failed to add MCP server: {}", e)))?;
 
-    // Don't echo back full config - return minimal response
-    let mut summary = serde_json::Map::new();
-    summary.insert("server_name".to_string(), Value::String(server_name));
-    summary.insert(
-        "server_type".to_string(),
-        Value::String(server_type.to_string()),
-    );
+    // Use json! macro instead of manual Map::insert - fewer allocations
+    let summary = serde_json::json!({
+        "server_name": server_name,
+        "server_type": server_type,
+    });
 
-    Ok(McpOpsResponse {
-        success: true,
-        operation: "add".to_string(),
-        message: "MCP server added successfully".to_string(),
-        data: Some(Value::Object(summary)),
-        servers: None,
-        tools: None,
-        server_name: None,
-        tool_name: None,
-        total: None,
-        returned: None,
-        truncated: None,
-        output_length: None,
-        hints: Some(vec!["Use 'test' operation to verify connection".to_string()]),
-    })
+    Ok(
+        McpOpsResponse::success("add", "MCP server added successfully")
+            .with_data(summary)
+            .with_hint(hints::TEST_CONNECTION),
+    )
 }
 
 async fn handle_update_server(
@@ -191,43 +222,29 @@ async fn handle_update_server(
 ) -> Result<McpOpsResponse, McpError> {
     let server_name = request
         .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
     let server_config_value = request
         .server_config
-        .ok_or_else(|| McpError::invalid_request("server_config required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("server_config required"))?;
 
     // Deserialize Value to UpdateMcpServerRequest
     let update_request: UpdateMcpServerRequest = serde_json::from_value(server_config_value)
         .map_err(|e| McpError::invalid_request(format!("Invalid server_config: {}", e)))?;
 
-    let _result = client
+    client
         .tools()
         .update_mcp_server(&server_name, update_request)
         .await
         .map_err(|e| McpError::internal(format!("Failed to update MCP server: {}", e)))?;
 
-    // Don't echo back full config - return minimal response
-    let mut summary = serde_json::Map::new();
-    summary.insert(
-        "server_name".to_string(),
-        Value::String(server_name.clone()),
-    );
+    let summary = serde_json::json!({ "server_name": &server_name });
 
-    Ok(McpOpsResponse {
-        success: true,
-        operation: "update".to_string(),
-        message: "MCP server updated successfully".to_string(),
-        data: Some(Value::Object(summary)),
-        servers: None,
-        tools: None,
-        server_name: Some(server_name),
-        tool_name: None,
-        total: None,
-        returned: None,
-        truncated: None,
-        output_length: None,
-        hints: Some(vec!["Use 'test' operation to verify connection".to_string()]),
-    })
+    Ok(
+        McpOpsResponse::success("update", "MCP server updated successfully")
+            .with_data(summary)
+            .with_server_name(server_name)
+            .with_hint(hints::TEST_CONNECTION),
+    )
 }
 
 async fn handle_delete_server(
@@ -236,7 +253,7 @@ async fn handle_delete_server(
 ) -> Result<McpOpsResponse, McpError> {
     let server_name = request
         .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
 
     client
         .tools()
@@ -244,21 +261,10 @@ async fn handle_delete_server(
         .await
         .map_err(|e| McpError::internal(format!("Failed to delete MCP server: {}", e)))?;
 
-    Ok(McpOpsResponse {
-        success: true,
-        operation: "delete".to_string(),
-        message: "MCP server deleted successfully".to_string(),
-        data: None,
-        servers: None,
-        tools: None,
-        server_name: Some(server_name),
-        tool_name: None,
-        total: None,
-        returned: None,
-        truncated: None,
-        output_length: None,
-        hints: None,
-    })
+    Ok(
+        McpOpsResponse::success("delete", "MCP server deleted successfully")
+            .with_server_name(server_name),
+    )
 }
 
 async fn handle_test_server(
@@ -267,7 +273,7 @@ async fn handle_test_server(
 ) -> Result<McpOpsResponse, McpError> {
     let server_config_value = request
         .server_config
-        .ok_or_else(|| McpError::invalid_request("server_config required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("server_config required"))?;
 
     // Deserialize Value to McpServerConfig for the flattened TestMcpServerRequest
     let config: McpServerConfig = serde_json::from_value(server_config_value)
@@ -283,48 +289,28 @@ async fn handle_test_server(
         .map_err(|e| McpError::internal(format!("Failed to test MCP server: {}", e)))?;
     let connection_time_ms = start_time.elapsed().as_millis() as i64;
 
-    // Build compact response - only tool names, not full definitions
-    let mut test_result = serde_json::Map::new();
-    test_result.insert("status".to_string(), Value::String("success".to_string()));
-    test_result.insert(
-        "connection_time_ms".to_string(),
-        Value::Number(connection_time_ms.into()),
-    );
-
     // Extract tool names only from the result
     let result_value = serde_json::to_value(&result)?;
-    if let Some(tools) = result_value.get("tools").and_then(|t| t.as_array()) {
-        let tool_names: Vec<String> = tools
-            .iter()
-            .filter_map(|tool| {
-                tool.get("name")
-                    .and_then(|n| n.as_str())
-                    .map(|s| s.to_string())
-            })
-            .collect();
+    let tool_names: Vec<&str> = result_value
+        .get("tools")
+        .and_then(|t| t.as_array())
+        .map(|tools| {
+            tools
+                .iter()
+                .filter_map(|tool| tool.get("name").and_then(|n| n.as_str()))
+                .collect()
+        })
+        .unwrap_or_default();
 
-        test_result.insert(
-            "tools_available".to_string(),
-            Value::Number(tool_names.len().into()),
-        );
-        test_result.insert("tool_names".to_string(), serde_json::to_value(tool_names)?);
-    }
+    // Use json! macro for compact response
+    let test_result = serde_json::json!({
+        "status": "success",
+        "connection_time_ms": connection_time_ms,
+        "tools_available": tool_names.len(),
+        "tool_names": tool_names,
+    });
 
-    Ok(McpOpsResponse {
-        success: true,
-        operation: "test".to_string(),
-        message: "MCP server connection successful".to_string(),
-        data: Some(Value::Object(test_result)),
-        servers: None,
-        tools: None,
-        server_name: None,
-        tool_name: None,
-        total: None,
-        returned: None,
-        truncated: None,
-        output_length: None,
-        hints: None,
-    })
+    Ok(McpOpsResponse::success("test", "MCP server connection successful").with_data(test_result))
 }
 
 async fn handle_connect_server(
@@ -333,24 +319,15 @@ async fn handle_connect_server(
 ) -> Result<McpOpsResponse, McpError> {
     let server_name = request
         .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
 
     // TODO: Implement when SDK adds connect_mcp_server support
-    // For now, return a placeholder response
     Ok(McpOpsResponse {
         success: false,
-        operation: "connect".to_string(),
-        message: "Connect operation not yet implemented in Rust SDK".to_string(),
-        data: None,
-        servers: None,
-        tools: None,
+        operation: "connect".into(),
+        message: "Connect operation not yet implemented in Rust SDK".into(),
         server_name: Some(server_name),
-        tool_name: None,
-        total: None,
-        returned: None,
-        truncated: None,
-        output_length: None,
-        hints: None,
+        ..Default::default()
     })
 }
 
@@ -360,26 +337,18 @@ async fn handle_resync_server(
 ) -> Result<McpOpsResponse, McpError> {
     let server_name = request
         .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
 
     // TODO: Implement when SDK adds resync support
-    // For now, return a placeholder response with summary format
     Ok(McpOpsResponse {
         success: false,
-        operation: "resync".to_string(),
-        message: "Resync operation not yet implemented in Rust SDK".to_string(),
-        data: None,
-        servers: None,
-        tools: None,
+        operation: "resync".into(),
+        message: "Resync operation not yet implemented in Rust SDK".into(),
         server_name: Some(server_name),
-        tool_name: None,
-        total: None,
-        returned: None,
-        truncated: None,
-        output_length: None,
         hints: Some(vec![
-            "This operation will return summary with counts when implemented".to_string(),
+            "This operation will return summary with counts when implemented".into(),
         ]),
+        ..Default::default()
     })
 }
 
@@ -389,31 +358,24 @@ async fn handle_execute_tool(
 ) -> Result<McpOpsResponse, McpError> {
     let server_name = request
         .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
     let tool_name = request
         .tool_name
-        .ok_or_else(|| McpError::invalid_request("tool_name required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("tool_name required"))?;
 
     // TODO: Implement when SDK adds tool execution support
-    // For now, return a placeholder response
     // When implemented, this should truncate output to MAX_OUTPUT_LENGTH
     Ok(McpOpsResponse {
         success: false,
-        operation: "execute".to_string(),
-        message: "Execute operation not yet implemented in Rust SDK".to_string(),
-        data: None,
-        servers: None,
-        tools: None,
+        operation: "execute".into(),
+        message: "Execute operation not yet implemented in Rust SDK".into(),
         server_name: Some(server_name),
         tool_name: Some(tool_name),
-        total: None,
-        returned: None,
-        truncated: None,
-        output_length: None,
         hints: Some(vec![format!(
             "Output will be truncated to {} characters when implemented",
             MAX_OUTPUT_LENGTH
         )]),
+        ..Default::default()
     })
 }
 
@@ -433,55 +395,49 @@ async fn handle_list_servers(
         servers_map
             .into_iter()
             .map(|(name, config)| {
-                let mut server_summary = serde_json::Map::new();
-                server_summary.insert("name".to_string(), Value::String(name.clone()));
+                // Determine server type and extract metadata
+                let (server_type, status, tool_count, last_connected) =
+                    if let Value::Object(ref config_obj) = config {
+                        let server_type = config_obj
+                            .get("config")
+                            .and_then(|c| c.as_object())
+                            .map(|c| {
+                                if c.contains_key("command") {
+                                    "stdio"
+                                } else if c.contains_key("url") {
+                                    "http"
+                                } else {
+                                    "unknown"
+                                }
+                            })
+                            .unwrap_or("unknown");
 
-                // Extract minimal info, exclude full server_config and oauth_config
-                if let Value::Object(config_obj) = config {
-                    // Extract server type if available
-                    if let Some(config_type) = config_obj.get("config").and_then(|c| c.as_object())
-                    {
-                        if config_type.contains_key("command") {
-                            server_summary.insert(
-                                "server_type".to_string(),
-                                Value::String("stdio".to_string()),
-                            );
-                        } else if config_type.contains_key("url") {
-                            server_summary.insert(
-                                "server_type".to_string(),
-                                Value::String("http".to_string()),
-                            );
-                        } else {
-                            server_summary.insert(
-                                "server_type".to_string(),
-                                Value::String("unknown".to_string()),
-                            );
-                        }
-                    }
+                        let status = config_obj
+                            .get("status")
+                            .and_then(|s| s.as_str())
+                            .unwrap_or("unknown");
 
-                    // Extract status if available
-                    if let Some(status) = config_obj.get("status") {
-                        server_summary.insert("status".to_string(), status.clone());
+                        let tool_count = config_obj
+                            .get("tools")
+                            .and_then(|t| t.as_array())
+                            .map(|t| t.len())
+                            .unwrap_or(0);
+
+                        let last_connected = config_obj.get("last_connected").cloned();
+
+                        (server_type, status, tool_count, last_connected)
                     } else {
-                        server_summary
-                            .insert("status".to_string(), Value::String("unknown".to_string()));
-                    }
+                        ("unknown", "unknown", 0, None)
+                    };
 
-                    // Extract tool count if available
-                    if let Some(tools) = config_obj.get("tools").and_then(|t| t.as_array()) {
-                        server_summary
-                            .insert("tool_count".to_string(), Value::Number(tools.len().into()));
-                    } else {
-                        server_summary.insert("tool_count".to_string(), Value::Number(0.into()));
-                    }
-
-                    // Extract last_connected if available
-                    if let Some(last_connected) = config_obj.get("last_connected") {
-                        server_summary.insert("last_connected".to_string(), last_connected.clone());
-                    }
-                }
-
-                Value::Object(server_summary)
+                // Use json! macro - fewer allocations than manual Map::insert
+                serde_json::json!({
+                    "name": name,
+                    "server_type": server_type,
+                    "status": status,
+                    "tool_count": tool_count,
+                    "last_connected": last_connected,
+                })
             })
             .collect()
     } else {
@@ -508,22 +464,17 @@ async fn handle_list_servers(
             returned_count, total_count
         ));
     }
-    hints.push("Use 'test' operation with server_name for full config".to_string());
+    hints.push("Use 'test' operation with server_name for full config".into());
 
     Ok(McpOpsResponse {
         success: true,
-        operation: "list_servers".to_string(),
+        operation: "list_servers".into(),
         message: format!("Found {} MCP servers", total_count),
-        data: None,
         servers: Some(paginated_servers),
-        tools: None,
-        server_name: None,
-        tool_name: None,
         total: Some(total_count),
         returned: Some(returned_count),
-        truncated: None,
-        output_length: None,
         hints: Some(hints),
+        ..Default::default()
     })
 }
 
@@ -533,7 +484,7 @@ async fn handle_list_tools(
 ) -> Result<McpOpsResponse, McpError> {
     let server_name = request
         .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
 
     let result = client
         .tools()
@@ -545,44 +496,38 @@ async fn handle_list_tools(
         arr.into_iter()
             .map(|tool| {
                 if let Value::Object(mut tool_obj) = tool {
-                    let mut simplified = serde_json::Map::new();
+                    let name = tool_obj.remove("name");
+                    let description = tool_obj
+                        .remove("description")
+                        .and_then(|d| d.as_str().map(String::from));
 
-                    // Include name
-                    if let Some(name) = tool_obj.remove("name") {
-                        simplified.insert("name".to_string(), name);
+                    // Truncate description if needed
+                    let (desc, truncated) = match description {
+                        Some(d) => truncate_string(&d, MAX_DESCRIPTION_LENGTH),
+                        None => (String::new(), false),
+                    };
+
+                    // Use json! macro for cleaner code
+                    let mut summary = serde_json::json!({
+                        "name": name,
+                        "server_name": &server_name,
+                        "description": desc,
+                    });
+
+                    if truncated {
+                        summary["description_truncated"] = serde_json::json!(true);
                     }
-
-                    // Add server_name for context
-                    simplified.insert(
-                        "server_name".to_string(),
-                        Value::String(server_name.clone()),
-                    );
-
-                    // Include description but truncate to MAX_DESCRIPTION_LENGTH
-                    if let Some(Value::String(desc)) = tool_obj.remove("description") {
-                        let (truncated_desc, was_truncated) =
-                            truncate_string(&desc, MAX_DESCRIPTION_LENGTH);
-                        simplified.insert("description".to_string(), Value::String(truncated_desc));
-                        if was_truncated {
-                            simplified
-                                .insert("description_truncated".to_string(), Value::Bool(true));
-                        }
-                    }
-
-                    // EXCLUDE inputSchema - don't include it
-
-                    Value::Object(simplified)
+                    summary
                 } else {
                     tool
                 }
             })
             .collect()
     } else if let Value::Object(obj) = serde_json::to_value(&result)? {
-        if let Some(Value::Array(tools)) = obj.get("tools") {
-            tools.clone()
-        } else {
-            vec![]
-        }
+        obj.get("tools")
+            .and_then(|t| t.as_array())
+            .cloned()
+            .unwrap_or_default()
     } else {
         vec![]
     };
@@ -597,28 +542,25 @@ async fn handle_list_tools(
     let returned_count = paginated_tools.len();
     let has_more = offset + returned_count < total_count;
 
-    let mut hints = vec![];
-    if has_more {
-        hints.push(format!(
+    let hints = if has_more {
+        Some(vec![format!(
             "Showing {} of {} tools. Use pagination to see more.",
             returned_count, total_count
-        ));
-    }
+        )])
+    } else {
+        None
+    };
 
     Ok(McpOpsResponse {
         success: true,
-        operation: "list_tools".to_string(),
+        operation: "list_tools".into(),
         message: format!("Found {} tools on server {}", total_count, server_name),
-        data: None,
-        servers: None,
         tools: Some(paginated_tools),
         server_name: Some(server_name),
-        tool_name: None,
         total: Some(total_count),
         returned: Some(returned_count),
-        truncated: None,
-        output_length: None,
-        hints: if hints.is_empty() { None } else { Some(hints) },
+        hints,
+        ..Default::default()
     })
 }
 
@@ -628,10 +570,10 @@ async fn handle_register_tool(
 ) -> Result<McpOpsResponse, McpError> {
     let server_name = request
         .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
     let tool_name = request
         .tool_name
-        .ok_or_else(|| McpError::invalid_request("tool_name required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("tool_name required"))?;
 
     let result = client
         .tools()
@@ -641,20 +583,14 @@ async fn handle_register_tool(
 
     Ok(McpOpsResponse {
         success: true,
-        operation: "register_tool".to_string(),
+        operation: "register_tool".into(),
         message: format!(
             "Tool {} from {} registered successfully in Letta",
             tool_name, server_name
         ),
         data: Some(serde_json::to_value(&result)?),
-        servers: None,
-        tools: None,
         server_name: Some(server_name),
         tool_name: Some(tool_name),
-        total: None,
-        returned: None,
-        truncated: None,
-        output_length: None,
-        hints: None,
+        ..Default::default()
     })
 }
