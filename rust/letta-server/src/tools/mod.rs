@@ -5,12 +5,13 @@
 
 pub mod agent_advanced;
 pub mod file_folder_ops;
-pub mod memory_unified;
-pub mod memory_utils;
-pub mod tool_manager;
-pub mod source_manager;
 pub mod job_monitor;
 pub mod mcp_ops;
+pub mod memory_unified;
+pub mod memory_utils;
+pub mod response_utils;
+pub mod source_manager;
+pub mod tool_manager;
 
 #[cfg(test)]
 pub mod test_helpers;

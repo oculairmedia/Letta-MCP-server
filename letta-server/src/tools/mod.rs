@@ -9,6 +9,7 @@ pub mod job_monitor;
 pub mod mcp_ops;
 pub mod memory_unified;
 pub mod memory_utils;
+pub mod response_utils;
 pub mod source_manager;
 pub mod tool_manager;
 
