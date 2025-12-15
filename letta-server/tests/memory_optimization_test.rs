@@ -3,8 +3,8 @@
 //! Tests that memory operations properly truncate large responses
 
 use letta_server::tools::memory_utils::{
-    truncate_string, truncate_preview, BlockSummary, PassageSummary, PaginationMeta,
-    truncate_block_value,
+    truncate_block_value, truncate_preview, truncate_string, BlockSummary, PaginationMeta,
+    PassageSummary,
 };
 use serde_json::json;
 
@@ -14,7 +14,7 @@ fn test_truncate_string() {
     let short = "Hello, world!";
     let result = truncate_string(short, 100);
     assert_eq!(result, short);
-    
+
     // Long string should be truncated with indicator
     let long = "a".repeat(1000);
     let result = truncate_string(&long, 100);
@@ -27,7 +27,7 @@ fn test_truncate_string() {
 fn test_truncate_preview() {
     let short = "Hello";
     assert_eq!(truncate_preview(short, 10), "Hello");
-    
+
     let long = "Hello, this is a very long string that needs truncation";
     let result = truncate_preview(long, 10);
     assert_eq!(result, "Hello, thi...");
@@ -43,9 +43,9 @@ fn test_block_summary_from_value() {
         "is_template": false,
         "created_at": "2025-01-01T00:00:00Z"
     });
-    
+
     let summary = BlockSummary::from_block_value(&block_json);
-    
+
     assert_eq!(summary.id, Some("block-123".to_string()));
     assert_eq!(summary.label, "persona");
     assert!(summary.value_preview.len() <= 103); // 100 chars + "..."
@@ -61,9 +61,9 @@ fn test_passage_summary_from_value() {
         "created_at": "2025-01-01T00:00:00Z",
         "source": "uploaded_file.txt"
     });
-    
+
     let summary = PassageSummary::from_passage_value(&passage_json);
-    
+
     assert_eq!(summary.id, "passage-456");
     assert!(summary.text_preview.len() <= 203); // 200 chars + "..."
     assert_eq!(summary.text_length, 148);
@@ -75,7 +75,7 @@ fn test_pagination_meta() {
     let meta = PaginationMeta::new(100, 20, 20)
         .with_offset(0)
         .with_hint("Use 'get_block' for full content".to_string());
-    
+
     assert_eq!(meta.total, 100);
     assert_eq!(meta.returned, 20);
     assert_eq!(meta.limit, 20);
@@ -90,13 +90,13 @@ fn test_truncate_block_value() {
         "label": "test",
         "value": "x".repeat(3000)
     });
-    
+
     let was_truncated = truncate_block_value(&mut block, 2000);
-    
+
     assert!(was_truncated);
     assert_eq!(block.get("truncated").unwrap().as_bool().unwrap(), true);
     assert_eq!(block.get("value_length").unwrap().as_u64().unwrap(), 3000);
-    
+
     let value_str = block.get("value").unwrap().as_str().unwrap();
     assert!(value_str.len() < 2100); // Truncated + indicator
     assert!(value_str.contains("truncated"));
@@ -110,10 +110,13 @@ fn test_block_value_not_truncated_when_short() {
         "label": "test",
         "value": "Short content"
     });
-    
+
     let was_truncated = truncate_block_value(&mut block, 2000);
-    
+
     assert!(!was_truncated);
     assert_eq!(block.get("truncated"), None);
-    assert_eq!(block.get("value").unwrap().as_str().unwrap(), "Short content");
+    assert_eq!(
+        block.get("value").unwrap().as_str().unwrap(),
+        "Short content"
+    );
 }

@@ -21,10 +21,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     // Get configuration from environment
-    let base_url = env::var("LETTA_BASE_URL")
-        .expect("LETTA_BASE_URL environment variable is required");
-    let password = env::var("LETTA_PASSWORD")
-        .expect("LETTA_PASSWORD environment variable is required");
+    let base_url =
+        env::var("LETTA_BASE_URL").expect("LETTA_BASE_URL environment variable is required");
+    let password =
+        env::var("LETTA_PASSWORD").expect("LETTA_PASSWORD environment variable is required");
     let transport = env::var("TRANSPORT").unwrap_or_else(|_| "stdio".to_string());
     let port: u16 = env::var("PORT")
         .unwrap_or_else(|_| "3001".to_string())

@@ -6,12 +6,12 @@
 //! - Archival memory (passages)
 //! - Response truncation
 
-use serde_json::json;
-use letta_server::tools::memory_unified::{MemoryUnifiedRequest, MemoryOperation};
+use letta_server::tools::memory_unified::{MemoryOperation, MemoryUnifiedRequest};
 use letta_server::tools::memory_utils::{
-    truncate_string, truncate_preview, BlockSummary, PassageSummary, PaginationMeta,
-    truncate_block_value,
+    truncate_block_value, truncate_preview, truncate_string, BlockSummary, PaginationMeta,
+    PassageSummary,
 };
+use serde_json::json;
 
 // ============================================================
 // Request Parsing Tests
@@ -23,7 +23,7 @@ fn test_parse_get_core_memory() {
         "operation": "get_core_memory",
         "agent_id": "agent-12345"
     });
-    
+
     let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, MemoryOperation::GetCoreMemory));
     assert_eq!(request.agent_id.unwrap(), "agent-12345");
@@ -37,9 +37,12 @@ fn test_parse_update_core_memory() {
         "block_label": "persona",
         "value": "Updated persona content"
     });
-    
+
     let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
-    assert!(matches!(request.operation, MemoryOperation::UpdateCoreMemory));
+    assert!(matches!(
+        request.operation,
+        MemoryOperation::UpdateCoreMemory
+    ));
     assert_eq!(request.block_label.unwrap(), "persona");
     assert_eq!(request.value.unwrap(), "Updated persona content");
 }
@@ -51,7 +54,7 @@ fn test_parse_list_blocks() {
         "agent_id": "agent-12345",
         "limit": 20
     });
-    
+
     let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, MemoryOperation::ListBlocks));
     assert_eq!(request.limit.unwrap(), 20);
@@ -63,7 +66,7 @@ fn test_parse_get_block() {
         "operation": "get_block",
         "block_id": "block-12345"
     });
-    
+
     let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, MemoryOperation::GetBlock));
     assert_eq!(request.block_id.unwrap(), "block-12345");
@@ -77,7 +80,7 @@ fn test_parse_create_block() {
         "value": "Custom block content",
         "is_template": false
     });
-    
+
     let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, MemoryOperation::CreateBlock));
     assert_eq!(request.label.unwrap(), "custom");
@@ -91,7 +94,7 @@ fn test_parse_update_block() {
         "block_id": "block-12345",
         "value": "New value"
     });
-    
+
     let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, MemoryOperation::UpdateBlock));
 }
@@ -104,7 +107,7 @@ fn test_parse_search_archival() {
         "query": "important facts",
         "limit": 10
     });
-    
+
     let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, MemoryOperation::SearchArchival));
     assert_eq!(request.query.unwrap(), "important facts");
@@ -116,7 +119,7 @@ fn test_parse_list_passages() {
         "operation": "list_passages",
         "agent_id": "agent-12345"
     });
-    
+
     let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, MemoryOperation::ListPassages));
 }
@@ -128,7 +131,7 @@ fn test_parse_create_passage() {
         "agent_id": "agent-12345",
         "text": "This is a new passage to store."
     });
-    
+
     let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, MemoryOperation::CreatePassage));
     assert_eq!(request.text.unwrap(), "This is a new passage to store.");
@@ -141,13 +144,23 @@ fn test_parse_create_passage() {
 #[test]
 fn test_all_memory_operations_parse() {
     let operations = vec![
-        "get_core_memory", "update_core_memory",
-        "get_block_by_label", "list_blocks", "create_block",
-        "get_block", "update_block", "attach_block", "detach_block",
-        "list_agents_using_block", "search_archival", "list_passages",
-        "create_passage", "update_passage", "delete_passage"
+        "get_core_memory",
+        "update_core_memory",
+        "get_block_by_label",
+        "list_blocks",
+        "create_block",
+        "get_block",
+        "update_block",
+        "attach_block",
+        "detach_block",
+        "list_agents_using_block",
+        "search_archival",
+        "list_passages",
+        "create_passage",
+        "update_passage",
+        "delete_passage",
     ];
-    
+
     for op in operations {
         let json_input = json!({ "operation": op });
         let result: Result<MemoryUnifiedRequest, _> = serde_json::from_value(json_input);
@@ -170,7 +183,7 @@ fn test_truncate_string_short() {
 fn test_truncate_string_long() {
     let text = "a".repeat(500);
     let result = truncate_string(&text, 100);
-    
+
     assert!(result.len() < text.len());
     assert!(result.contains("truncated"));
     assert!(result.contains("400 more chars"));
@@ -187,7 +200,7 @@ fn test_truncate_preview_short() {
 fn test_truncate_preview_long() {
     let text = "This is a longer text that needs truncating";
     let result = truncate_preview(text, 20);
-    
+
     assert!(result.len() <= 23); // 20 + "..."
     assert!(result.ends_with("..."));
 }
@@ -206,9 +219,9 @@ fn test_block_summary_from_value() {
         "is_template": false,
         "created_at": "2025-01-01T00:00:00Z"
     });
-    
+
     let summary = BlockSummary::from_block_value(&block_json);
-    
+
     assert_eq!(summary.id, Some("block-123".to_string()));
     assert_eq!(summary.label, "persona");
     assert!(summary.value_preview.len() <= 103); // 100 chars max + "..."
@@ -223,9 +236,9 @@ fn test_block_summary_truncates_long_value() {
         "label": "custom",
         "value": long_value,
     });
-    
+
     let summary = BlockSummary::from_block_value(&block_json);
-    
+
     assert!(summary.value_preview.len() < long_value.len());
     assert!(summary.value_preview.ends_with("..."));
     assert_eq!(summary.value_length, 500);
@@ -236,9 +249,9 @@ fn test_block_summary_handles_missing_fields() {
     let minimal_json = json!({
         "label": "test"
     });
-    
+
     let summary = BlockSummary::from_block_value(&minimal_json);
-    
+
     assert_eq!(summary.label, "test");
     assert!(summary.id.is_none());
     assert!(summary.description.is_none());
@@ -256,9 +269,9 @@ fn test_passage_summary_from_value() {
         "source": "document.pdf",
         "created_at": "2025-01-01T00:00:00Z"
     });
-    
+
     let summary = PassageSummary::from_passage_value(&passage_json);
-    
+
     assert_eq!(summary.id, "passage-789");
     assert!(summary.text_preview.contains("passage content"));
     assert_eq!(summary.source, Some("document.pdf".to_string()));
@@ -271,9 +284,9 @@ fn test_passage_summary_truncates_long_text() {
         "id": "passage-long",
         "text": long_text,
     });
-    
+
     let summary = PassageSummary::from_passage_value(&passage_json);
-    
+
     assert!(summary.text_preview.len() <= 203); // 200 chars + "..."
     assert!(summary.text_length > 200);
 }
@@ -285,7 +298,7 @@ fn test_passage_summary_truncates_long_text() {
 #[test]
 fn test_pagination_meta_basic() {
     let meta = PaginationMeta::new(100, 20, 20);
-    
+
     assert_eq!(meta.total, 100);
     assert_eq!(meta.returned, 20);
     assert_eq!(meta.limit, 20);
@@ -295,15 +308,15 @@ fn test_pagination_meta_basic() {
 #[test]
 fn test_pagination_meta_with_offset() {
     let meta = PaginationMeta::new(100, 20, 20).with_offset(40);
-    
+
     assert_eq!(meta.offset, Some(40));
 }
 
 #[test]
 fn test_pagination_meta_with_hint() {
-    let meta = PaginationMeta::new(50, 10, 10)
-        .with_hint("Use get_block for full content".to_string());
-    
+    let meta =
+        PaginationMeta::new(50, 10, 10).with_hint("Use get_block for full content".to_string());
+
     assert_eq!(meta.hints.len(), 1);
     assert!(meta.hints[0].contains("get_block"));
 }
@@ -313,7 +326,7 @@ fn test_pagination_meta_multiple_hints() {
     let meta = PaginationMeta::new(100, 20, 20)
         .with_hint("Hint 1".to_string())
         .with_hint("Hint 2".to_string());
-    
+
     assert_eq!(meta.hints.len(), 2);
 }
 
@@ -327,9 +340,9 @@ fn test_truncate_block_value_short() {
         "id": "block-short",
         "value": "Short content"
     });
-    
+
     let was_truncated = truncate_block_value(&mut block, 2000);
-    
+
     assert!(!was_truncated);
     assert_eq!(block.get("truncated"), None);
     assert_eq!(block["value"], "Short content");
@@ -342,13 +355,13 @@ fn test_truncate_block_value_long() {
         "id": "block-long",
         "value": long_value
     });
-    
+
     let was_truncated = truncate_block_value(&mut block, 2000);
-    
+
     assert!(was_truncated);
     assert_eq!(block["truncated"], true);
     assert_eq!(block["value_length"], 3000);
-    
+
     let truncated_value = block["value"].as_str().unwrap();
     assert!(truncated_value.len() < 3000);
     assert!(truncated_value.contains("truncated"));
@@ -361,9 +374,9 @@ fn test_truncate_block_value_exactly_at_limit() {
         "id": "block-exact",
         "value": exact_value
     });
-    
+
     let was_truncated = truncate_block_value(&mut block, 2000);
-    
+
     assert!(!was_truncated);
     assert_eq!(block.get("truncated"), None);
 }
@@ -375,9 +388,9 @@ fn test_truncate_block_value_one_over() {
         "id": "block-over",
         "value": over_value
     });
-    
+
     let was_truncated = truncate_block_value(&mut block, 2000);
-    
+
     assert!(was_truncated);
     assert_eq!(block["truncated"], true);
     assert!(block["value"].as_str().unwrap().contains("1 more chars"));
@@ -389,7 +402,7 @@ fn test_truncate_block_value_one_over() {
 
 mod response_format {
     use serde_json::json;
-    
+
     #[test]
     fn test_list_blocks_response_format() {
         let response_data = json!({
@@ -401,13 +414,13 @@ mod response_format {
             ],
             "hints": ["Use get_block for full content"]
         });
-        
+
         assert!(response_data.get("total").is_some());
         assert!(response_data.get("returned").is_some());
         assert!(response_data.get("blocks").is_some());
         assert!(response_data.get("hints").is_some());
     }
-    
+
     #[test]
     fn test_search_archival_response_format() {
         let response_data = json!({
@@ -417,11 +430,11 @@ mod response_format {
             "query": "search term",
             "hint": "Use get with passage_id for full content"
         });
-        
+
         assert!(response_data.get("query").is_some());
         assert!(response_data.get("passages").is_some());
     }
-    
+
     #[test]
     fn test_core_memory_response_format() {
         let response_data = json!({
@@ -434,17 +447,17 @@ mod response_format {
                     "value_length": 5000
                 },
                 "human": {
-                    "id": "block-2", 
+                    "id": "block-2",
                     "value": "User info",
                     "truncated": false
                 }
             },
             "hint": "Use get_block for full content"
         });
-        
+
         assert!(response_data.get("agent_id").is_some());
         assert!(response_data.get("blocks").is_some());
-        
+
         let persona = &response_data["blocks"]["persona"];
         assert_eq!(persona["truncated"], true);
         assert!(persona.get("value_length").is_some());
@@ -456,9 +469,9 @@ mod response_format {
 // ============================================================
 
 mod edge_cases {
-    use serde_json::json;
     use letta_server::tools::memory_utils::BlockSummary;
-    
+    use serde_json::json;
+
     #[test]
     fn test_empty_block_value() {
         let block_json = json!({
@@ -466,12 +479,12 @@ mod edge_cases {
             "label": "test",
             "value": ""
         });
-        
+
         let summary = BlockSummary::from_block_value(&block_json);
         assert_eq!(summary.value_length, 0);
         assert_eq!(summary.value_preview, "");
     }
-    
+
     #[test]
     fn test_null_block_value() {
         let block_json = json!({
@@ -479,12 +492,12 @@ mod edge_cases {
             "label": "test",
             "value": null
         });
-        
+
         let summary = BlockSummary::from_block_value(&block_json);
         // Should handle null gracefully
         assert_eq!(summary.value_length, 0);
     }
-    
+
     #[test]
     fn test_unicode_in_block_value() {
         let block_json = json!({
@@ -492,11 +505,11 @@ mod edge_cases {
             "label": "test",
             "value": "Hello \u{1F600} World \u{1F389} Test"
         });
-        
+
         let summary = BlockSummary::from_block_value(&block_json);
         assert!(summary.value_preview.contains("\u{1F600}"));
     }
-    
+
     #[test]
     fn test_very_long_label() {
         let long_label = "a".repeat(1000);
@@ -504,7 +517,7 @@ mod edge_cases {
             "label": long_label,
             "value": "content"
         });
-        
+
         let summary = BlockSummary::from_block_value(&block_json);
         assert_eq!(summary.label, long_label);
     }

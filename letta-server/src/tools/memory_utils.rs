@@ -50,36 +50,31 @@ impl BlockSummary {
             .get("id")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
-        
+
         let label = block
             .get("label")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown")
             .to_string();
-        
+
         let description = block
             .get("description")
             .and_then(|v| v.as_str())
             .map(|s| truncate_preview(s, 100));
-        
-        let value = block
-            .get("value")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        
+
+        let value = block.get("value").and_then(|v| v.as_str()).unwrap_or("");
+
         let value_length = value.len();
         let value_preview = truncate_preview(value, 100);
-        
-        let is_template = block
-            .get("is_template")
-            .and_then(|v| v.as_bool());
-        
+
+        let is_template = block.get("is_template").and_then(|v| v.as_bool());
+
         let created_at = block
             .get("created_at")
             .and_then(|v| v.as_str())
             .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
             .map(|dt| dt.with_timezone(&Utc));
-        
+
         BlockSummary {
             id,
             label,
@@ -112,26 +107,23 @@ impl PassageSummary {
             .and_then(|v| v.as_str())
             .unwrap_or("unknown")
             .to_string();
-        
-        let text = passage
-            .get("text")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        
+
+        let text = passage.get("text").and_then(|v| v.as_str()).unwrap_or("");
+
         let text_length = text.len();
         let text_preview = truncate_preview(text, 200);
-        
+
         let created_at = passage
             .get("created_at")
             .and_then(|v| v.as_str())
             .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
             .map(|dt| dt.with_timezone(&Utc));
-        
+
         let source = passage
             .get("source")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
-        
+
         PassageSummary {
             id,
             text_preview,
@@ -164,12 +156,12 @@ impl PaginationMeta {
             hints: Vec::new(),
         }
     }
-    
+
     pub fn with_offset(mut self, offset: usize) -> Self {
         self.offset = Some(offset);
         self
     }
-    
+
     pub fn with_hint(mut self, hint: String) -> Self {
         self.hints.push(hint);
         self
@@ -179,8 +171,11 @@ impl PaginationMeta {
 /// Truncate a block's value field in a Value object
 pub fn truncate_block_value(block: &mut Value, max_len: usize) -> bool {
     // Clone the value string to avoid borrowing issues
-    let value_info = block.get("value").and_then(|v| v.as_str()).map(|s| (s.to_string(), s.len()));
-    
+    let value_info = block
+        .get("value")
+        .and_then(|v| v.as_str())
+        .map(|s| (s.to_string(), s.len()));
+
     if let Some((value_str, value_len)) = value_info {
         if value_len > max_len {
             let truncated = truncate_string(&value_str, max_len);
@@ -198,8 +193,11 @@ pub fn truncate_block_value(block: &mut Value, max_len: usize) -> bool {
 /// Truncate a passage's text field in a Value object
 pub fn truncate_passage_text(passage: &mut Value, max_len: usize) -> bool {
     // Clone the text string to avoid borrowing issues
-    let text_info = passage.get("text").and_then(|v| v.as_str()).map(|s| (s.to_string(), s.len()));
-    
+    let text_info = passage
+        .get("text")
+        .and_then(|v| v.as_str())
+        .map(|s| (s.to_string(), s.len()));
+
     if let Some((text_str, text_len)) = text_info {
         if text_len > max_len {
             let truncated = truncate_string(&text_str, max_len);
@@ -217,23 +215,23 @@ pub fn truncate_passage_text(passage: &mut Value, max_len: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_truncate_string() {
         let short = "Hello";
         assert_eq!(truncate_string(short, 10), "Hello");
-        
+
         let long = "Hello, this is a very long string that needs truncation";
         let result = truncate_string(long, 20);
         assert!(result.contains("Hello, this is a ver"));
         assert!(result.contains("truncated"));
     }
-    
+
     #[test]
     fn test_truncate_preview() {
         let short = "Hello";
         assert_eq!(truncate_preview(short, 10), "Hello");
-        
+
         let long = "Hello, this is a very long string";
         let result = truncate_preview(long, 10);
         assert_eq!(result, "Hello, thi...");

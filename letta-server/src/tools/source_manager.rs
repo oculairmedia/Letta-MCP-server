@@ -161,43 +161,55 @@ pub async fn handle_source_manager(
     }
 }
 
-async fn handle_list_sources(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
+async fn handle_list_sources(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
     // Default limit: 20, max limit: 100
     const DEFAULT_LIMIT: i32 = 20;
     const MAX_LIMIT: i32 = 100;
-    
+
     let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
-    
-    let all_sources = client.sources().list().await
+
+    let all_sources = client
+        .sources()
+        .list()
+        .await
         .map_err(|e| McpError::internal(format!("Failed to list sources: {}", e)))?;
 
     let total = all_sources.len();
-    
+
     // Take only up to limit
     let sources_to_return: Vec<_> = all_sources.into_iter().take(limit as usize).collect();
     let returned = sources_to_return.len();
-    
+
     // Convert to optimized summaries
-    let summaries: Vec<SourceSummary> = sources_to_return.into_iter().map(|source| {
-        let description = source.description.map(|d| truncate_string(&d, 100));
-        
-        SourceSummary {
-            id: source.id.map(|id| id.to_string()).unwrap_or_default(),
-            name: source.name,
-            description,
-            created_at: source.created_at.map(|t| t.to_string()),
-            updated_at: source.updated_at.map(|t| t.to_string()),
-            file_count: 0, // Note: Would need additional API call to get accurate count
-            attached_agent_count: 0, // Note: Would need additional API call to get accurate count
-        }
-    }).collect();
+    let summaries: Vec<SourceSummary> = sources_to_return
+        .into_iter()
+        .map(|source| {
+            let description = source.description.map(|d| truncate_string(&d, 100));
+
+            SourceSummary {
+                id: source.id.map(|id| id.to_string()).unwrap_or_default(),
+                name: source.name,
+                description,
+                created_at: source.created_at.map(|t| t.to_string()),
+                updated_at: source.updated_at.map(|t| t.to_string()),
+                file_count: 0, // Note: Would need additional API call to get accurate count
+                attached_agent_count: 0, // Note: Would need additional API call to get accurate count
+            }
+        })
+        .collect();
 
     let pagination = PaginationMetadata {
         total,
         returned,
         limit,
         hint: if total > returned {
-            Some(format!("Showing {} of {} sources. Use limit parameter to see more (max {}).", returned, total, MAX_LIMIT))
+            Some(format!(
+                "Showing {} of {} sources. Use limit parameter to see more (max {}).",
+                returned, total, MAX_LIMIT
+            ))
         } else {
             None
         },
@@ -213,14 +225,22 @@ async fn handle_list_sources(client: &LettaClient, request: SourceManagerRequest
     })
 }
 
-async fn handle_get_source(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request.source_id.ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+async fn handle_get_source(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let source_id = request
+        .source_id
+        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
-    
-    let source = client.sources().get(&letta_id).await
+
+    let source = client
+        .sources()
+        .get(&letta_id)
+        .await
         .map_err(|e| McpError::internal(format!("Failed to get source: {}", e)))?;
-    
+
     Ok(SourceManagerResponse {
         success: true,
         operation: "get".to_string(),
@@ -231,8 +251,13 @@ async fn handle_get_source(client: &LettaClient, request: SourceManagerRequest) 
     })
 }
 
-async fn handle_create_source(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let name = request.name.ok_or_else(|| McpError::invalid_request("name required".to_string()))?;
+async fn handle_create_source(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let name = request
+        .name
+        .ok_or_else(|| McpError::invalid_request("name required".to_string()))?;
 
     let create_request = if let Some(desc) = request.description {
         letta::types::source::CreateSourceRequest::builder()
@@ -245,7 +270,10 @@ async fn handle_create_source(client: &LettaClient, request: SourceManagerReques
             .build()
     };
 
-    let source = client.sources().create(create_request).await
+    let source = client
+        .sources()
+        .create(create_request)
+        .await
         .map_err(|e| McpError::internal(format!("Failed to create source: {}", e)))?;
 
     Ok(SourceManagerResponse {
@@ -258,20 +286,28 @@ async fn handle_create_source(client: &LettaClient, request: SourceManagerReques
     })
 }
 
-async fn handle_update_source(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request.source_id.ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+async fn handle_update_source(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let source_id = request
+        .source_id
+        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
-    
+
     let update_request = letta::types::source::UpdateSourceRequest {
         name: request.name,
         description: request.description,
         ..Default::default()
     };
-    
-    let source = client.sources().update(&letta_id, update_request).await
+
+    let source = client
+        .sources()
+        .update(&letta_id, update_request)
+        .await
         .map_err(|e| McpError::internal(format!("Failed to update source: {}", e)))?;
-    
+
     Ok(SourceManagerResponse {
         success: true,
         operation: "update".to_string(),
@@ -282,14 +318,22 @@ async fn handle_update_source(client: &LettaClient, request: SourceManagerReques
     })
 }
 
-async fn handle_delete_source(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request.source_id.ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+async fn handle_delete_source(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let source_id = request
+        .source_id
+        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
-    
-    client.sources().delete(&letta_id).await
+
+    client
+        .sources()
+        .delete(&letta_id)
+        .await
         .map_err(|e| McpError::internal(format!("Failed to delete source: {}", e)))?;
-    
+
     Ok(SourceManagerResponse {
         success: true,
         operation: "delete".to_string(),
@@ -300,16 +344,27 @@ async fn handle_delete_source(client: &LettaClient, request: SourceManagerReques
     })
 }
 
-async fn handle_attach_source(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
-    let source_id = request.source_id.ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+async fn handle_attach_source(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let agent_id = request
+        .agent_id
+        .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
+    let source_id = request
+        .source_id
+        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
     let letta_source_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
-    let agent_state = client.sources().agent_sources(letta_agent_id).attach(&letta_source_id).await
+    let agent_state = client
+        .sources()
+        .agent_sources(letta_agent_id)
+        .attach(&letta_source_id)
+        .await
         .map_err(|e| McpError::internal(format!("Failed to attach source: {}", e)))?;
 
     Ok(SourceManagerResponse {
@@ -322,16 +377,27 @@ async fn handle_attach_source(client: &LettaClient, request: SourceManagerReques
     })
 }
 
-async fn handle_detach_source(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
-    let source_id = request.source_id.ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+async fn handle_detach_source(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let agent_id = request
+        .agent_id
+        .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
+    let source_id = request
+        .source_id
+        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
     let letta_source_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
-    let agent_state = client.sources().agent_sources(letta_agent_id).detach(&letta_source_id).await
+    let agent_state = client
+        .sources()
+        .agent_sources(letta_agent_id)
+        .detach(&letta_source_id)
+        .await
         .map_err(|e| McpError::internal(format!("Failed to detach source: {}", e)))?;
 
     Ok(SourceManagerResponse {
@@ -344,8 +410,14 @@ async fn handle_detach_source(client: &LettaClient, request: SourceManagerReques
     })
 }
 
-async fn handle_count_sources(client: &LettaClient, _request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let count = client.sources().count().await
+async fn handle_count_sources(
+    client: &LettaClient,
+    _request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let count = client
+        .sources()
+        .count()
+        .await
         .map_err(|e| McpError::internal(format!("Failed to count sources: {}", e)))?;
 
     Ok(SourceManagerResponse {
@@ -358,23 +430,35 @@ async fn handle_count_sources(client: &LettaClient, _request: SourceManagerReque
     })
 }
 
-async fn handle_list_attached(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
+async fn handle_list_attached(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let agent_id = request
+        .agent_id
+        .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
 
-    let sources = client.sources().agent_sources(letta_agent_id).list().await
+    let sources = client
+        .sources()
+        .agent_sources(letta_agent_id)
+        .list()
+        .await
         .map_err(|e| McpError::internal(format!("Failed to list attached sources: {}", e)))?;
 
     // Return lightweight summaries (id, name, file_count only)
-    let summaries: Vec<serde_json::Value> = sources.into_iter().map(|source| {
-        serde_json::json!({
-            "id": source.id.map(|id| id.to_string()).unwrap_or_default(),
-            "name": source.name,
-            "file_count": 0, // Note: Would need additional API call for accurate count
+    let summaries: Vec<serde_json::Value> = sources
+        .into_iter()
+        .map(|source| {
+            serde_json::json!({
+                "id": source.id.map(|id| id.to_string()).unwrap_or_default(),
+                "name": source.name,
+                "file_count": 0, // Note: Would need additional API call for accurate count
+            })
         })
-    }).collect();
+        .collect();
 
     Ok(SourceManagerResponse {
         success: true,
@@ -386,17 +470,22 @@ async fn handle_list_attached(client: &LettaClient, request: SourceManagerReques
     })
 }
 
-async fn handle_list_files(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request.source_id.ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+async fn handle_list_files(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let source_id = request
+        .source_id
+        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
     // Default limit: 25, max limit: 100
     const DEFAULT_LIMIT: i32 = 25;
     const MAX_LIMIT: i32 = 100;
-    
+
     let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
-    
+
     // NEVER include content by default - override user request if they try
     let include_content = false;
 
@@ -406,22 +495,26 @@ async fn handle_list_files(client: &LettaClient, request: SourceManagerRequest) 
         include_content: Some(include_content),
     });
 
-    let files = client.sources().list_files(&letta_id, params).await
+    let files = client
+        .sources()
+        .list_files(&letta_id, params)
+        .await
         .map_err(|e| McpError::internal(format!("Failed to list files: {}", e)))?;
 
     let total = files.len();
-    
+
     // Convert to file summaries (never include content)
-    let summaries: Vec<FileSummary> = files.into_iter().map(|file| {
-        FileSummary {
+    let summaries: Vec<FileSummary> = files
+        .into_iter()
+        .map(|file| FileSummary {
             id: file.id.map(|id| id.to_string()).unwrap_or_default(),
             file_name: file.file_name.unwrap_or_else(|| "unknown".to_string()),
             content_type: file.file_type,
             size_bytes: file.file_size,
             created_at: file.created_at.map(|t| t.to_string()),
             processing_status: file.processing_status.map(|s| format!("{:?}", s)),
-        }
-    }).collect();
+        })
+        .collect();
 
     let pagination = PaginationMetadata {
         total,
@@ -440,42 +533,58 @@ async fn handle_list_files(client: &LettaClient, request: SourceManagerRequest) 
     })
 }
 
-async fn handle_upload_file(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request.source_id.ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
-    let file_name = request.file_name.ok_or_else(|| McpError::invalid_request("file_name required".to_string()))?;
-    let file_data_b64 = request.file_data.ok_or_else(|| McpError::invalid_request("file_data required (base64 encoded)".to_string()))?;
+async fn handle_upload_file(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let source_id = request
+        .source_id
+        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+    let file_name = request
+        .file_name
+        .ok_or_else(|| McpError::invalid_request("file_name required".to_string()))?;
+    let file_data_b64 = request.file_data.ok_or_else(|| {
+        McpError::invalid_request("file_data required (base64 encoded)".to_string())
+    })?;
 
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
     // Decode base64 file data
-    use base64::{Engine as _, engine::general_purpose};
-    let file_bytes = general_purpose::STANDARD.decode(&file_data_b64)
+    use base64::{engine::general_purpose, Engine as _};
+    let file_bytes = general_purpose::STANDARD
+        .decode(&file_data_b64)
         .map_err(|e| McpError::invalid_request(format!("Invalid base64 file_data: {}", e)))?;
 
     let file_size = file_bytes.len();
 
-    let response = client.sources().upload_file(
-        &letta_id,
-        file_name.clone(),
-        bytes::Bytes::from(file_bytes),
-        request.content_type.clone(),
-    ).await
+    let response = client
+        .sources()
+        .upload_file(
+            &letta_id,
+            file_name.clone(),
+            bytes::Bytes::from(file_bytes),
+            request.content_type.clone(),
+        )
+        .await
         .map_err(|e| McpError::internal(format!("Failed to upload file: {}", e)))?;
 
     // Return minimal summary - don't echo back file content
     // FileUploadResponse can be either Job or FileMetadata
     let (file_id, actual_size, actual_content_type) = match response {
-        letta::types::source::FileUploadResponse::Job(job) => {
-            (job.id.to_string(), Some(file_size as i64), request.content_type)
-        }
-        letta::types::source::FileUploadResponse::FileMetadata(metadata) => {
-            (
-                metadata.id.map(|id| id.to_string()).unwrap_or_else(|| "unknown".to_string()),
-                metadata.file_size,
-                metadata.file_type.or(request.content_type),
-            )
-        }
+        letta::types::source::FileUploadResponse::Job(job) => (
+            job.id.to_string(),
+            Some(file_size as i64),
+            request.content_type,
+        ),
+        letta::types::source::FileUploadResponse::FileMetadata(metadata) => (
+            metadata
+                .id
+                .map(|id| id.to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
+            metadata.file_size,
+            metadata.file_type.or(request.content_type),
+        ),
     };
 
     let upload_summary = FileUploadSummary {
@@ -489,23 +598,37 @@ async fn handle_upload_file(client: &LettaClient, request: SourceManagerRequest)
     Ok(SourceManagerResponse {
         success: true,
         operation: "upload".to_string(),
-        message: format!("File '{}' uploaded successfully ({} bytes)", file_name, actual_size.unwrap_or(file_size as i64)),
+        message: format!(
+            "File '{}' uploaded successfully ({} bytes)",
+            file_name,
+            actual_size.unwrap_or(file_size as i64)
+        ),
         data: Some(serde_json::to_value(&upload_summary)?),
         count: None,
         pagination: None,
     })
 }
 
-async fn handle_delete_file(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request.source_id.ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
-    let file_id = request.file_id.ok_or_else(|| McpError::invalid_request("file_id required".to_string()))?;
+async fn handle_delete_file(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let source_id = request
+        .source_id
+        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+    let file_id = request
+        .file_id
+        .ok_or_else(|| McpError::invalid_request("file_id required".to_string()))?;
 
     let letta_source_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
     let letta_file_id = letta::types::LettaId::from_str(&file_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid file_id: {}", e)))?;
 
-    client.sources().delete_file(&letta_source_id, &letta_file_id).await
+    client
+        .sources()
+        .delete_file(&letta_source_id, &letta_file_id)
+        .await
         .map_err(|e| McpError::internal(format!("Failed to delete file: {}", e)))?;
 
     Ok(SourceManagerResponse {
@@ -518,20 +641,32 @@ async fn handle_delete_file(client: &LettaClient, request: SourceManagerRequest)
     })
 }
 
-async fn handle_list_agents_using(client: &LettaClient, request: SourceManagerRequest) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request.source_id.ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+async fn handle_list_agents_using(
+    client: &LettaClient,
+    request: SourceManagerRequest,
+) -> Result<SourceManagerResponse, McpError> {
+    let source_id = request
+        .source_id
+        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
     // Get all agents and filter by those using this source
-    let agents = client.agents().list(None).await
+    let agents = client
+        .agents()
+        .list(None)
+        .await
         .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
 
     // Filter agents that have this source attached
     let mut agents_using = Vec::new();
     for agent in agents {
         // Check if this agent has the source attached
-        let sources = client.sources().agent_sources(agent.id.clone()).list().await
+        let sources = client
+            .sources()
+            .agent_sources(agent.id.clone())
+            .list()
+            .await
             .map_err(|e| McpError::internal(format!("Failed to check agent sources: {}", e)))?;
 
         for source in sources {
@@ -545,12 +680,13 @@ async fn handle_list_agents_using(client: &LettaClient, request: SourceManagerRe
     }
 
     // Return only IDs and names - not full agent objects!
-    let agent_refs: Vec<AgentReference> = agents_using.into_iter().map(|agent| {
-        AgentReference {
+    let agent_refs: Vec<AgentReference> = agents_using
+        .into_iter()
+        .map(|agent| AgentReference {
             id: agent.id.to_string(),
             name: agent.name,
-        }
-    }).collect();
+        })
+        .collect();
 
     let agent_count = agent_refs.len();
 

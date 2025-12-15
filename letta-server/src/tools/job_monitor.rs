@@ -114,7 +114,7 @@ async fn handle_list_jobs(
     request: JobMonitorRequest,
 ) -> Result<JobMonitorResponse, McpError> {
     let limit = request.limit.unwrap_or(DEFAULT_LIST_LIMIT);
-    
+
     let jobs = client
         .jobs()
         .list(None, Some(limit), None)
@@ -126,8 +126,14 @@ async fn handle_list_jobs(
         .iter()
         .map(|job| JobSummary {
             id: job.id.as_ref().map(|id| id.to_string()),
-            job_type: job.job_type.as_ref().map(|jt| format!("{:?}", jt).to_lowercase()),
-            status: job.status.as_ref().map(|s| format!("{:?}", s).to_lowercase()),
+            job_type: job
+                .job_type
+                .as_ref()
+                .map(|jt| format!("{:?}", jt).to_lowercase()),
+            status: job
+                .status
+                .as_ref()
+                .map(|s| format!("{:?}", s).to_lowercase()),
             created_at: job.created_at.as_ref().map(|ts| ts.to_string()),
             completed_at: job.completed_at.as_ref().map(|ts| ts.to_string()),
             progress_percent: None, // Could be calculated from metadata if available
@@ -145,7 +151,7 @@ async fn handle_list_jobs(
         total: None, // API doesn't provide total count
         returned: Some(returned),
         hints: Some(vec![
-            "Use 'get' operation with job_id for full details".to_string(),
+            "Use 'get' operation with job_id for full details".to_string()
         ]),
     })
 }
@@ -168,14 +174,21 @@ async fn handle_get_job(
 
     // Truncate large fields
     let truncated_metadata = truncate_json_field(&job.metadata, MAX_METADATA_LENGTH);
-    let truncated_callback_error = job.callback_error.as_ref().map(|err| {
-        truncate_string_field(err, MAX_CALLBACK_ERROR_LENGTH)
-    });
+    let truncated_callback_error = job
+        .callback_error
+        .as_ref()
+        .map(|err| truncate_string_field(err, MAX_CALLBACK_ERROR_LENGTH));
 
     let details = TruncatedJobDetails {
         id: job.id.as_ref().map(|id| id.to_string()),
-        job_type: job.job_type.as_ref().map(|jt| format!("{:?}", jt).to_lowercase()),
-        status: job.status.as_ref().map(|s| format!("{:?}", s).to_lowercase()),
+        job_type: job
+            .job_type
+            .as_ref()
+            .map(|jt| format!("{:?}", jt).to_lowercase()),
+        status: job
+            .status
+            .as_ref()
+            .map(|s| format!("{:?}", s).to_lowercase()),
         created_at: job.created_at.as_ref().map(|ts| ts.to_string()),
         completed_at: job.completed_at.as_ref().map(|ts| ts.to_string()),
         metadata: truncated_metadata,
@@ -191,7 +204,11 @@ async fn handle_get_job(
             }
         }
     }
-    if details.callback_error.as_ref().map_or(false, |e| e.truncated) {
+    if details
+        .callback_error
+        .as_ref()
+        .map_or(false, |e| e.truncated)
+    {
         hints.push("Error details truncated; use direct API for full error".to_string());
     }
 
@@ -223,8 +240,11 @@ async fn handle_cancel_job(
         .get(&letta_id)
         .await
         .map_err(|e| McpError::internal(format!("Failed to get job status: {}", e)))?;
-    
-    let previous_status = job.status.as_ref().map(|s| format!("{:?}", s).to_lowercase());
+
+    let previous_status = job
+        .status
+        .as_ref()
+        .map(|s| format!("{:?}", s).to_lowercase());
 
     client
         .jobs()
@@ -272,8 +292,14 @@ async fn handle_list_active_jobs(
         .iter()
         .map(|job| JobSummary {
             id: job.id.as_ref().map(|id| id.to_string()),
-            job_type: job.job_type.as_ref().map(|jt| format!("{:?}", jt).to_lowercase()),
-            status: job.status.as_ref().map(|s| format!("{:?}", s).to_lowercase()),
+            job_type: job
+                .job_type
+                .as_ref()
+                .map(|jt| format!("{:?}", jt).to_lowercase()),
+            status: job
+                .status
+                .as_ref()
+                .map(|s| format!("{:?}", s).to_lowercase()),
             created_at: job.created_at.as_ref().map(|ts| ts.to_string()),
             completed_at: job.completed_at.as_ref().map(|ts| ts.to_string()),
             progress_percent: None,

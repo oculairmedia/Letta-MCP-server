@@ -150,7 +150,7 @@ pub struct FileFolderResponse {
     pub agent_ids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agents: Option<Vec<AgentReference>>,
-    
+
     // For open_file operation (if content retrieval is added in future)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_content: Option<String>,
@@ -200,7 +200,10 @@ async fn handle_list_files(
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
 
     // Apply pagination limits
-    let limit = request.limit.unwrap_or(DEFAULT_FILE_LIMIT).min(MAX_FILE_LIMIT);
+    let limit = request
+        .limit
+        .unwrap_or(DEFAULT_FILE_LIMIT)
+        .min(MAX_FILE_LIMIT);
     let offset = request.offset.unwrap_or(0);
 
     // Use SDK to list agent files
@@ -212,7 +215,7 @@ async fn handle_list_files(
         .map_err(|e| McpError::internal(format!("Failed to list files: {}", e)))?;
 
     let total = result.files.len();
-    
+
     // Apply pagination - NEVER include file content in list operations
     let files: Vec<FileMetadata> = result
         .files
@@ -231,9 +234,12 @@ async fn handle_list_files(
 
     let returned = files.len();
     let mut hints = vec!["File content is NEVER included in list operations".to_string()];
-    
+
     if total > offset + returned {
-        hints.push(format!("More files available. Use offset={} to see next page", offset + returned));
+        hints.push(format!(
+            "More files available. Use offset={} to see next page",
+            offset + returned
+        ));
     }
 
     Ok(FileFolderResponse {
@@ -292,7 +298,10 @@ async fn handle_open_file(
 
     // Note: The SDK open() method marks the file as open in the agent's context
     // It does NOT return file content. Content retrieval would require a separate API call.
-    let hints = vec!["File marked as open in agent context. Content retrieval requires separate API call.".to_string()];
+    let hints = vec![
+        "File marked as open in agent context. Content retrieval requires separate API call."
+            .to_string(),
+    ];
 
     Ok(FileFolderResponse {
         success: true,
@@ -436,7 +445,10 @@ async fn handle_list_folders(
     request: FileFolderRequest,
 ) -> Result<FileFolderResponse, McpError> {
     // Apply pagination limits
-    let limit = request.limit.unwrap_or(DEFAULT_FOLDER_LIMIT).min(MAX_FOLDER_LIMIT);
+    let limit = request
+        .limit
+        .unwrap_or(DEFAULT_FOLDER_LIMIT)
+        .min(MAX_FOLDER_LIMIT);
     let offset = request.offset.unwrap_or(0);
 
     // Use SDK to list folders
@@ -456,17 +468,23 @@ async fn handle_list_folders(
         .map(|f| FolderMetadata {
             id: f.id.to_string(),
             name: f.name.clone(),
-            description: f.description.as_ref().map(|d| truncate_string(d, MAX_DESCRIPTION_LENGTH)),
-            file_count: None, // Not included in SDK response
+            description: f
+                .description
+                .as_ref()
+                .map(|d| truncate_string(d, MAX_DESCRIPTION_LENGTH)),
+            file_count: None,  // Not included in SDK response
             agent_count: None, // Not included in SDK response
         })
         .collect();
 
     let returned = folders.len();
     let mut hints = Vec::new();
-    
+
     if total > offset + returned {
-        hints.push(format!("More folders available. Use offset={} to see next page", offset + returned));
+        hints.push(format!(
+            "More folders available. Use offset={} to see next page",
+            offset + returned
+        ));
     }
 
     Ok(FileFolderResponse {
@@ -625,9 +643,7 @@ async fn handle_list_agents_in_folder(
         .folders()
         .list_agents(&letta_folder_id)
         .await
-        .map_err(|e| {
-            McpError::internal(format!("Failed to list agents in folder: {}", e))
-        })?;
+        .map_err(|e| McpError::internal(format!("Failed to list agents in folder: {}", e)))?;
 
     // Return IDs only - already optimized (LMS-54)
     let agents: Vec<AgentReference> = agent_ids

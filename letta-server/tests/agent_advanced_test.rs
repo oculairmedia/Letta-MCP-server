@@ -5,11 +5,11 @@
 //! - Response format and optimization
 //! - Error handling
 
-use serde_json::{json, Value};
 use letta_server::tools::agent_advanced::{
     AgentAdvancedRequest, AgentOperation, BulkDeleteFilters,
 };
 use letta_types::Pagination;
+use serde_json::{json, Value};
 
 // ============================================================
 // Request Parsing Tests
@@ -20,7 +20,7 @@ fn test_parse_list_operation() {
     let json_input = json!({
         "operation": "list"
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::List));
     assert!(request.agent_id.is_none());
@@ -36,10 +36,10 @@ fn test_parse_list_with_pagination() {
             "offset": 10
         }
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::List));
-    
+
     let pagination = request.pagination.unwrap();
     assert_eq!(pagination.limit, Some(20));
     assert_eq!(pagination.offset, Some(10));
@@ -51,10 +51,13 @@ fn test_parse_get_operation() {
         "operation": "get",
         "agent_id": "agent-12345678-1234-1234-1234-123456789012"
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::Get));
-    assert_eq!(request.agent_id.unwrap(), "agent-12345678-1234-1234-1234-123456789012");
+    assert_eq!(
+        request.agent_id.unwrap(),
+        "agent-12345678-1234-1234-1234-123456789012"
+    );
 }
 
 #[test]
@@ -68,7 +71,7 @@ fn test_parse_create_operation() {
             "model_endpoint_type": "openai"
         }
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::Create));
     assert_eq!(request.name.unwrap(), "TestAgent");
@@ -82,7 +85,7 @@ fn test_parse_search_operation() {
         "operation": "search",
         "name": "Meridian"
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::Search));
     assert_eq!(request.name.unwrap(), "Meridian");
@@ -94,7 +97,7 @@ fn test_parse_search_with_tags() {
         "operation": "search",
         "tags": ["assistant", "production"]
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::Search));
     let tags = request.tags.unwrap();
@@ -108,7 +111,7 @@ fn test_parse_search_with_query() {
         "operation": "search",
         "query": "helpful assistant"
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::Search));
     assert_eq!(request.query.unwrap(), "helpful assistant");
@@ -120,7 +123,7 @@ fn test_parse_delete_operation() {
         "operation": "delete",
         "agent_id": "agent-to-delete"
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::Delete));
     assert_eq!(request.agent_id.unwrap(), "agent-to-delete");
@@ -135,7 +138,7 @@ fn test_parse_send_message_operation() {
             {"role": "user", "content": "Hello!"}
         ]
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::SendMessage));
     assert!(request.messages.is_some());
@@ -151,10 +154,10 @@ fn test_parse_bulk_delete_operation() {
             "agent_ids": ["agent-1", "agent-2"]
         }
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::BulkDelete));
-    
+
     let filters = request.filters.unwrap();
     assert_eq!(filters.agent_name_filter.unwrap(), "test-");
     assert_eq!(filters.agent_ids.unwrap().len(), 2);
@@ -165,7 +168,7 @@ fn test_parse_count_operation() {
     let json_input = json!({
         "operation": "count"
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::Count));
 }
@@ -177,7 +180,7 @@ fn test_parse_clone_operation() {
         "agent_id": "source-agent",
         "name": "cloned-agent"
     });
-    
+
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, AgentOperation::Clone));
     assert_eq!(request.agent_id.unwrap(), "source-agent");
@@ -191,13 +194,31 @@ fn test_parse_clone_operation() {
 #[test]
 fn test_all_operations_parse() {
     let operations = vec![
-        "list", "create", "get", "update", "delete", "search",
-        "list_tools", "send_message", "export", "import", "clone",
-        "get_config", "bulk_delete", "context", "reset_messages",
-        "summarize", "stream", "async_message", "cancel_message",
-        "preview_payload", "search_messages", "get_message", "count"
+        "list",
+        "create",
+        "get",
+        "update",
+        "delete",
+        "search",
+        "list_tools",
+        "send_message",
+        "export",
+        "import",
+        "clone",
+        "get_config",
+        "bulk_delete",
+        "context",
+        "reset_messages",
+        "summarize",
+        "stream",
+        "async_message",
+        "cancel_message",
+        "preview_payload",
+        "search_messages",
+        "get_message",
+        "count",
     ];
-    
+
     for op in operations {
         let json_input = json!({ "operation": op });
         let result: Result<AgentAdvancedRequest, _> = serde_json::from_value(json_input);
@@ -210,7 +231,7 @@ fn test_invalid_operation_fails() {
     let json_input = json!({
         "operation": "invalid_operation"
     });
-    
+
     let result: Result<AgentAdvancedRequest, _> = serde_json::from_value(json_input);
     assert!(result.is_err(), "Should fail on invalid operation");
 }
@@ -233,7 +254,7 @@ fn test_pagination_with_values() {
         "limit": 50,
         "offset": 100
     });
-    
+
     let pagination: Pagination = serde_json::from_value(json_input).unwrap();
     assert_eq!(pagination.limit, Some(50));
     assert_eq!(pagination.offset, Some(100));
@@ -248,7 +269,7 @@ fn test_bulk_delete_filters_name_only() {
     let json_input = json!({
         "agent_name_filter": "test-"
     });
-    
+
     let filters: BulkDeleteFilters = serde_json::from_value(json_input).unwrap();
     assert_eq!(filters.agent_name_filter.unwrap(), "test-");
     assert!(filters.agent_ids.is_none());
@@ -260,7 +281,7 @@ fn test_bulk_delete_filters_ids_only() {
     let json_input = json!({
         "agent_ids": ["agent-1", "agent-2", "agent-3"]
     });
-    
+
     let filters: BulkDeleteFilters = serde_json::from_value(json_input).unwrap();
     assert!(filters.agent_name_filter.is_none());
     let ids = filters.agent_ids.unwrap();
@@ -274,7 +295,7 @@ fn test_bulk_delete_filters_combined() {
         "agent_tag_filter": "deprecated",
         "agent_ids": ["specific-agent"]
     });
-    
+
     let filters: BulkDeleteFilters = serde_json::from_value(json_input).unwrap();
     assert_eq!(filters.agent_name_filter.unwrap(), "prod-");
     assert_eq!(filters.agent_tag_filter.unwrap(), "deprecated");
@@ -286,43 +307,40 @@ fn test_bulk_delete_filters_combined() {
 // ============================================================
 
 mod response_format {
-    use serde_json::json;
     use letta_types::StandardResponse;
-    
+    use serde_json::json;
+
     #[test]
     fn test_success_response_format() {
         let response = StandardResponse::success(
             "list",
             json!({"agents": [], "total": 0}),
-            "Retrieved 0 agents"
+            "Retrieved 0 agents",
         );
-        
+
         assert!(response.success);
         assert_eq!(response.operation, "list");
         assert!(response.data.as_ref().unwrap().get("agents").is_some());
         assert!(response.message.contains("Retrieved"));
     }
-    
+
     #[test]
     fn test_success_no_data_response() {
-        let response = StandardResponse::success_no_data(
-            "delete",
-            "Agent deleted successfully"
-        );
-        
+        let response = StandardResponse::success_no_data("delete", "Agent deleted successfully");
+
         assert!(response.success);
         assert_eq!(response.operation, "delete");
         assert!(response.message.contains("deleted"));
     }
-    
+
     #[test]
     fn test_response_has_operation() {
         let response = StandardResponse::success(
             "search",
             json!({"count": 5, "agents": []}),
-            "Found 5 agents"
+            "Found 5 agents",
         );
-        
+
         assert_eq!(response.operation, "search");
     }
 }
@@ -338,59 +356,63 @@ mod truncation {
             text.to_string()
         } else {
             let remaining = text.len() - max_chars;
-            format!("{}...[truncated, {} more chars]", &text[..max_chars], remaining)
+            format!(
+                "{}...[truncated, {} more chars]",
+                &text[..max_chars],
+                remaining
+            )
         }
     }
-    
+
     #[test]
     fn test_short_text_not_truncated() {
         let text = "Short text";
         let result = truncate_text(text, 100);
         assert_eq!(result, text);
     }
-    
+
     #[test]
     fn test_long_text_truncated() {
         let text = "a".repeat(1000);
         let result = truncate_text(&text, 100);
-        
+
         assert!(result.len() < text.len());
         assert!(result.contains("truncated"));
         assert!(result.contains("900 more chars"));
     }
-    
+
     #[test]
     fn test_exact_length_not_truncated() {
         let text = "a".repeat(100);
         let result = truncate_text(&text, 100);
         assert_eq!(result, text);
     }
-    
+
     #[test]
     fn test_one_over_length_truncated() {
         let text = "a".repeat(101);
         let result = truncate_text(&text, 100);
-        
+
         assert!(result.contains("truncated"));
         assert!(result.contains("1 more chars"));
     }
-    
+
     #[test]
     fn test_description_truncation_limit() {
         // Agent list uses 100 char limit for descriptions
         let long_description = "This is a very long description that goes well beyond the 100 character limit set for agent summaries in the list operation.";
         let result = truncate_text(long_description, 100);
-        
+
         assert!(result.starts_with("This is a very long"));
         assert!(result.contains("truncated"));
     }
-    
+
     #[test]
     fn test_system_prompt_truncation_limit() {
         // Agent get uses 500 char limit for system prompts
         let long_system = "You are a helpful assistant. ".repeat(50);
         let result = truncate_text(&long_system, 500);
-        
+
         assert!(result.len() < long_system.len());
         assert!(result.contains("truncated"));
     }
@@ -402,17 +424,26 @@ mod truncation {
 
 mod summary_format {
     use serde_json::json;
-    
+
     /// Expected fields in agent summary (list operation)
     const EXPECTED_SUMMARY_FIELDS: &[&str] = &[
-        "id", "name", "description", "model", "created_at", "tool_count"
+        "id",
+        "name",
+        "description",
+        "model",
+        "created_at",
+        "tool_count",
     ];
-    
+
     /// Fields that should be excluded from summary
     const EXCLUDED_SUMMARY_FIELDS: &[&str] = &[
-        "system", "tools", "memory", "llm_config", "embedding_config"
+        "system",
+        "tools",
+        "memory",
+        "llm_config",
+        "embedding_config",
     ];
-    
+
     #[test]
     fn test_agent_summary_has_required_fields() {
         let summary = json!({
@@ -423,12 +454,12 @@ mod summary_format {
             "created_at": "2025-01-01T00:00:00Z",
             "tool_count": 5
         });
-        
+
         for field in EXPECTED_SUMMARY_FIELDS {
             assert!(summary.get(field).is_some(), "Missing field: {}", field);
         }
     }
-    
+
     #[test]
     fn test_agent_summary_excludes_heavy_fields() {
         let summary = json!({
@@ -439,12 +470,16 @@ mod summary_format {
             "created_at": "2025-01-01T00:00:00Z",
             "tool_count": 5
         });
-        
+
         for field in EXCLUDED_SUMMARY_FIELDS {
-            assert!(summary.get(field).is_none(), "Should exclude field: {}", field);
+            assert!(
+                summary.get(field).is_none(),
+                "Should exclude field: {}",
+                field
+            );
         }
     }
-    
+
     #[test]
     fn test_pagination_metadata_format() {
         let response_data = json!({
@@ -455,13 +490,13 @@ mod summary_format {
             "agents": [],
             "hints": ["Use 'get' with agent_id for full details"]
         });
-        
+
         assert_eq!(response_data["total"], 100);
         assert_eq!(response_data["returned"], 15);
         assert_eq!(response_data["has_more"], true);
         assert!(response_data["hints"].as_array().unwrap().len() > 0);
     }
-    
+
     #[test]
     fn test_search_response_format() {
         let response_data = json!({
@@ -474,7 +509,7 @@ mod summary_format {
             },
             "hint": "Use 'get' with agent_id for full details"
         });
-        
+
         assert!(response_data.get("count").is_some());
         assert!(response_data.get("agents").is_some());
         assert!(response_data.get("search_criteria").is_some());

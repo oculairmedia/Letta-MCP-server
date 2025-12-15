@@ -7,8 +7,8 @@
 //! - List active jobs
 //! - Response optimization and truncation
 
-use serde_json::json;
 use letta_server::tools::job_monitor::{JobMonitorRequest, JobOperation};
+use serde_json::json;
 
 // ============================================================
 // Request Parsing Tests
@@ -19,7 +19,7 @@ fn test_parse_list_jobs() {
     let json_input = json!({
         "operation": "list"
     });
-    
+
     let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, JobOperation::List));
 }
@@ -30,7 +30,7 @@ fn test_parse_list_with_limit() {
         "operation": "list",
         "limit": 50
     });
-    
+
     let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, JobOperation::List));
     assert_eq!(request.limit, Some(50));
@@ -42,7 +42,7 @@ fn test_parse_get_job() {
         "operation": "get",
         "job_id": "job-12345-abcde"
     });
-    
+
     let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, JobOperation::Get));
     assert_eq!(request.job_id.unwrap(), "job-12345-abcde");
@@ -54,7 +54,7 @@ fn test_parse_cancel_job() {
         "operation": "cancel",
         "job_id": "job-12345-abcde"
     });
-    
+
     let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, JobOperation::Cancel));
     assert_eq!(request.job_id.unwrap(), "job-12345-abcde");
@@ -65,7 +65,7 @@ fn test_parse_list_active() {
     let json_input = json!({
         "operation": "list_active"
     });
-    
+
     let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
     assert!(matches!(request.operation, JobOperation::ListActive));
 }
@@ -76,7 +76,7 @@ fn test_parse_list_active_with_limit() {
         "operation": "list_active",
         "limit": 10
     });
-    
+
     let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.limit, Some(10));
 }
@@ -87,10 +87,8 @@ fn test_parse_list_active_with_limit() {
 
 #[test]
 fn test_all_job_operations_parse() {
-    let operations = vec![
-        "list", "get", "cancel", "list_active"
-    ];
-    
+    let operations = vec!["list", "get", "cancel", "list_active"];
+
     for op in operations {
         let json_input = json!({"operation": op});
         let result: Result<JobMonitorRequest, _> = serde_json::from_value(json_input);
@@ -112,7 +110,7 @@ fn test_job_summary_serialization() {
         "completed_at": "2024-01-01T00:05:00Z",
         "progress_percent": 100
     });
-    
+
     assert_eq!(summary["id"], "job-123");
     assert_eq!(summary["job_type"], "embedding");
     assert_eq!(summary["status"], "completed");
@@ -127,9 +125,12 @@ fn test_job_summary_optional_fields() {
         "status": "pending",
         "created_at": "2024-01-01T00:00:00Z"
     });
-    
+
     assert!(!summary.as_object().unwrap().contains_key("completed_at"));
-    assert!(!summary.as_object().unwrap().contains_key("progress_percent"));
+    assert!(!summary
+        .as_object()
+        .unwrap()
+        .contains_key("progress_percent"));
 }
 
 #[test]
@@ -141,7 +142,7 @@ fn test_job_summary_excludes_metadata() {
         "status": "running",
         "created_at": "2024-01-01T00:00:00Z"
     });
-    
+
     assert!(!summary.as_object().unwrap().contains_key("metadata"));
     assert!(!summary.as_object().unwrap().contains_key("callback_url"));
     assert!(!summary.as_object().unwrap().contains_key("callback_error"));
@@ -161,7 +162,7 @@ mod job_status {
             "status": "pending",
             "created_at": "2024-01-01T00:00:00Z"
         });
-        
+
         assert_eq!(summary["status"], "pending");
     }
 
@@ -172,7 +173,7 @@ mod job_status {
             "status": "running",
             "progress_percent": 45
         });
-        
+
         assert_eq!(summary["status"], "running");
     }
 
@@ -183,7 +184,7 @@ mod job_status {
             "status": "completed",
             "completed_at": "2024-01-01T00:10:00Z"
         });
-        
+
         assert_eq!(summary["status"], "completed");
     }
 
@@ -194,7 +195,7 @@ mod job_status {
             "status": "failed",
             "completed_at": "2024-01-01T00:02:00Z"
         });
-        
+
         assert_eq!(summary["status"], "failed");
     }
 
@@ -205,7 +206,7 @@ mod job_status {
             "status": "cancelled",
             "completed_at": "2024-01-01T00:01:30Z"
         });
-        
+
         assert_eq!(summary["status"], "cancelled");
     }
 }
@@ -224,7 +225,7 @@ mod job_types {
             "job_type": "embedding",
             "status": "running"
         });
-        
+
         assert_eq!(summary["job_type"], "embedding");
     }
 
@@ -235,7 +236,7 @@ mod job_types {
             "job_type": "processing",
             "status": "pending"
         });
-        
+
         assert_eq!(summary["job_type"], "processing");
     }
 }
@@ -261,7 +262,7 @@ mod response_format {
             "returned": 5,
             "hints": ["Use 'get' operation with job_id for full details"]
         });
-        
+
         assert_eq!(response_data["success"], true);
         assert_eq!(response_data["operation"], "list");
         assert!(response_data["data"].is_array());
@@ -281,7 +282,7 @@ mod response_format {
                 "metadata": {"key": "value"}
             }
         });
-        
+
         assert_eq!(response_data["operation"], "get");
         assert!(response_data["data"].is_object());
     }
@@ -298,7 +299,7 @@ mod response_format {
                 "message": "Job cancellation initiated"
             }
         });
-        
+
         assert_eq!(response_data["success"], true);
         assert_eq!(response_data["data"]["job_id"], "job-123");
     }
@@ -316,7 +317,7 @@ mod response_format {
             "count": 3,
             "returned": 3
         });
-        
+
         assert_eq!(response_data["operation"], "list_active");
         assert!(response_data["data"].is_array());
     }
@@ -328,7 +329,7 @@ mod response_format {
             "truncated": true,
             "original_length": 5000
         });
-        
+
         assert_eq!(truncated["truncated"], true);
         assert!(truncated["original_length"].is_number());
     }
@@ -346,7 +347,7 @@ mod edge_cases {
         let json_input = json!({
             "operation": "get"
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.job_id.is_none(), "Should parse but fail in handler");
     }
@@ -356,7 +357,7 @@ mod edge_cases {
         let json_input = json!({
             "operation": "cancel"
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.job_id.is_none());
     }
@@ -367,7 +368,7 @@ mod edge_cases {
             "operation": "list",
             "limit": 0
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(0));
     }
@@ -378,7 +379,7 @@ mod edge_cases {
             "operation": "list",
             "limit": -5
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(-5));
         // Should be handled appropriately in handler
@@ -390,7 +391,7 @@ mod edge_cases {
             "operation": "list",
             "limit": 999999
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(999999));
         // No explicit max limit in job_monitor, but should be handled reasonably
@@ -402,7 +403,7 @@ mod edge_cases {
             "operation": "get",
             "job_id": "550e8400-e29b-41d4-a716-446655440000"
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.job_id.unwrap().contains("-"));
     }
@@ -413,7 +414,7 @@ mod edge_cases {
             "operation": "get",
             "job_id": "custom-job-id-12345"
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.job_id.unwrap(), "custom-job-id-12345");
     }
@@ -424,7 +425,7 @@ mod edge_cases {
             "operation": "get",
             "job_id": ""
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.job_id.unwrap(), "");
         // Should fail validation in handler
@@ -437,7 +438,7 @@ mod edge_cases {
             "job_id": null,
             "limit": null
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.job_id.is_none());
         assert!(request.limit.is_none());
@@ -475,7 +476,7 @@ mod truncation {
             "truncated": true,
             "original_length": 5000
         });
-        
+
         assert!(truncated["value"].is_string());
         assert_eq!(truncated["truncated"], true);
         assert_eq!(truncated["original_length"], 5000);
@@ -487,9 +488,12 @@ mod truncation {
             "value": "Short content",
             "truncated": false
         });
-        
+
         assert_eq!(not_truncated["truncated"], false);
-        assert!(!not_truncated.as_object().unwrap().contains_key("original_length"));
+        assert!(!not_truncated
+            .as_object()
+            .unwrap()
+            .contains_key("original_length"));
     }
 }
 
@@ -506,7 +510,7 @@ mod limits {
         let json_input = json!({
             "operation": "list"
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert!(request.limit.is_none());
         // Handler should use DEFAULT_LIST_LIMIT (20)
@@ -518,7 +522,7 @@ mod limits {
             "operation": "list",
             "limit": 100
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(100));
     }
@@ -538,7 +542,7 @@ mod progress {
             "status": "running",
             "progress_percent": 0
         });
-        
+
         assert_eq!(summary["progress_percent"], 0);
     }
 
@@ -549,7 +553,7 @@ mod progress {
             "status": "running",
             "progress_percent": 50
         });
-        
+
         assert_eq!(summary["progress_percent"], 50);
     }
 
@@ -560,7 +564,7 @@ mod progress {
             "status": "completed",
             "progress_percent": 100
         });
-        
+
         assert_eq!(summary["progress_percent"], 100);
     }
 
@@ -570,8 +574,11 @@ mod progress {
             "id": "job-123",
             "status": "pending"
         });
-        
-        assert!(!summary.as_object().unwrap().contains_key("progress_percent"));
+
+        assert!(!summary
+            .as_object()
+            .unwrap()
+            .contains_key("progress_percent"));
     }
 }
 
@@ -588,7 +595,7 @@ mod timestamps {
             "id": "job-123",
             "created_at": "2024-01-01T00:00:00Z"
         });
-        
+
         assert!(summary["created_at"].is_string());
     }
 
@@ -599,7 +606,7 @@ mod timestamps {
             "status": "completed",
             "completed_at": "2024-01-01T00:10:00Z"
         });
-        
+
         assert!(summary["completed_at"].is_string());
     }
 
@@ -610,7 +617,7 @@ mod timestamps {
             "status": "pending",
             "created_at": "2024-01-01T00:00:00Z"
         });
-        
+
         assert!(!summary.as_object().unwrap().contains_key("completed_at"));
     }
 
@@ -621,7 +628,7 @@ mod timestamps {
             "id": "job-123",
             "created_at": timestamp
         });
-        
+
         assert_eq!(summary["created_at"], timestamp);
     }
 }
@@ -642,7 +649,7 @@ mod active_jobs {
                 {"id": "job-2", "status": "pending"}
             ]
         });
-        
+
         let jobs = response_data["data"].as_array().unwrap();
         for job in jobs {
             let status = job["status"].as_str().unwrap();
@@ -656,7 +663,7 @@ mod active_jobs {
             "operation": "list_active",
             "limit": 5
         });
-        
+
         let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
         assert_eq!(request.limit, Some(5));
     }
@@ -675,7 +682,7 @@ fn test_operation_count() {
         JobOperation::Cancel,
         JobOperation::ListActive,
     ];
-    
+
     assert_eq!(operations.len(), 4, "Should have exactly 4 operations");
 }
 
@@ -689,7 +696,7 @@ fn test_request_heartbeat_true() {
         "operation": "list",
         "request_heartbeat": true
     });
-    
+
     let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.request_heartbeat, Some(true));
 }
@@ -700,7 +707,7 @@ fn test_request_heartbeat_false() {
         "operation": "list",
         "request_heartbeat": false
     });
-    
+
     let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
     assert_eq!(request.request_heartbeat, Some(false));
 }
@@ -710,7 +717,7 @@ fn test_request_heartbeat_omitted() {
     let json_input = json!({
         "operation": "list"
     });
-    
+
     let request: JobMonitorRequest = serde_json::from_value(json_input).unwrap();
     assert!(request.request_heartbeat.is_none());
 }
@@ -728,7 +735,7 @@ fn test_response_hints_present() {
             "Use 'get' operation with job_id for full details"
         ]
     });
-    
+
     assert!(response_data["hints"].is_array());
     assert!(!response_data["hints"].as_array().unwrap().is_empty());
 }
@@ -740,7 +747,7 @@ fn test_response_hints_content() {
             "Use 'get' operation with job_id for full details"
         ]
     });
-    
+
     let hints = response_data["hints"].as_array().unwrap();
     assert!(hints[0].as_str().unwrap().contains("get"));
 }
