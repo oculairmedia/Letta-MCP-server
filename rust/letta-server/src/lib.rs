@@ -149,6 +149,8 @@ impl LettaServer {
             env_vars,
             name,
             request_heartbeat: None,
+            limit: None,
+            offset: None,
         };
 
         // Call handler
@@ -217,6 +219,7 @@ impl LettaServer {
         &self,
         operation: String,
         job_id: Option<String>,
+        limit: Option<i32>,
     ) -> McpResult<String> {
         // Parse operation
         let op = match operation.as_str() {
@@ -231,6 +234,7 @@ impl LettaServer {
         let request = job_monitor::JobMonitorRequest {
             operation: op,
             job_id,
+            limit,
             request_heartbeat: None,
         };
 
@@ -254,6 +258,8 @@ impl LettaServer {
         agent_id: Option<String>,
         file_id: Option<String>,
         folder_id: Option<String>,
+        limit: Option<usize>,
+        offset: Option<usize>,
     ) -> McpResult<String> {
         // Create request from individual parameters
         let request = file_folder_ops::FileFolderRequest {
@@ -261,6 +267,8 @@ impl LettaServer {
             agent_id,
             file_id,
             folder_id,
+            limit,
+            offset,
             request_heartbeat: None,
         };
 

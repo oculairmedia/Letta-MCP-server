@@ -58,6 +58,11 @@ pub struct ToolManagerRequest {
     pub name: Option<String>, // For run_from_source
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
+    // Pagination parameters for list operation (LMS-50)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -69,6 +74,28 @@ pub struct ToolManagerResponse {
     pub data: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<usize>,
+}
+
+/// Tool summary for list operation (LMS-50 optimization)
+/// Excludes source_code, json_schema, and args_json_schema to reduce response size
+#[derive(Debug, Serialize)]
+pub struct ToolSummary {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>, // Truncated to 100 chars
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    // Metadata counts instead of full content
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_lines: Option<u32>,
 }
 
 pub async fn handle_tool_manager(
@@ -95,16 +122,45 @@ pub async fn handle_tool_manager(
     }
 }
 
-async fn handle_list_tools(client: &LettaClient, _request: ToolManagerRequest) -> Result<ToolManagerResponse, McpError> {
+async fn handle_list_tools(client: &LettaClient, request: ToolManagerRequest) -> Result<ToolManagerResponse, McpError> {
+    // LMS-50 optimization: Pagination with default limit=25, max=100
+    const DEFAULT_LIMIT: u32 = 25;
+    const MAX_LIMIT: u32 = 100;
+    
+    let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+    let offset = request.offset.unwrap_or(0);
+    
     let tools = client.tools().list(None).await
         .map_err(|e| McpError::internal(format!("Failed to list tools: {}", e)))?;
+    
+    let total = tools.len();
+    
+    // Apply pagination
+    let paginated_tools: Vec<_> = tools.iter()
+        .skip(offset as usize)
+        .take(limit as usize)
+        .collect();
+    
+    // LMS-50: Convert to summaries (exclude source_code, json_schema, args_json_schema)
+    let summaries: Vec<ToolSummary> = paginated_tools.iter()
+        .map(|t| tool_to_summary(t))
+        .collect();
+    
+    let returned = summaries.len();
     
     Ok(ToolManagerResponse {
         success: true,
         operation: "list".to_string(),
-        message: format!("Found {} tools", tools.len()),
-        data: Some(serde_json::to_value(&tools)?),
-        count: Some(tools.len()),
+        message: format!("Returned {} of {} tools", returned, total),
+        data: Some(serde_json::json!({
+            "total": total,
+            "returned": returned,
+            "offset": offset,
+            "limit": limit,
+            "tools": summaries,
+            "hints": vec!["Use 'get' with tool_id for full source code and schema"]
+        })),
+        count: Some(returned),
     })
 }
 
@@ -113,14 +169,44 @@ async fn handle_get_tool(client: &LettaClient, request: ToolManagerRequest) -> R
     let letta_id = letta::types::LettaId::from_str(&tool_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
     
-    let tool = client.tools().get(&letta_id).await
+    let mut tool = client.tools().get(&letta_id).await
         .map_err(|e| McpError::internal(format!("Failed to get tool: {}", e)))?;
+    
+    // LMS-50 optimization: Truncate source_code to 2000 chars
+    const MAX_SOURCE_CODE_LENGTH: usize = 2000;
+    
+    let mut source_code_length = None;
+    let mut source_code_truncated = false;
+    let mut hint = None;
+    
+    if let Some(ref code) = tool.source_code {
+        source_code_length = Some(code.len());
+        if code.len() > MAX_SOURCE_CODE_LENGTH {
+            let (truncated, _) = truncate_string(code, MAX_SOURCE_CODE_LENGTH);
+            tool.source_code = Some(truncated);
+            source_code_truncated = true;
+            hint = Some("Full source available via direct API call if needed".to_string());
+        }
+    }
+    
+    let mut tool_json = serde_json::to_value(tool)?;
+    
+    // Add metadata about truncation
+    if let Some(obj) = tool_json.as_object_mut() {
+        if let Some(len) = source_code_length {
+            obj.insert("source_code_length".to_string(), serde_json::json!(len));
+        }
+        obj.insert("source_code_truncated".to_string(), serde_json::json!(source_code_truncated));
+        if let Some(h) = hint {
+            obj.insert("hint".to_string(), serde_json::json!(h));
+        }
+    }
     
     Ok(ToolManagerResponse {
         success: true,
         operation: "get".to_string(),
         message: "Tool retrieved successfully".to_string(),
-        data: Some(serde_json::to_value(tool)?),
+        data: Some(tool_json),
         count: None,
     })
 }
@@ -359,11 +445,28 @@ async fn handle_run_from_source(client: &LettaClient, request: ToolManagerReques
     let response = client.tools().run_from_source(run_request).await
         .map_err(|e| McpError::internal(format!("Failed to run tool from source: {}", e)))?;
 
+    // LMS-50 optimization: Truncate output to 2000 chars
+    const MAX_OUTPUT_LENGTH: usize = 2000;
+    
+    let mut response_json = serde_json::to_value(response)?;
+    
+    // Check if output exists and truncate if needed
+    if let Some(obj) = response_json.as_object_mut() {
+        if let Some(output) = obj.get("output").and_then(|v| v.as_str()) {
+            let output_length = output.len();
+            let (truncated_output, is_truncated) = truncate_string(output, MAX_OUTPUT_LENGTH);
+            
+            obj.insert("output".to_string(), serde_json::json!(truncated_output));
+            obj.insert("output_length".to_string(), serde_json::json!(output_length));
+            obj.insert("truncated".to_string(), serde_json::json!(is_truncated));
+        }
+    }
+
     Ok(ToolManagerResponse {
         success: true,
         operation: "run_from_source".to_string(),
         message: "Tool executed successfully".to_string(),
-        data: Some(serde_json::to_value(response)?),
+        data: Some(response_json),
         count: None,
     })
 }
@@ -372,11 +475,70 @@ async fn handle_add_base_tools(client: &LettaClient, _request: ToolManagerReques
     let tools = client.tools().upsert_base_tools().await
         .map_err(|e| McpError::internal(format!("Failed to add base tools: {}", e)))?;
 
+    // LMS-50 optimization: Return names only, not full definitions
+    let tool_names: Vec<String> = tools.iter()
+        .map(|t| t.name.clone())
+        .collect();
+
     Ok(ToolManagerResponse {
         success: true,
         operation: "add_base_tools".to_string(),
         message: format!("Added {} base tools", tools.len()),
-        data: Some(serde_json::to_value(&tools)?),
+        data: Some(serde_json::json!({
+            "tools_added": tools.len(),
+            "tool_names": tool_names,
+            "hint": "Use 'list' operation to see tool details"
+        })),
         count: Some(tools.len()),
     })
+}
+
+// ========================================
+// Helper Functions for LMS-50 Optimizations
+// ========================================
+
+/// Truncate a string to max_len characters and indicate if truncated
+fn truncate_string(s: &str, max_len: usize) -> (String, bool) {
+    if s.len() <= max_len {
+        (s.to_string(), false)
+    } else {
+        let truncated = s.chars().take(max_len).collect::<String>();
+        (format!("{}...[truncated]", truncated), true)
+    }
+}
+
+/// Count the number of lines in a string
+fn count_lines(s: &str) -> u32 {
+    s.lines().count() as u32
+}
+
+/// Count the number of properties in a JSON schema
+fn count_json_properties(schema: &Option<Value>) -> Option<u32> {
+    schema.as_ref().and_then(|s| {
+        s.get("properties")
+            .and_then(|p| p.as_object())
+            .map(|obj| obj.len() as u32)
+    })
+}
+
+/// Convert Tool to ToolSummary for list operation
+fn tool_to_summary(tool: &letta::types::tool::Tool) -> ToolSummary {
+    let description = tool.description.as_ref().map(|d| {
+        let (truncated, _) = truncate_string(d, 100);
+        truncated
+    });
+
+    let source_lines = tool.source_code.as_ref().map(|code| count_lines(code));
+    let args_count = count_json_properties(&tool.args_json_schema);
+
+    ToolSummary {
+        id: tool.id.as_ref().map(|id| id.to_string()),
+        name: tool.name.clone(),
+        description,
+        source_type: tool.source_type.as_ref().map(|st| format!("{:?}", st).to_lowercase()),
+        tags: tool.tags.clone(),
+        created_at: tool.created_at.as_ref().map(|ts| ts.to_string()),
+        args_count,
+        source_lines,
+    }
 }
