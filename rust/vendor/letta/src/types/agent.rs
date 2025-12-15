@@ -751,9 +751,11 @@ pub struct AgentState {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_updated_by_id: Option<LettaId>,
     /// When the agent was created.
-    pub created_at: Timestamp,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<Timestamp>,
     /// When the agent was last updated.
-    pub updated_at: Timestamp,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<Timestamp>,
     /// Tool rules.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_rules: Option<Vec<ToolRule>>,
@@ -796,6 +798,45 @@ pub struct AgentState {
     /// Message buffer autoclear setting.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message_buffer_autoclear: Option<bool>,
+    /// The model handle used by the agent (format: provider/model-name).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    /// The embedding model handle used by the agent (format: provider/model-name).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedding: Option<String>,
+    /// The model settings used by the agent (provider-specific).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_settings: Option<serde_json::Value>,
+    /// The environment variables for tool execution specific to this agent.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub secrets: Vec<AgentEnvironmentVariable>,
+    /// The id of the deployment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deployment_id: Option<LettaId>,
+    /// The id of the entity within the template.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entity_id: Option<LettaId>,
+    /// The identities associated with this agent.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub identities: Vec<serde_json::Value>,
+    /// The multi-agent group that this agent manages.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub managed_group: Option<serde_json::Value>,
+    /// The stop reason from the agent's last run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_stop_reason: Option<String>,
+    /// Maximum number of files that can be open at once for this agent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_files_open: Option<i32>,
+    /// The per-file view window character limit for this agent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub per_file_view_window_char_limit: Option<i32>,
+    /// If set to True, the agent will be hidden.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hidden: Option<bool>,
+    /// The memory blocks used by the agent.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocks: Vec<Block>,
 }
 
 /// Request to create a new agent.
@@ -1469,8 +1510,8 @@ mod tests {
             project_id: None,
             created_by_id: None,
             last_updated_by_id: None,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
+            created_at: Some(chrono::Utc::now()),
+            updated_at: Some(chrono::Utc::now()),
             tool_rules: None,
             message_ids: vec![],
             multi_agent_group: None,
@@ -1485,6 +1526,19 @@ mod tests {
             enable_sleeptime: None,
             response_format: None,
             message_buffer_autoclear: None,
+            model: None,
+            embedding: None,
+            model_settings: None,
+            secrets: vec![],
+            deployment_id: None,
+            entity_id: None,
+            identities: vec![],
+            managed_group: None,
+            last_stop_reason: None,
+            max_files_open: None,
+            per_file_view_window_char_limit: None,
+            hidden: None,
+            blocks: vec![],
         };
 
         let json = serde_json::to_string(&agent).unwrap();

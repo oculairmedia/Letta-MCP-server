@@ -43,10 +43,12 @@ pub struct Folder {
     pub last_updated_by_id: Option<String>,
 
     /// Timestamp when the folder was created.
-    pub created_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<DateTime<Utc>>,
 
     /// Timestamp when the folder was last updated.
-    pub updated_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 /// Request to create a new folder.

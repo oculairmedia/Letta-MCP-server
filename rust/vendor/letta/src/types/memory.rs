@@ -273,7 +273,8 @@ pub struct Passage {
     /// Passage text content.
     pub text: String,
     /// Agent ID this passage belongs to.
-    pub agent_id: LettaId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<LettaId>,
     /// Optional embedding vector.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding: Option<Vec<f32>>,
@@ -616,7 +617,7 @@ mod tests {
         let passage = Passage {
             id: LettaId::from_str("passage-550e8400-e29b-41d4-a716-446655440003").unwrap(),
             text: "Important information to remember".to_string(),
-            agent_id: LettaId::from_str("agent-00000000-0000-0000-0000-000000000000").unwrap(),
+            agent_id: Some(LettaId::from_str("agent-00000000-0000-0000-0000-000000000000").unwrap()),
             embedding: Some(vec![0.1, 0.2, 0.3]),
             embedding_config: None,
             source_id: None,
