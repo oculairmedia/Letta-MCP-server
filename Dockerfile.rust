@@ -54,5 +54,9 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # Switch to app user
 USER letta
 
-# Run letta-server directly
-CMD ["/usr/local/bin/letta-server", "--http"]
+# Set default transport to HTTP (server reads TRANSPORT env var)
+ENV TRANSPORT=http
+ENV PORT=6507
+
+# Run letta-server
+CMD ["/usr/local/bin/letta-server"]
