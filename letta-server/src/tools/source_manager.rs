@@ -55,7 +55,7 @@ pub struct SourceManagerRequest {
     pub request_heartbeat: Option<bool>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Default)]
 pub struct SourceManagerResponse {
     pub success: bool,
     pub operation: String,
@@ -66,6 +66,33 @@ pub struct SourceManagerResponse {
     pub count: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pagination: Option<PaginationMetadata>,
+}
+
+impl SourceManagerResponse {
+    /// Create a success response
+    fn success(operation: &str, message: &str) -> Self {
+        Self {
+            success: true,
+            operation: operation.into(),
+            message: message.into(),
+            ..Default::default()
+        }
+    }
+
+    fn with_data(mut self, data: Value) -> Self {
+        self.data = Some(data);
+        self
+    }
+
+    fn with_count(mut self, count: usize) -> Self {
+        self.count = Some(count);
+        self
+    }
+
+    fn with_pagination(mut self, pagination: PaginationMetadata) -> Self {
+        self.pagination = Some(pagination);
+        self
+    }
 }
 
 /// Pagination metadata for list operations
@@ -215,14 +242,13 @@ async fn handle_list_sources(
         },
     };
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "list".to_string(),
-        message: format!("Found {} sources, returning {}", total, returned),
-        data: Some(serde_json::to_value(&summaries)?),
-        count: Some(total),
-        pagination: Some(pagination),
-    })
+    Ok(SourceManagerResponse::success(
+        "list",
+        &format!("Found {} sources, returning {}", total, returned),
+    )
+    .with_data(serde_json::to_value(&summaries)?)
+    .with_count(total)
+    .with_pagination(pagination))
 }
 
 async fn handle_get_source(
@@ -231,7 +257,7 @@ async fn handle_get_source(
 ) -> Result<SourceManagerResponse, McpError> {
     let source_id = request
         .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -241,14 +267,10 @@ async fn handle_get_source(
         .await
         .map_err(|e| McpError::internal(format!("Failed to get source: {}", e)))?;
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "get".to_string(),
-        message: "Source retrieved successfully".to_string(),
-        data: Some(serde_json::to_value(source)?),
-        count: None,
-        pagination: None,
-    })
+    Ok(
+        SourceManagerResponse::success("get", "Source retrieved successfully")
+            .with_data(serde_json::to_value(source)?),
+    )
 }
 
 async fn handle_create_source(
@@ -257,7 +279,7 @@ async fn handle_create_source(
 ) -> Result<SourceManagerResponse, McpError> {
     let name = request
         .name
-        .ok_or_else(|| McpError::invalid_request("name required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("name required"))?;
 
     let create_request = if let Some(desc) = request.description {
         letta::types::source::CreateSourceRequest::builder()
@@ -276,14 +298,10 @@ async fn handle_create_source(
         .await
         .map_err(|e| McpError::internal(format!("Failed to create source: {}", e)))?;
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "create".to_string(),
-        message: "Source created successfully".to_string(),
-        data: Some(serde_json::to_value(source)?),
-        count: None,
-        pagination: None,
-    })
+    Ok(
+        SourceManagerResponse::success("create", "Source created successfully")
+            .with_data(serde_json::to_value(source)?),
+    )
 }
 
 async fn handle_update_source(
@@ -292,7 +310,7 @@ async fn handle_update_source(
 ) -> Result<SourceManagerResponse, McpError> {
     let source_id = request
         .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -308,14 +326,10 @@ async fn handle_update_source(
         .await
         .map_err(|e| McpError::internal(format!("Failed to update source: {}", e)))?;
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "update".to_string(),
-        message: "Source updated successfully".to_string(),
-        data: Some(serde_json::to_value(source)?),
-        count: None,
-        pagination: None,
-    })
+    Ok(
+        SourceManagerResponse::success("update", "Source updated successfully")
+            .with_data(serde_json::to_value(source)?),
+    )
 }
 
 async fn handle_delete_source(
@@ -324,7 +338,7 @@ async fn handle_delete_source(
 ) -> Result<SourceManagerResponse, McpError> {
     let source_id = request
         .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -334,14 +348,10 @@ async fn handle_delete_source(
         .await
         .map_err(|e| McpError::internal(format!("Failed to delete source: {}", e)))?;
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "delete".to_string(),
-        message: "Source deleted successfully".to_string(),
-        data: None,
-        count: None,
-        pagination: None,
-    })
+    Ok(SourceManagerResponse::success(
+        "delete",
+        "Source deleted successfully",
+    ))
 }
 
 async fn handle_attach_source(
@@ -350,10 +360,10 @@ async fn handle_attach_source(
 ) -> Result<SourceManagerResponse, McpError> {
     let agent_id = request
         .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("agent_id required"))?;
     let source_id = request
         .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -369,8 +379,8 @@ async fn handle_attach_source(
 
     Ok(SourceManagerResponse {
         success: true,
-        operation: "attach".to_string(),
-        message: "Source attached successfully".to_string(),
+        operation: "attach".into(),
+        message: "Source attached successfully".into(),
         data: Some(serde_json::to_value(agent_state)?),
         count: None,
         pagination: None,
@@ -383,10 +393,10 @@ async fn handle_detach_source(
 ) -> Result<SourceManagerResponse, McpError> {
     let agent_id = request
         .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("agent_id required"))?;
     let source_id = request
         .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -402,8 +412,8 @@ async fn handle_detach_source(
 
     Ok(SourceManagerResponse {
         success: true,
-        operation: "detach".to_string(),
-        message: "Source detached successfully".to_string(),
+        operation: "detach".into(),
+        message: "Source detached successfully".into(),
         data: Some(serde_json::to_value(agent_state)?),
         count: None,
         pagination: None,
@@ -422,7 +432,7 @@ async fn handle_count_sources(
 
     Ok(SourceManagerResponse {
         success: true,
-        operation: "count".to_string(),
+        operation: "count".into(),
         message: format!("Total sources: {}", count),
         data: Some(serde_json::json!({"count": count})),
         count: Some(count as usize),
@@ -436,7 +446,7 @@ async fn handle_list_attached(
 ) -> Result<SourceManagerResponse, McpError> {
     let agent_id = request
         .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("agent_id required"))?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -462,7 +472,7 @@ async fn handle_list_attached(
 
     Ok(SourceManagerResponse {
         success: true,
-        operation: "list_attached".to_string(),
+        operation: "list_attached".into(),
         message: format!("Found {} attached sources", summaries.len()),
         data: Some(serde_json::to_value(&summaries)?),
         count: Some(summaries.len()),
@@ -476,7 +486,7 @@ async fn handle_list_files(
 ) -> Result<SourceManagerResponse, McpError> {
     let source_id = request
         .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -525,7 +535,7 @@ async fn handle_list_files(
 
     Ok(SourceManagerResponse {
         success: true,
-        operation: "list_files".to_string(),
+        operation: "list_files".into(),
         message: format!("Found {} files (content not included)", total),
         data: Some(serde_json::to_value(&summaries)?),
         count: Some(total),
@@ -539,10 +549,10 @@ async fn handle_upload_file(
 ) -> Result<SourceManagerResponse, McpError> {
     let source_id = request
         .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
     let file_name = request
         .file_name
-        .ok_or_else(|| McpError::invalid_request("file_name required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("file_name required"))?;
     let file_data_b64 = request.file_data.ok_or_else(|| {
         McpError::invalid_request("file_data required (base64 encoded)".to_string())
     })?;
@@ -597,7 +607,7 @@ async fn handle_upload_file(
 
     Ok(SourceManagerResponse {
         success: true,
-        operation: "upload".to_string(),
+        operation: "upload".into(),
         message: format!(
             "File '{}' uploaded successfully ({} bytes)",
             file_name,
@@ -615,10 +625,10 @@ async fn handle_delete_file(
 ) -> Result<SourceManagerResponse, McpError> {
     let source_id = request
         .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
     let file_id = request
         .file_id
-        .ok_or_else(|| McpError::invalid_request("file_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("file_id required"))?;
 
     let letta_source_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
@@ -633,8 +643,8 @@ async fn handle_delete_file(
 
     Ok(SourceManagerResponse {
         success: true,
-        operation: "delete_files".to_string(),
-        message: "File deleted successfully".to_string(),
+        operation: "delete_files".into(),
+        message: "File deleted successfully".into(),
         data: None,
         count: None,
         pagination: None,
@@ -647,7 +657,7 @@ async fn handle_list_agents_using(
 ) -> Result<SourceManagerResponse, McpError> {
     let source_id = request
         .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required".to_string()))?;
+        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -692,7 +702,7 @@ async fn handle_list_agents_using(
 
     Ok(SourceManagerResponse {
         success: true,
-        operation: "list_agents_using".to_string(),
+        operation: "list_agents_using".into(),
         message: format!("Found {} agents using this source", agent_count),
         data: Some(serde_json::json!({
             "source_id": source_id,
