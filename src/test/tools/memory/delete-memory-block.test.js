@@ -23,8 +23,12 @@ describe('Delete Memory Block', () => {
             expect(deleteMemoryBlockToolDefinition.description).toContain('Delete a memory block');
             expect(deleteMemoryBlockToolDefinition.description).toContain('WARNING');
             expect(deleteMemoryBlockToolDefinition.inputSchema.required).toEqual(['block_id']);
-            expect(deleteMemoryBlockToolDefinition.inputSchema.properties).toHaveProperty('block_id');
-            expect(deleteMemoryBlockToolDefinition.inputSchema.properties).toHaveProperty('agent_id');
+            expect(deleteMemoryBlockToolDefinition.inputSchema.properties).toHaveProperty(
+                'block_id',
+            );
+            expect(deleteMemoryBlockToolDefinition.inputSchema.properties).toHaveProperty(
+                'agent_id',
+            );
         });
     });
 
