@@ -456,7 +456,10 @@ async fn handle_list_folders(
         .folders()
         .list(None)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list folders: {}", e)))?;
+        .map_err(|e| {
+            error!(error = %e, "Failed to list folders - SDK error details");
+            McpError::internal(format!("Failed to list folders: {}", e))
+        })?;
 
     let total = result.len();
 
