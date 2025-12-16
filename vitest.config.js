@@ -4,16 +4,18 @@ export default defineConfig({
     test: {
         // Test environment
         environment: 'node',
-        
+
         // Global test APIs
         globals: true,
-        
+
         // Coverage configuration
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json', 'html', 'lcov'],
             exclude: [
                 'node_modules/**',
+                'dist/**',
+                '**/dist/**',
                 'src/test/**',
                 '**/*.test.js',
                 '**/*.spec.js',
@@ -30,36 +32,36 @@ export default defineConfig({
                 statements: 10,
             },
         },
-        
+
         // Test file patterns
         include: ['src/**/*.{test,spec}.js'],
-        
+
         // Exclude patterns
         exclude: ['node_modules', 'dist', '.git'],
-        
+
         // Test timeout
         testTimeout: 10000,
-        
+
         // Hook timeout
         hookTimeout: 10000,
-        
+
         // Specific timeout for integration tests
         pool: 'forks',
         poolOptions: {
             forks: {
-                singleFork: true
-            }
+                singleFork: true,
+            },
         },
-        
+
         // Reporters
         reporters: ['verbose'],
-        
+
         // Watch mode exclusions
         watchExclude: ['node_modules/**', 'dist/**'],
-        
+
         // Setup files
         setupFiles: ['./src/test/setup.js'],
-        
+
         // Mock configuration
         mockReset: true,
         clearMocks: true,
