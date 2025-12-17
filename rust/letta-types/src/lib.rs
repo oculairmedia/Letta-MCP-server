@@ -41,7 +41,11 @@ pub struct StandardResponse {
 }
 
 impl StandardResponse {
-    pub fn success(operation: impl Into<String>, data: serde_json::Value, message: impl Into<String>) -> Self {
+    pub fn success(
+        operation: impl Into<String>,
+        data: serde_json::Value,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             success: true,
             operation: operation.into(),

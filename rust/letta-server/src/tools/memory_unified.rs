@@ -118,7 +118,9 @@ pub async fn handle_memory_unified(
         MemoryOperation::UpdateBlock => handle_update_block(client, request).await,
         MemoryOperation::AttachBlock => handle_attach_block(client, request).await,
         MemoryOperation::DetachBlock => handle_detach_block(client, request).await,
-        MemoryOperation::ListAgentsUsingBlock => handle_list_agents_using_block(client, request).await,
+        MemoryOperation::ListAgentsUsingBlock => {
+            handle_list_agents_using_block(client, request).await
+        }
         MemoryOperation::SearchArchival => handle_search_archival(client, request).await,
         MemoryOperation::ListPassages => handle_list_passages(client, request).await,
         MemoryOperation::CreatePassage => handle_create_passage(client, request).await,

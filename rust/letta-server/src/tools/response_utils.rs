@@ -50,7 +50,11 @@ pub fn truncate_with_indicator(text: &str, max_chars: usize) -> String {
         text.to_string()
     } else {
         let remaining = text.len() - max_chars;
-        format!("{}...[truncated, {} more chars]", &text[..max_chars], remaining)
+        format!(
+            "{}...[truncated, {} more chars]",
+            &text[..max_chars],
+            remaining
+        )
     }
 }
 
@@ -128,18 +132,17 @@ impl PaginationMeta {
         self.hints
             .push(format!("Use '{}' with id for full details", detail_op));
         if self.has_more {
-            self.hints
-                .push(format!("Use offset={} for next page", self.offset + self.returned));
+            self.hints.push(format!(
+                "Use offset={} for next page",
+                self.offset + self.returned
+            ));
         }
         self
     }
 }
 
 /// Apply pagination defaults and caps
-pub fn apply_pagination_defaults(
-    limit: Option<usize>,
-    offset: Option<usize>,
-) -> (usize, usize) {
+pub fn apply_pagination_defaults(limit: Option<usize>, offset: Option<usize>) -> (usize, usize) {
     let limit = limit
         .map(|l| l.min(limits::MAX_PAGE_SIZE))
         .unwrap_or(limits::DEFAULT_PAGE_SIZE);

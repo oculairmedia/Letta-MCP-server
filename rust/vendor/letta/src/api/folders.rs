@@ -60,9 +60,7 @@ impl<'a> FolderApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get(&self, folder_id: &LettaId) -> LettaResult<Folder> {
-        self.client
-            .get(&format!("v1/folders/{}", folder_id))
-            .await
+        self.client.get(&format!("v1/folders/{}", folder_id)).await
     }
 
     /// Update a folder.
