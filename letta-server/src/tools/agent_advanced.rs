@@ -294,7 +294,7 @@ async fn handle_list_agents(
                 "name": agent.name,
                 "description": description,
                 "model": model,
-                "created_at": agent.created_at.to_string(),
+                "created_at": agent.created_at.map(|ts| ts.to_string()),
                 "tool_count": agent.tools.len(),
             })
         })
@@ -380,7 +380,7 @@ async fn handle_search_agents(
                 "name": agent.name,
                 "description": description,
                 "model": model,
-                "created_at": agent.created_at.to_string(),
+                "created_at": agent.created_at.map(|ts| ts.to_string()),
                 "tool_count": agent.tools.len(),
             })
         })
