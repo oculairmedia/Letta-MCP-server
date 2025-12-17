@@ -63,7 +63,7 @@ describe('SSE Transport - Basic Tests', () => {
                     resolve(); // Force resolve after timeout
                 }, 2000);
 
-                httpServer.close((err) => {
+                httpServer.close(() => {
                     clearTimeout(timeout);
                     resolve(); // Always resolve, don't reject on close error
                 });
