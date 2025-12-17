@@ -86,22 +86,43 @@ export class LettaServer {
     createErrorResponse(error, context) {
         let errorMessage = '';
         let errorCode = ErrorCode.InternalError;
+        let troubleshooting = '';
 
         if (typeof error === 'string') {
             errorMessage = error;
         } else if (error instanceof Error) {
             errorMessage = error.message;
 
-            // Handle specific HTTP error codes
+            // Handle specific HTTP error codes with actionable troubleshooting
             if (error.response?.status === 404) {
                 errorCode = ErrorCode.InvalidRequest;
                 errorMessage = `Resource not found: ${error.message}`;
+                troubleshooting = 'Check that the agent_id or resource ID exists and is correct.';
             } else if (error.response?.status === 422) {
                 errorCode = ErrorCode.InvalidParams;
                 errorMessage = `Validation error: ${error.message}`;
+                troubleshooting = 'Check the request parameters match the expected schema.';
             } else if (error.response?.status === 401 || error.response?.status === 403) {
                 errorCode = ErrorCode.InvalidRequest;
                 errorMessage = `Authentication/Authorization error: ${error.message}`;
+                troubleshooting = 'Check LETTA_PASSWORD environment variable and API credentials.';
+            } else if (error.response?.status === 500) {
+                // Parse Letta's generic 500 errors and provide helpful context
+                const detail = error.response?.data?.detail || '';
+                if (detail === 'An unknown error occurred' || detail === '') {
+                    errorMessage = 'Letta server internal error';
+                    troubleshooting = [
+                        'Common causes:',
+                        '1. Agent embedding model misconfigured (check agent embedding_config)',
+                        '2. Invalid API key for embedding provider (OpenAI, Ollama, etc.)',
+                        '3. Embedding service unreachable',
+                        '4. Agent was created with different embedding model than currently configured',
+                        '',
+                        'To diagnose: Check Letta server logs with: docker logs <letta-container>',
+                    ].join('\n');
+                } else {
+                    errorMessage = `Letta server error: ${detail}`;
+                }
             }
         } else {
             errorMessage = 'Unknown error occurred';
@@ -114,7 +135,23 @@ export class LettaServer {
 
         // Add additional details if available
         if (error?.response?.data) {
-            errorMessage += ` Details: ${JSON.stringify(error.response.data)}`;
+            const data = error.response.data;
+            // Don't repeat generic "unknown error" message for 500 errors
+            const isGeneric500 =
+                error.response?.status === 500 && data.detail === 'An unknown error occurred';
+            if (!isGeneric500) {
+                try {
+                    errorMessage += ` Details: ${JSON.stringify(data)}`;
+                } catch {
+                    // Handle circular references gracefully
+                    errorMessage += ' Details: [complex data - could not serialize]';
+                }
+            }
+        }
+
+        // Add troubleshooting hints
+        if (troubleshooting) {
+            errorMessage += `\n\nTroubleshooting:\n${troubleshooting}`;
         }
 
         throw new McpError(errorCode, errorMessage);

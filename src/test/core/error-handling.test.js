@@ -169,13 +169,31 @@ describe('LettaServer Error Handling (LMP-83)', () => {
 
             it('should handle other HTTP status codes as InternalError', () => {
                 const error500 = new Error('Server error');
-                error500.response = { status: 500 };
+                error500.response = { status: 500, data: { detail: 'An unknown error occurred' } };
 
                 try {
                     server.createErrorResponse(error500);
                 } catch (error) {
                     expect(error.code).toBe(ErrorCode.InternalError);
-                    expect(error.message).toContain('Server error');
+                    // 500 errors now provide troubleshooting guidance
+                    expect(error.message).toContain('Letta server internal error');
+                    expect(error.message).toContain('Troubleshooting');
+                    expect(error.message).toContain('embedding');
+                }
+            });
+
+            it('should handle 500 errors with specific detail messages', () => {
+                const error500 = new Error('Server error');
+                error500.response = {
+                    status: 500,
+                    data: { detail: 'Database connection failed' },
+                };
+
+                try {
+                    server.createErrorResponse(error500);
+                } catch (error) {
+                    expect(error.code).toBe(ErrorCode.InternalError);
+                    expect(error.message).toContain('Database connection failed');
                 }
             });
         });
@@ -219,7 +237,7 @@ describe('LettaServer Error Handling (LMP-83)', () => {
                 }
             });
 
-            it('should handle circular references in response data', () => {
+            it('should handle circular references in response data gracefully', () => {
                 const errorWithCircular = new Error('Circular error');
                 const circularData = { a: 1 };
                 circularData.self = circularData;
@@ -228,10 +246,32 @@ describe('LettaServer Error Handling (LMP-83)', () => {
                     data: circularData,
                 };
 
-                // createErrorResponse will throw TypeError when trying to stringify circular data
-                expect(() => {
+                // createErrorResponse should handle circular data gracefully (throws McpError, not TypeError)
+                try {
                     server.createErrorResponse(errorWithCircular);
-                }).toThrow(TypeError);
+                } catch (error) {
+                    expect(error).toBeInstanceOf(McpError);
+                    expect(error.message).toContain('Circular error');
+                }
+            });
+
+            it('should not repeat generic unknown error detail', () => {
+                const errorWithGenericDetail = new Error('API Error');
+                errorWithGenericDetail.response = {
+                    status: 500,
+                    data: { detail: 'An unknown error occurred' },
+                };
+
+                try {
+                    server.createErrorResponse(errorWithGenericDetail);
+                } catch (error) {
+                    // Should not contain the useless generic detail
+                    expect(error.message).not.toContain(
+                        'Details: {"detail":"An unknown error occurred"}',
+                    );
+                    // But should contain helpful troubleshooting
+                    expect(error.message).toContain('Troubleshooting');
+                }
             });
         });
 
