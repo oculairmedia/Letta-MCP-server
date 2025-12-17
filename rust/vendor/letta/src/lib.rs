@@ -1,3 +1,6 @@
+// Vendored crate - allow clippy warnings to avoid CI failures on upstream code
+#![allow(clippy::all)]
+
 //! # letta
 //!
 //! A Rust client library for the [Letta](https://letta.com) REST API, providing idiomatic Rust bindings
