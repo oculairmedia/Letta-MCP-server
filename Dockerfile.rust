@@ -16,6 +16,8 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY letta-server ./letta-server
 COPY letta-types ./letta-types
+# Copy vendored letta SDK (required for patched types)
+COPY rust/vendor ./rust/vendor
 
 # Configure git to use https for GitHub (public repos don't need auth)
 RUN git config --global url."https://github.com/".insteadOf git@github.com:
