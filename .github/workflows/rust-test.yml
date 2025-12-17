@@ -87,7 +87,8 @@ jobs:
               run: cargo test --tests --verbose
 
             - name: Test with all features
-              run: cargo test --all-features --tests --verbose
+              # Note: We exclude letta's integration-tests feature since those require a running server
+              run: cargo test --features http,schemars --tests --verbose
 
             - name: Generate test report
               if: matrix.rust == 'stable'
