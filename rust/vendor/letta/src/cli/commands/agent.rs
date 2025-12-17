@@ -105,7 +105,9 @@ async fn list_agents(client: &LettaClient, limit: u32, tags: Vec<String>) -> mie
                 if !agent.tags.is_empty() {
                     println!("Tags: {:?}", agent.tags);
                 }
-                println!("Created: {}", agent.created_at);
+                if let Some(created) = agent.created_at {
+                    println!("Created: {}", created);
+                }
                 println!();
             }
             Ok(())
@@ -226,7 +228,9 @@ async fn get_agent(client: &LettaClient, id: &str, output: &str) -> miette::Resu
                     }
                 }
                 println!("  Messages: {}", agent.message_ids.len());
-                println!("  Created: {}", agent.created_at);
+                if let Some(created) = agent.created_at {
+                    println!("  Created: {}", created);
+                }
                 Ok(())
             }
         },
