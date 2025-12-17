@@ -1,173 +1,189 @@
 name: Test and Lint
 
 on:
-  push:
-    branches: [ '**' ]
-  pull_request:
-    branches: [ main, master, develop ]
+    push:
+        branches: ['**']
+        paths-ignore:
+            - 'rust/**'
+            - 'letta-server/**'
+            - 'letta-types/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - '.github/workflows/rust-*.yml'
+            - '**/*.rs'
+    pull_request:
+        branches: [main, master, develop]
+        paths-ignore:
+            - 'rust/**'
+            - 'letta-server/**'
+            - 'letta-types/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - '.github/workflows/rust-*.yml'
+            - '**/*.rs'
 
 jobs:
-  test:
-    name: Test Node.js ${{ matrix.node-version }}
-    runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        node-version: ['20.x', '22.x']
-      fail-fast: false
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Needed for codecov
+    test:
+        name: Test Node.js ${{ matrix.node-version }}
+        runs-on: ubuntu-latest
 
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+        strategy:
+            matrix:
+                node-version: ['20.x', '22.x']
+            fail-fast: false
 
-      - name: Install dependencies
-        run: npm ci
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0 # Needed for codecov
 
-      - name: Run linter
-        run: npm run lint
+            - name: Setup Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ matrix.node-version }}
+                  cache: 'npm'
 
-      - name: Check code formatting
-        run: npm run format:check
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Run tests
-        run: npm test -- --exclude="**/transports/**"
-        env:
-          NODE_ENV: test
-          LETTA_BASE_URL: https://test.letta.com/v1
-          LETTA_PASSWORD: test-password
+            - name: Run linter
+              run: npm run lint
 
-      - name: Run tests with coverage
-        if: matrix.node-version == '20.x'  # Only run coverage on one version
-        run: npm run test:coverage -- --exclude="**/transports/**"
-        env:
-          NODE_ENV: test
-          LETTA_BASE_URL: https://test.letta.com/v1
-          LETTA_PASSWORD: test-password
+            - name: Check code formatting
+              run: npm run format:check
 
-      - name: Upload coverage to Codecov
-        if: matrix.node-version == '20.x'
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
-          verbose: true
+            - name: Run tests
+              run: npm test -- --exclude="**/transports/**"
+              env:
+                  NODE_ENV: test
+                  LETTA_BASE_URL: https://test.letta.com/v1
+                  LETTA_PASSWORD: test-password
 
-  transport-tests:
-    name: Transport Integration Tests
-    runs-on: ubuntu-latest
-    needs: test  # Run after unit tests pass
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+            - name: Run tests with coverage
+              if: matrix.node-version == '20.x' # Only run coverage on one version
+              run: npm run test:coverage -- --exclude="**/transports/**"
+              env:
+                  NODE_ENV: test
+                  LETTA_BASE_URL: https://test.letta.com/v1
+                  LETTA_PASSWORD: test-password
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'npm'
+            - name: Upload coverage to Codecov
+              if: matrix.node-version == '20.x'
+              uses: codecov/codecov-action@v5
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  files: ./coverage/lcov.info
+                  flags: unittests
+                  name: codecov-umbrella
+                  fail_ci_if_error: false
+                  verbose: true
 
-      - name: Install dependencies
-        run: npm ci
+    transport-tests:
+        name: Transport Integration Tests
+        runs-on: ubuntu-latest
+        needs: test # Run after unit tests pass
 
-      - name: Run transport tests
-        run: |
-          # Run transport tests one at a time to avoid port conflicts
-          npm test src/test/transports/stdio-transport.test.js
-          npm test src/test/transports/http-transport.test.js
-          npm test src/test/transports/sse-transport.test.js
-        env:
-          NODE_ENV: test
-          LETTA_BASE_URL: https://test.letta.com/v1
-          LETTA_PASSWORD: test-password
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-  check-coverage:
-    name: Check Coverage Thresholds
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'pull_request'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20.x'
+                  cache: 'npm'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'npm'
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Run transport tests
+              run: |
+                  # Run transport tests one at a time to avoid port conflicts
+                  npm test src/test/transports/stdio-transport.test.js
+                  npm test src/test/transports/http-transport.test.js
+                  npm test src/test/transports/sse-transport.test.js
+              env:
+                  NODE_ENV: test
+                  LETTA_BASE_URL: https://test.letta.com/v1
+                  LETTA_PASSWORD: test-password
 
-      - name: Check coverage meets thresholds
-        run: |
-          npm run test:coverage -- --exclude="**/transports/**"
-          echo "Coverage report:"
-          cat coverage/lcov-report/index.html | grep -E "statements|branches|functions|lines" | head -20
-        env:
-          NODE_ENV: test
-          LETTA_BASE_URL: https://test.letta.com/v1
-          LETTA_PASSWORD: test-password
+    check-coverage:
+        name: Check Coverage Thresholds
+        runs-on: ubuntu-latest
+        needs: test
+        if: github.event_name == 'pull_request'
 
-      - name: Comment PR with coverage
-        uses: actions/github-script@v7
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20.x'
+                  cache: 'npm'
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Check coverage meets thresholds
+              run: |
+                  npm run test:coverage -- --exclude="**/transports/**"
+                  echo "Coverage report:"
+                  cat coverage/lcov-report/index.html | grep -E "statements|branches|functions|lines" | head -20
+              env:
+                  NODE_ENV: test
+                  LETTA_BASE_URL: https://test.letta.com/v1
+                  LETTA_PASSWORD: test-password
+
+            - name: Comment PR with coverage
+              uses: actions/github-script@v7
+              if: always()
+              with:
+                  script: |
+                      const fs = require('fs');
+                      let coverageText = '## 📊 Test Coverage Report\n\n';
+
+                      try {
+                        // Read coverage summary if it exists
+                        if (fs.existsSync('coverage/coverage-summary.json')) {
+                          const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+                          const total = coverage.total;
+                          
+                          coverageText += '| Metric | Coverage | Details |\n';
+                          coverageText += '|--------|----------|----------|\n';
+                          coverageText += `| Statements | ${total.statements.pct}% | ${total.statements.covered}/${total.statements.total} |\n`;
+                          coverageText += `| Branches | ${total.branches.pct}% | ${total.branches.covered}/${total.branches.total} |\n`;
+                          coverageText += `| Functions | ${total.functions.pct}% | ${total.functions.covered}/${total.functions.total} |\n`;
+                          coverageText += `| Lines | ${total.lines.pct}% | ${total.lines.covered}/${total.lines.total} |\n`;
+                        } else {
+                          coverageText += '⚠️ Coverage report not found\n';
+                        }
+                      } catch (error) {
+                        coverageText += `⚠️ Error reading coverage: ${error.message}\n`;
+                      }
+
+                      github.rest.issues.createComment({
+                        issue_number: context.issue.number,
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        body: coverageText
+                      });
+
+    all-checks-passed:
+        name: All Checks Passed
+        runs-on: ubuntu-latest
+        needs: [test, transport-tests, check-coverage]
         if: always()
-        with:
-          script: |
-            const fs = require('fs');
-            let coverageText = '## 📊 Test Coverage Report\n\n';
-            
-            try {
-              // Read coverage summary if it exists
-              if (fs.existsSync('coverage/coverage-summary.json')) {
-                const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
-                const total = coverage.total;
-                
-                coverageText += '| Metric | Coverage | Details |\n';
-                coverageText += '|--------|----------|----------|\n';
-                coverageText += `| Statements | ${total.statements.pct}% | ${total.statements.covered}/${total.statements.total} |\n`;
-                coverageText += `| Branches | ${total.branches.pct}% | ${total.branches.covered}/${total.branches.total} |\n`;
-                coverageText += `| Functions | ${total.functions.pct}% | ${total.functions.covered}/${total.functions.total} |\n`;
-                coverageText += `| Lines | ${total.lines.pct}% | ${total.lines.covered}/${total.lines.total} |\n`;
-              } else {
-                coverageText += '⚠️ Coverage report not found\n';
-              }
-            } catch (error) {
-              coverageText += `⚠️ Error reading coverage: ${error.message}\n`;
-            }
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: coverageText
-            });
 
-  all-checks-passed:
-    name: All Checks Passed
-    runs-on: ubuntu-latest
-    needs: [test, transport-tests, check-coverage]
-    if: always()
-    
-    steps:
-      - name: Verify all checks passed
-        run: |
-          if [[ "${{ needs.test.result }}" != "success" || 
-                "${{ needs.transport-tests.result }}" != "success" ||
-                ("${{ github.event_name }}" == "pull_request" && "${{ needs.check-coverage.result }}" != "success") ]]; then
-            echo "One or more checks failed"
-            exit 1
-          fi
-          echo "All checks passed! ✅"
+        steps:
+            - name: Verify all checks passed
+              run: |
+                  if [[ "${{ needs.test.result }}" != "success" || 
+                        "${{ needs.transport-tests.result }}" != "success" ||
+                        ("${{ github.event_name }}" == "pull_request" && "${{ needs.check-coverage.result }}" != "success") ]]; then
+                    echo "One or more checks failed"
+                    exit 1
+                  fi
+                  echo "All checks passed! ✅"

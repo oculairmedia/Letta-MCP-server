@@ -3,8 +3,22 @@ name: Rust CI/CD Pipeline
 on:
     push:
         branches: [rust-implementation, main, master]
+        paths:
+            - 'rust/**'
+            - 'letta-server/**'
+            - 'letta-types/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - '.github/workflows/rust-*.yml'
     pull_request:
         branches: [rust-implementation, main, master]
+        paths:
+            - 'rust/**'
+            - 'letta-server/**'
+            - 'letta-types/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - '.github/workflows/rust-*.yml'
 
 jobs:
     # Stage 1: Run all tests
