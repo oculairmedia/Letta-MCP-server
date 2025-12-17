@@ -642,6 +642,15 @@ impl ToolRule {
             }
             | Self::Init {
                 prompt_template, ..
+            }
+            | Self::RequiresApproval {
+                prompt_template, ..
+            }
+            | Self::RunFirst {
+                prompt_template, ..
+            }
+            | Self::DefaultOnEmpty {
+                prompt_template, ..
             } => {
                 *prompt_template = Some(template.into());
             }
@@ -650,6 +659,7 @@ impl ToolRule {
             } => {
                 *prompt_template = Some(template.into());
             }
+            Self::Unknown => {}
         }
         self
     }

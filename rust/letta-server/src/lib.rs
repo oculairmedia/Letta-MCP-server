@@ -38,10 +38,21 @@ impl LettaServer {
     /// Create a new Letta MCP Server instance
     pub fn new(base_url: String, password: String) -> Result<Self, Box<dyn std::error::Error>> {
         tracing::info!("Initializing Letta MCP Server");
-        tracing::info!("Base URL: {}", base_url);
+
+        // Normalize base URL: The Rust SDK hardcodes "v1/" prefixes in API paths,
+        // so the base URL should NOT include "/v1". Strip it if present.
+        // Also remove any trailing slashes for consistency.
+        let normalized_url = base_url
+            .trim_end_matches('/')
+            .trim_end_matches("/v1")
+            .trim_end_matches('/')
+            .to_string();
+
+        tracing::info!("Base URL (normalized): {}", normalized_url);
+        tracing::info!("Password length: {}", password.len());
 
         // Configure the official Letta SDK client
-        let config = ClientConfig::new(&base_url)?.auth(AuthConfig::bearer(&password));
+        let config = ClientConfig::new(&normalized_url)?.auth(AuthConfig::bearer(&password));
 
         let client = LettaClient::new(config)?;
         tracing::info!("Letta SDK client initialized successfully");

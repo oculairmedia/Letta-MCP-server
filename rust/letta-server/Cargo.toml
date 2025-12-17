@@ -10,6 +10,10 @@ license = "MIT"
 name = "letta-server"
 path = "src/main.rs"
 
+[lib]
+# Macro-generated docs include placeholder examples (MyServer)
+doctest = false
+
 [dependencies]
 # Workspace dependencies
 tokio = { workspace = true }

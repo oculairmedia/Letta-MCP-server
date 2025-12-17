@@ -51,6 +51,8 @@ cli = [
     "dep:env_logger",
     "miette/fancy",
 ]
+# Opt-in integration tests that require a running Letta server.
+integration-tests = []
 default = []
 
 [lib]
@@ -65,122 +67,152 @@ required-features = ["cli"]
 [[test]]
 name = "agent_deserialization_test"
 path = "tests/agent_deserialization_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "archival_memory_test"
 path = "tests/archival_memory_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "azure_message_test"
 path = "tests/azure_message_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "batch_api_test"
 path = "tests/batch_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "blocks_api_test"
 path = "tests/blocks_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "cloud_api_test"
 path = "tests/cloud_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "cloud_sources_test"
 path = "tests/cloud_sources_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "composio_integration_test"
 path = "tests/composio_integration_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "core_memory_test"
 path = "tests/core_memory_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "error_handling_test"
 path = "tests/error_handling_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "groups_api_test"
 path = "tests/groups_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "health_api_test"
 path = "tests/health_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "identities_api_test"
 path = "tests/identities_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "jobs_api_test"
 path = "tests/jobs_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "local_server_test"
 path = "tests/local_server_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "mcp_integration_test"
 path = "tests/mcp_integration_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "message_api_test"
 path = "tests/message_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "message_streaming_test"
 path = "tests/message_streaming_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "models_api_test"
 path = "tests/models_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "pagination_test"
 path = "tests/pagination_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "projects_api_test"
 path = "tests/projects_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "providers_api_test"
 path = "tests/providers_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "retry_test"
 path = "tests/retry_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "runs_api_test"
 path = "tests/runs_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "sources_api_test"
 path = "tests/sources_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "tags_api_test"
 path = "tests/tags_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "telemetry_api_test"
 path = "tests/telemetry_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "templates_api_test"
 path = "tests/templates_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "tools_api_test"
 path = "tests/tools_api_test.rs"
+required-features = ["integration-tests"]
 
 [[test]]
 name = "voice_api_test"
 path = "tests/voice_api_test.rs"
+required-features = ["integration-tests"]
 
 [dependencies]
 bon = "3.0"

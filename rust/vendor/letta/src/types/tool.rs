@@ -767,6 +767,6 @@ mod tests {
 
         let json = serde_json::to_string(&tool).unwrap();
         assert!(json.contains("\"name\":\"calculator\""));
-        assert!(json.contains("\"input_schema\""));
+        assert!(json.contains("\"inputSchema\""));
     }
 }

@@ -26,8 +26,9 @@ turbomcp = { version = "2.0.0-rc.3", features = ["full", "http"] }
 # HTTP client
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "http2"] }
 
-# Letta SDK (forked to add missing endpoints)
-letta = { git = "https://github.com/oculairmedia/letta-rs.git", branch = "add-missing-endpoints" }
+# Letta SDK (vendored for compatibility fixes)
+# NOTE: path is relative to `rust/`
+letta = { path = "vendor/letta" }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }

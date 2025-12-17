@@ -86,7 +86,7 @@ async fn test_create_archival_memory() -> LettaResult<()> {
         passage.text,
         "The user mentioned they love hiking in the mountains."
     );
-    assert_eq!(passage.agent_id, agent_id);
+    assert_eq!(passage.agent_id.as_ref(), Some(&agent_id));
 
     // Clean up
     client.agents().delete(&agent_id).await?;
