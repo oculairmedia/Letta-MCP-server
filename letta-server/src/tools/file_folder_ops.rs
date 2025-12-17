@@ -452,14 +452,10 @@ async fn handle_list_folders(
     let offset = request.offset.unwrap_or(0);
 
     // Use SDK to list folders
-    let result = client
-        .folders()
-        .list(None)
-        .await
-        .map_err(|e| {
-            error!(error = %e, "Failed to list folders - SDK error details");
-            McpError::internal(format!("Failed to list folders: {}", e))
-        })?;
+    let result = client.folders().list(None).await.map_err(|e| {
+        error!(error = %e, "Failed to list folders - SDK error details");
+        McpError::internal(format!("Failed to list folders: {}", e))
+    })?;
 
     let total = result.len();
 
