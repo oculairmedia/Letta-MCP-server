@@ -74,6 +74,10 @@ import {
 import { handleListPrompts, listPromptsToolDefinition } from './prompts/list-prompts.js';
 import { handleUsePrompt, usePromptToolDefinition } from './prompts/use-prompt.js';
 
+// Message-related imports
+import { handleListMessages, listMessagesDefinition } from './messages/list-messages.js';
+import { handleCreateConversationEntry, createConversationEntryDefinition } from './messages/create-conversation-entry.js';
+
 import {
     CallToolRequestSchema,
     ListToolsRequestSchema,
@@ -121,6 +125,8 @@ export function registerToolHandlers(server) {
         addMcpToolToLettaDefinition,
         listPromptsToolDefinition,
         usePromptToolDefinition,
+        listMessagesDefinition,
+        createConversationEntryDefinition,
     ];
 
     // Enhance all tools with output schemas and improved descriptions
@@ -198,6 +204,10 @@ export function registerToolHandlers(server) {
                 return handleListPrompts(server, request.params.arguments);
             case 'use_prompt':
                 return handleUsePrompt(server, request.params.arguments);
+            case 'list_messages':
+                return handleListMessages(server, request.params.arguments);
+            case 'create_conversation_entry':
+                return handleCreateConversationEntry(server, request.params.arguments);
             default:
                 throw new McpError(
                     ErrorCode.MethodNotFound,
@@ -241,6 +251,8 @@ export const toolDefinitions = enhanceAllTools([
     addMcpToolToLettaDefinition,
     listPromptsToolDefinition,
     usePromptToolDefinition,
+    listMessagesDefinition,
+    createConversationEntryDefinition,
 ]);
 
 // Export all tool handlers
@@ -275,4 +287,6 @@ export const toolHandlers = {
     handleGetAgentSummary,
     handleBulkDeleteAgents,
     handleAddMcpToolToLetta,
+    handleListMessages,
+    handleCreateConversationEntry,
 };
