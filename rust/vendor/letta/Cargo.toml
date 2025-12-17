@@ -45,6 +45,10 @@ repository = "https://github.com/orual/letta-rs"
 [package.metadata]
 letta-server-version = "0.8.8"
 
+# Vendored crate - allow all clippy lints
+[lints.clippy]
+all = "allow"
+
 [features]
 cli = [
     "dep:clap",
