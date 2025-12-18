@@ -37,12 +37,17 @@ import {
     handleDeleteMemoryBlock,
     deleteMemoryBlockToolDefinition,
 } from './memory/delete-memory-block.js';
+import { handleSearchMemory, searchMemoryDefinition } from './memory/search-memory.js';
 
 // Passage-related imports
 import { handleListPassages, listPassagesDefinition } from './passages/list-passages.js';
 import { handleCreatePassage, createPassageDefinition } from './passages/create-passage.js';
 import { handleModifyPassage, modifyPassageDefinition } from './passages/modify-passage.js';
 import { handleDeletePassage, deletePassageDefinition } from './passages/delete-passage.js';
+import {
+    handleSearchArchivalMemory,
+    searchArchivalMemoryDefinition,
+} from './passages/search-archival-memory.js';
 
 // Tool-related imports
 import { handleAttachTool, attachToolToolDefinition } from './tools/attach-tool.js';
@@ -107,6 +112,7 @@ export function registerToolHandlers(server) {
         attachMemoryBlockToolDefinition,
         createMemoryBlockToolDefinition,
         deleteMemoryBlockToolDefinition,
+        searchMemoryDefinition,
         uploadToolToolDefinition,
         listMcpToolsByServerDefinition,
         listMcpServersDefinition,
@@ -119,6 +125,7 @@ export function registerToolHandlers(server) {
         createPassageDefinition,
         modifyPassageDefinition,
         deletePassageDefinition,
+        searchArchivalMemoryDefinition,
         exportAgentDefinition,
         importAgentDefinition,
         cloneAgentDefinition,
@@ -165,6 +172,8 @@ export function registerToolHandlers(server) {
                 return handleCreateMemoryBlock(server, request.params.arguments);
             case 'delete_memory_block':
                 return handleDeleteMemoryBlock(server, request.params.arguments);
+            case 'search_memory':
+                return handleSearchMemory(server, request.params.arguments);
             case 'upload_tool':
                 return handleUploadTool(server, request.params.arguments);
             case 'list_mcp_tools_by_server':
@@ -189,6 +198,8 @@ export function registerToolHandlers(server) {
                 return handleModifyPassage(server, request.params.arguments);
             case 'delete_passage':
                 return handleDeletePassage(server, request.params.arguments);
+            case 'search_archival_memory':
+                return handleSearchArchivalMemory(server, request.params.arguments);
             case 'export_agent':
                 return handleExportAgent(server, request.params.arguments);
             case 'import_agent':
@@ -233,6 +244,7 @@ export const toolDefinitions = enhanceAllTools([
     attachMemoryBlockToolDefinition,
     createMemoryBlockToolDefinition,
     deleteMemoryBlockToolDefinition,
+    searchMemoryDefinition,
     uploadToolToolDefinition,
     listMcpToolsByServerDefinition,
     listMcpServersDefinition,
@@ -245,6 +257,7 @@ export const toolDefinitions = enhanceAllTools([
     createPassageDefinition,
     modifyPassageDefinition,
     deletePassageDefinition,
+    searchArchivalMemoryDefinition,
     exportAgentDefinition,
     importAgentDefinition,
     cloneAgentDefinition,
@@ -271,6 +284,7 @@ export const toolHandlers = {
     handleAttachMemoryBlock,
     handleCreateMemoryBlock,
     handleDeleteMemoryBlock,
+    handleSearchMemory,
     handleUploadTool,
     handleListMcpToolsByServer,
     handleListMcpServers,
@@ -283,6 +297,7 @@ export const toolHandlers = {
     handleCreatePassage,
     handleModifyPassage,
     handleDeletePassage,
+    handleSearchArchivalMemory,
     handleExportAgent,
     handleImportAgent,
     handleCloneAgent,

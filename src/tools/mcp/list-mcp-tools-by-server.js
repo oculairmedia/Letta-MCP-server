@@ -7,7 +7,7 @@ const logger = createLogger('list-mcp-tools-by-server');
  */
 export async function handleListMcpToolsByServer(server, args) {
     if (!args?.mcp_server_name) {
-        server.createErrorResponse('Missing required argument: mcp_server_name');
+        throw new Error('Missing required argument: mcp_server_name');
     }
 
     try {
@@ -66,14 +66,22 @@ export async function handleListMcpToolsByServer(server, args) {
             ],
         };
     } catch (error) {
-        logger.error('Full error:', error); // Keep detailed logging
+        logger.error('Full error:', error.message); // Log message only to avoid circular refs
         // Handle potential 404 if server name not found, or other API errors
         if (error.response && error.response.status === 404) {
-            server.createErrorResponse(`MCP Server not found: ${args.mcp_server_name}`);
+            throw new Error(`MCP Server not found: ${args.mcp_server_name}`);
         }
-        // Provide more context in the error response
-        server.createErrorResponse(
-            `Error executing list_mcp_tools_by_server: ${error.message}\nResponse: ${JSON.stringify(error.response?.data || {})}`,
+        // Safely extract error details without circular references
+        let errorDetails = '';
+        try {
+            if (error.response?.data) {
+                errorDetails = JSON.stringify(error.response.data);
+            }
+        } catch {
+            errorDetails = String(error.response?.data || '');
+        }
+        throw new Error(
+            `Error executing list_mcp_tools_by_server: ${error.message}${errorDetails ? `\nResponse: ${errorDetails}` : ''}`,
         );
     }
 }

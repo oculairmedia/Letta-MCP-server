@@ -42,6 +42,15 @@ export async function handleListMemoryBlocks(server, args) {
 
         let blocks = blocksResponse.data;
 
+        // Apply label filter client-side when using agent-specific endpoint
+        // (the /agents/{id}/core-memory/blocks endpoint does NOT support label query param,
+        // only /blocks does - per Letta API docs)
+        if (args && args.agent_id && args.label) {
+            blocks = blocks.filter(
+                (block) => block.label && block.label === args.label
+            );
+        }
+
         // Apply text filter if provided (this is separate from the API's label/name filters)
         if (args && args.filter && typeof args.filter === 'string') {
             const filterLower = args.filter.toLowerCase();
