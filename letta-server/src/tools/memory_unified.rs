@@ -794,9 +794,8 @@ async fn handle_search_memory(
 
     // Search messages if requested
     if matches!(source, SearchSource::Messages | SearchSource::Both) {
-        messages_result = Some(
-            search_messages(client, &letta_id, &query, limit, start_date, end_date).await?,
-        );
+        messages_result =
+            Some(search_messages(client, &letta_id, &query, limit, start_date, end_date).await?);
     }
 
     let archival_count = archival_result.as_ref().map(|r| r.count).unwrap_or(0);

@@ -41,10 +41,13 @@
     "lint": "eslint src/",
     "format": "prettier --write 'src/**/*.js'",
     "format:check": "prettier --check 'src/**/*.js'",
+    "format:rust": "cargo fmt --all",
+    "format:rust:check": "cargo fmt --all -- --check",
     "prepublishOnly": "npm run lint && npm run test && npm run format:check",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
-    "postversion": "git push && git push --tags"
+    "postversion": "git push && git push --tags",
+    "prepare": "husky"
   },
   "dependencies": {
     "@letta-ai/letta-client": "^0.0.68664",
@@ -64,11 +67,19 @@
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^10.1.8",
     "eventsource": "^2.0.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.2.5",
     "supertest": "^7.0.0",
     "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "lint-staged": {
+    "src/**/*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   }
 }

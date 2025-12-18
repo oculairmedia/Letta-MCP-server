@@ -96,14 +96,14 @@ impl LettaServer {
             .map_err(|e| McpError::invalid_request(format!("Invalid operation: {}", e)))?;
 
         // Parse source if provided
-        let source = source.and_then(|s| {
-            serde_json::from_value(serde_json::Value::String(s)).ok()
-        });
+        let source = source.and_then(|s| serde_json::from_value(serde_json::Value::String(s)).ok());
 
         // Parse dates if provided
-        let start_date = start_date.and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+        let start_date = start_date
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
             .map(|dt| dt.with_timezone(&chrono::Utc));
-        let end_date = end_date.and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+        let end_date = end_date
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
             .map(|dt| dt.with_timezone(&chrono::Utc));
 
         // Create request from individual parameters
