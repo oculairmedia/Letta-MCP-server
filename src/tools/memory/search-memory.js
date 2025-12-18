@@ -33,15 +33,13 @@ export async function handleSearchMemory(server, args) {
                 {
                     headers,
                     params: archivalParams,
-                }
+                },
             );
 
             let passages = archivalResponse.data.results || [];
             // Remove embeddings by default
-            passages = passages.map((passage) => {
-                const { embedding, ...rest } = passage;
-                return rest;
-            });
+            // eslint-disable-next-line no-unused-vars
+            passages = passages.map(({ embedding, ...rest }) => rest);
 
             results.archival = {
                 passages,
@@ -58,7 +56,7 @@ export async function handleSearchMemory(server, args) {
                 args.query,
                 args.start_date,
                 args.end_date,
-                args.limit || 50
+                args.limit || 50,
             );
         }
 
