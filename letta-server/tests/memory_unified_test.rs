@@ -6,7 +6,7 @@
 //! - Archival memory (passages)
 //! - Response truncation
 
-use letta_server::tools::memory_unified::{MemoryOperation, MemoryUnifiedRequest};
+use letta_server::tools::memory_unified::{MemoryOperation, MemoryUnifiedRequest, SearchSource};
 use letta_server::tools::memory_utils::{
     truncate_block_value, truncate_preview, truncate_string, BlockSummary, PaginationMeta,
     PassageSummary,
@@ -137,6 +137,90 @@ fn test_parse_create_passage() {
     assert_eq!(request.text.unwrap(), "This is a new passage to store.");
 }
 
+#[test]
+fn test_parse_search_memory_basic() {
+    let json_input = json!({
+        "operation": "search_memory",
+        "agent_id": "agent-12345",
+        "query": "important info"
+    });
+
+    let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(request.operation, MemoryOperation::SearchMemory));
+    assert_eq!(request.agent_id.unwrap(), "agent-12345");
+    assert_eq!(request.query.unwrap(), "important info");
+    assert!(request.source.is_none()); // Default should be None (which means Both)
+}
+
+#[test]
+fn test_parse_search_memory_with_source() {
+    let json_input = json!({
+        "operation": "search_memory",
+        "agent_id": "agent-12345",
+        "query": "find this",
+        "source": "archival"
+    });
+
+    let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(request.operation, MemoryOperation::SearchMemory));
+    assert!(matches!(request.source, Some(SearchSource::Archival)));
+}
+
+#[test]
+fn test_parse_search_memory_messages_only() {
+    let json_input = json!({
+        "operation": "search_memory",
+        "agent_id": "agent-12345",
+        "query": "conversation",
+        "source": "messages"
+    });
+
+    let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(request.source, Some(SearchSource::Messages)));
+}
+
+#[test]
+fn test_parse_search_memory_both() {
+    let json_input = json!({
+        "operation": "search_memory",
+        "agent_id": "agent-12345",
+        "query": "all sources",
+        "source": "both"
+    });
+
+    let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(request.source, Some(SearchSource::Both)));
+}
+
+#[test]
+fn test_parse_search_memory_with_dates() {
+    let json_input = json!({
+        "operation": "search_memory",
+        "agent_id": "agent-12345",
+        "query": "dated search",
+        "start_date": "2025-01-01T00:00:00Z",
+        "end_date": "2025-12-31T23:59:59Z"
+    });
+
+    let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(request.operation, MemoryOperation::SearchMemory));
+    assert!(request.start_date.is_some());
+    assert!(request.end_date.is_some());
+}
+
+#[test]
+fn test_parse_search_memory_with_limit() {
+    let json_input = json!({
+        "operation": "search_memory",
+        "agent_id": "agent-12345",
+        "query": "limited search",
+        "limit": 25
+    });
+
+    let request: MemoryUnifiedRequest = serde_json::from_value(json_input).unwrap();
+    assert_eq!(request.limit.unwrap(), 25);
+}
+
 // ============================================================
 // All Operations Enum Test
 // ============================================================
@@ -159,6 +243,7 @@ fn test_all_memory_operations_parse() {
         "create_passage",
         "update_passage",
         "delete_passage",
+        "search_memory",
     ];
 
     for op in operations {

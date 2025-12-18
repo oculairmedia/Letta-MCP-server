@@ -71,7 +71,7 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "Unified Memory Operations Hub - Provides unified interface for all memory operations. Supports 15 operations including core memory (get_core_memory, update_core_memory), blocks (get_block_by_label, list_blocks, create_block, get_block, update_block, attach_block, detach_block, list_agents_using_block), and archival memory (search_archival, list_passages, create_passage, update_passage, delete_passage)."
+        description = "Unified Memory Operations Hub - Provides unified interface for all memory operations. Supports 16 operations including core memory (get_core_memory, update_core_memory), blocks (get_block_by_label, list_blocks, create_block, get_block, update_block, attach_block, detach_block, list_agents_using_block), archival memory (search_archival, list_passages, create_passage, update_passage, delete_passage), and unified search (search_memory)."
     )]
     async fn letta_memory_unified(
         &self,
@@ -87,10 +87,24 @@ impl LettaServer {
         limit: Option<i32>,
         offset: Option<i32>,
         is_template: Option<bool>,
+        source: Option<String>,
+        start_date: Option<String>,
+        end_date: Option<String>,
     ) -> McpResult<String> {
         // Parse operation from string
         let op = serde_json::from_value(serde_json::Value::String(operation))
             .map_err(|e| McpError::invalid_request(format!("Invalid operation: {}", e)))?;
+
+        // Parse source if provided
+        let source = source.and_then(|s| {
+            serde_json::from_value(serde_json::Value::String(s)).ok()
+        });
+
+        // Parse dates if provided
+        let start_date = start_date.and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+            .map(|dt| dt.with_timezone(&chrono::Utc));
+        let end_date = end_date.and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+            .map(|dt| dt.with_timezone(&chrono::Utc));
 
         // Create request from individual parameters
         let request = memory_unified::MemoryUnifiedRequest {
@@ -106,6 +120,9 @@ impl LettaServer {
             limit,
             offset,
             is_template,
+            source,
+            start_date,
+            end_date,
             request_heartbeat: None,
         };
 

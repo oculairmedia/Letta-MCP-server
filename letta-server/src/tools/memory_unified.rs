@@ -3,6 +3,8 @@
 //! Consolidated tool for all memory operations using discriminator pattern.
 //! Supports core memory, memory blocks, and archival/passage operations.
 
+use chrono::{DateTime, Utc};
+use letta::types::{LettaMessageUnion, ListMessagesRequest};
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -32,6 +34,26 @@ pub enum MemoryOperation {
     CreatePassage,
     UpdatePassage,
     DeletePassage,
+    // Unified search
+    SearchMemory,
+}
+
+/// Source for unified memory search
+#[derive(Debug, Clone, Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchSource {
+    /// Search only archival memory (passages)
+    Archival,
+    /// Search only conversation messages
+    Messages,
+    /// Search both archival and messages (default)
+    Both,
+}
+
+impl Default for SearchSource {
+    fn default() -> Self {
+        SearchSource::Both
+    }
 }
 
 /// Memory unified request
@@ -69,6 +91,17 @@ pub struct MemoryUnifiedRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_template: Option<bool>,
 
+    // Search memory specific
+    /// Which source to search: archival, messages, or both
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SearchSource>,
+    /// Filter results after this datetime (ISO 8601 format)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_date: Option<DateTime<Utc>>,
+    /// Filter results before this datetime (ISO 8601 format)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_date: Option<DateTime<Utc>>,
+
     // Ignored parameter
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
@@ -98,6 +131,35 @@ pub struct MemoryUnifiedResponse {
     pub core_memory: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<usize>,
+
+    // Search memory specific
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub archival: Option<ArchivalSearchResult>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub messages: Option<MessageSearchResult>,
+}
+
+/// Result from archival memory search
+#[derive(Debug, Serialize)]
+pub struct ArchivalSearchResult {
+    pub passages: Vec<Value>,
+    pub count: usize,
+}
+
+/// Result from message search
+#[derive(Debug, Serialize)]
+pub struct MessageSearchResult {
+    pub messages: Vec<MessageMatch>,
+    pub count: usize,
+}
+
+/// A matching message from search
+#[derive(Debug, Serialize)]
+pub struct MessageMatch {
+    pub id: String,
+    pub date: String,
+    pub message_type: String,
+    pub content: String,
 }
 
 /// Main handler for memory unified operations
@@ -126,6 +188,7 @@ pub async fn handle_memory_unified(
         MemoryOperation::CreatePassage => handle_create_passage(client, request).await,
         MemoryOperation::UpdatePassage => handle_update_passage(client, request).await,
         MemoryOperation::DeletePassage => handle_delete_passage(client, request).await,
+        MemoryOperation::SearchMemory => handle_search_memory(client, request).await,
     }
 }
 
@@ -162,6 +225,8 @@ async fn handle_get_core_memory(
         blocks: None,
         passages: None,
         count: None,
+        archival: None,
+        messages: None,
     })
 }
 
@@ -211,6 +276,8 @@ async fn handle_update_core_memory(
         blocks: None,
         passages: None,
         count: None,
+        archival: None,
+        messages: None,
     })
 }
 
@@ -250,6 +317,8 @@ async fn handle_get_block_by_label(
         blocks: None,
         passages: None,
         count: None,
+        archival: None,
+        messages: None,
     })
 }
 
@@ -279,6 +348,8 @@ async fn handle_list_blocks(
         agent_id: Some(agent_id),
         blocks: Some(serde_json::to_value(&blocks)?),
         count: Some(count),
+        archival: None,
+        messages: None,
         block_id: None,
         passage_id: None,
         core_memory: None,
@@ -329,6 +400,8 @@ async fn handle_create_block(
         blocks: None,
         passages: None,
         count: None,
+        archival: None,
+        messages: None,
     })
 }
 
@@ -361,6 +434,8 @@ async fn handle_get_block(
         blocks: None,
         passages: None,
         count: None,
+        archival: None,
+        messages: None,
     })
 }
 
@@ -405,6 +480,8 @@ async fn handle_update_block(
         blocks: None,
         passages: None,
         count: None,
+        archival: None,
+        messages: None,
     })
 }
 
@@ -442,6 +519,8 @@ async fn handle_attach_block(
         blocks: None,
         passages: None,
         count: None,
+        archival: None,
+        messages: None,
     })
 }
 
@@ -479,6 +558,8 @@ async fn handle_detach_block(
         blocks: None,
         passages: None,
         count: None,
+        archival: None,
+        messages: None,
     })
 }
 
@@ -534,6 +615,8 @@ async fn handle_search_archival(
         agent_id: Some(agent_id),
         passages: Some(serde_json::to_value(&passages)?),
         count: Some(count),
+        archival: None,
+        messages: None,
         block_id: None,
         passage_id: None,
         core_memory: None,
@@ -576,6 +659,8 @@ async fn handle_list_passages(
         agent_id: Some(agent_id),
         passages: Some(serde_json::to_value(&passages)?),
         count: Some(count),
+        archival: None,
+        messages: None,
         block_id: None,
         passage_id: None,
         core_memory: None,
@@ -618,6 +703,8 @@ async fn handle_create_passage(
         data: None,
         blocks: None,
         count: None,
+        archival: None,
+        messages: None,
     })
 }
 
@@ -667,5 +754,297 @@ async fn handle_delete_passage(
         blocks: None,
         passages: None,
         count: None,
+        archival: None,
+        messages: None,
     })
+}
+
+// ===================================================
+// Unified Search Operations
+// ===================================================
+
+async fn handle_search_memory(
+    client: &LettaClient,
+    request: MemoryUnifiedRequest,
+) -> Result<MemoryUnifiedResponse, McpError> {
+    let agent_id = request.agent_id.ok_or_else(|| {
+        McpError::invalid_request("agent_id is required for search_memory".to_string())
+    })?;
+    let query = request.query.ok_or_else(|| {
+        McpError::invalid_request("query is required for search_memory".to_string())
+    })?;
+
+    let letta_id = letta::types::LettaId::from_str(&agent_id)
+        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+
+    let source = request.source.unwrap_or_default();
+    let limit = request.limit.unwrap_or(50) as usize;
+    let start_date = request.start_date;
+    let end_date = request.end_date;
+
+    let mut archival_result: Option<ArchivalSearchResult> = None;
+    let mut messages_result: Option<MessageSearchResult> = None;
+
+    // Search archival memory if requested
+    if matches!(source, SearchSource::Archival | SearchSource::Both) {
+        archival_result = Some(
+            search_archival_memory(client, &letta_id, &query, limit, start_date, end_date).await?,
+        );
+    }
+
+    // Search messages if requested
+    if matches!(source, SearchSource::Messages | SearchSource::Both) {
+        messages_result = Some(
+            search_messages(client, &letta_id, &query, limit, start_date, end_date).await?,
+        );
+    }
+
+    let archival_count = archival_result.as_ref().map(|r| r.count).unwrap_or(0);
+    let messages_count = messages_result.as_ref().map(|r| r.count).unwrap_or(0);
+
+    Ok(MemoryUnifiedResponse {
+        success: true,
+        operation: "search_memory".to_string(),
+        message: format!(
+            "Found {} archival passages and {} messages",
+            archival_count, messages_count
+        ),
+        agent_id: Some(agent_id),
+        archival: archival_result,
+        messages: messages_result,
+        count: Some(archival_count + messages_count),
+        block_id: None,
+        passage_id: None,
+        core_memory: None,
+        data: None,
+        blocks: None,
+        passages: None,
+    })
+}
+
+/// Search archival memory using the SDK
+async fn search_archival_memory(
+    client: &LettaClient,
+    agent_id: &letta::types::LettaId,
+    query: &str,
+    limit: usize,
+    start_date: Option<DateTime<Utc>>,
+    end_date: Option<DateTime<Utc>>,
+) -> Result<ArchivalSearchResult, McpError> {
+    let params = letta::types::memory::ArchivalMemoryQueryParams {
+        search: Some(query.to_string()),
+        limit: Some(limit as u32),
+        before: None,
+        after: None,
+        ascending: None,
+    };
+
+    let passages = client
+        .memory()
+        .list_archival_memory(agent_id, Some(params))
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to search archival memory: {}", e)))?;
+
+    // Filter by date if provided and convert to JSON values
+    let mut filtered_passages: Vec<Value> = Vec::new();
+    for passage in passages {
+        let passage_value = serde_json::to_value(&passage)?;
+
+        // Check date range if specified
+        if let Some(created_at) = passage_value.get("created_at").and_then(|v| v.as_str()) {
+            if let Ok(passage_date) = DateTime::parse_from_rfc3339(created_at) {
+                let passage_date_utc = passage_date.with_timezone(&Utc);
+                if let Some(ref start) = start_date {
+                    if passage_date_utc < *start {
+                        continue;
+                    }
+                }
+                if let Some(ref end) = end_date {
+                    if passage_date_utc > *end {
+                        continue;
+                    }
+                }
+            }
+        }
+
+        // Remove embedding to reduce response size
+        let mut passage_obj = passage_value
+            .as_object()
+            .cloned()
+            .unwrap_or_else(serde_json::Map::new);
+        passage_obj.remove("embedding");
+
+        filtered_passages.push(Value::Object(passage_obj));
+    }
+
+    let count = filtered_passages.len();
+    Ok(ArchivalSearchResult {
+        passages: filtered_passages,
+        count,
+    })
+}
+
+/// Search messages with client-side filtering
+async fn search_messages(
+    client: &LettaClient,
+    agent_id: &letta::types::LettaId,
+    query: &str,
+    limit: usize,
+    start_date: Option<DateTime<Utc>>,
+    end_date: Option<DateTime<Utc>>,
+) -> Result<MessageSearchResult, McpError> {
+    let query_lower = query.to_lowercase();
+    let mut matching_messages: Vec<MessageMatch> = Vec::new();
+    let page_size = 100i32;
+    let mut cursor: Option<String> = None;
+    let mut has_more = true;
+
+    while has_more && matching_messages.len() < limit {
+        let params = ListMessagesRequest {
+            limit: Some(page_size),
+            before: None,
+            after: cursor.clone(),
+            group_id: None,
+            use_assistant_message: None,
+            assistant_message_tool_name: None,
+            assistant_message_tool_kwargs: None,
+        };
+
+        let messages = client
+            .messages()
+            .list(agent_id, Some(params))
+            .await
+            .map_err(|e| McpError::internal(format!("Failed to list messages: {}", e)))?;
+
+        if messages.is_empty() {
+            has_more = false;
+            break;
+        }
+
+        for msg in &messages {
+            let (id, date, message_type, content) = extract_message_info(msg);
+
+            // Parse date for filtering
+            if let Ok(msg_date) = DateTime::parse_from_rfc3339(&date) {
+                let msg_date_utc = msg_date.with_timezone(&Utc);
+
+                // Check date range
+                if let Some(ref start) = start_date {
+                    if msg_date_utc < *start {
+                        continue;
+                    }
+                }
+                if let Some(ref end) = end_date {
+                    if msg_date_utc > *end {
+                        // If we've passed the end date and we're paginating forward, stop
+                        has_more = false;
+                        break;
+                    }
+                }
+            }
+
+            // Check if content matches query (case-insensitive)
+            if content.to_lowercase().contains(&query_lower) {
+                let truncated_content = if content.len() > 500 {
+                    format!("{}...", &content[..500])
+                } else {
+                    content
+                };
+
+                matching_messages.push(MessageMatch {
+                    id,
+                    date,
+                    message_type,
+                    content: truncated_content,
+                });
+
+                if matching_messages.len() >= limit {
+                    break;
+                }
+            }
+        }
+
+        // Update cursor for next page
+        if let Some(last_msg) = messages.last() {
+            cursor = Some(extract_message_id(last_msg));
+        }
+
+        // If we got fewer messages than requested, we've reached the end
+        if (messages.len() as i32) < page_size {
+            has_more = false;
+        }
+    }
+
+    // Sort by date (oldest first)
+    matching_messages.sort_by(|a, b| a.date.cmp(&b.date));
+
+    let count = matching_messages.len();
+    Ok(MessageSearchResult {
+        messages: matching_messages,
+        count,
+    })
+}
+
+/// Extract info from a LettaMessageUnion
+fn extract_message_info(msg: &LettaMessageUnion) -> (String, String, String, String) {
+    match msg {
+        LettaMessageUnion::SystemMessage(m) => (
+            m.id.to_string(),
+            m.date.to_rfc3339(),
+            "system_message".to_string(),
+            m.content.clone(),
+        ),
+        LettaMessageUnion::UserMessage(m) => (
+            m.id.to_string(),
+            m.date.to_rfc3339(),
+            "user_message".to_string(),
+            m.content.clone(),
+        ),
+        LettaMessageUnion::AssistantMessage(m) => (
+            m.id.to_string(),
+            m.date.to_rfc3339(),
+            "assistant_message".to_string(),
+            m.content.clone(),
+        ),
+        LettaMessageUnion::ReasoningMessage(m) => (
+            m.id.to_string(),
+            m.date.to_rfc3339(),
+            "reasoning_message".to_string(),
+            m.reasoning.clone(),
+        ),
+        LettaMessageUnion::HiddenReasoningMessage(m) => (
+            m.id.to_string(),
+            m.date.to_rfc3339(),
+            "hidden_reasoning_message".to_string(),
+            "[hidden]".to_string(),
+        ),
+        LettaMessageUnion::ToolCallMessage(m) => {
+            let tool_call_str = format!("{}({})", m.tool_call.name, m.tool_call.arguments);
+            (
+                m.id.to_string(),
+                m.date.to_rfc3339(),
+                "tool_call_message".to_string(),
+                tool_call_str,
+            )
+        }
+        LettaMessageUnion::ToolReturnMessage(m) => (
+            m.id.to_string(),
+            m.date.to_rfc3339(),
+            "tool_return_message".to_string(),
+            m.tool_return.clone(),
+        ),
+    }
+}
+
+/// Extract message ID from a LettaMessageUnion
+fn extract_message_id(msg: &LettaMessageUnion) -> String {
+    match msg {
+        LettaMessageUnion::SystemMessage(m) => m.id.to_string(),
+        LettaMessageUnion::UserMessage(m) => m.id.to_string(),
+        LettaMessageUnion::AssistantMessage(m) => m.id.to_string(),
+        LettaMessageUnion::ReasoningMessage(m) => m.id.to_string(),
+        LettaMessageUnion::HiddenReasoningMessage(m) => m.id.to_string(),
+        LettaMessageUnion::ToolCallMessage(m) => m.id.to_string(),
+        LettaMessageUnion::ToolReturnMessage(m) => m.id.to_string(),
+    }
 }
