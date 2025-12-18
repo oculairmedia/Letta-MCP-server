@@ -21,15 +21,28 @@ describe('Search Archival Memory', () => {
         it('should have correct tool definition', () => {
             expect(searchArchivalMemoryDefinition.name).toBe('search_archival_memory');
             expect(searchArchivalMemoryDefinition.description).toContain('semantic similarity');
-            expect(searchArchivalMemoryDefinition.inputSchema.required).toEqual(['agent_id', 'query']);
-            expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty('agent_id');
+            expect(searchArchivalMemoryDefinition.inputSchema.required).toEqual([
+                'agent_id',
+                'query',
+            ]);
+            expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty(
+                'agent_id',
+            );
             expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty('query');
             expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty('tags');
-            expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty('tag_match_mode');
+            expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty(
+                'tag_match_mode',
+            );
             expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty('top_k');
-            expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty('start_datetime');
-            expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty('end_datetime');
-            expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty('include_embeddings');
+            expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty(
+                'start_datetime',
+            );
+            expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty(
+                'end_datetime',
+            );
+            expect(searchArchivalMemoryDefinition.inputSchema.properties).toHaveProperty(
+                'include_embeddings',
+            );
         });
     });
 
@@ -218,9 +231,9 @@ describe('Search Archival Memory', () => {
 
     describe('Error Handling', () => {
         it('should throw error for missing agent_id', async () => {
-            await expect(
-                handleSearchArchivalMemory(mockServer, { query: 'test' }),
-            ).rejects.toThrow('Missing required argument: agent_id');
+            await expect(handleSearchArchivalMemory(mockServer, { query: 'test' })).rejects.toThrow(
+                'Missing required argument: agent_id',
+            );
         });
 
         it('should throw error for missing query', async () => {

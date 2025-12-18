@@ -44,7 +44,8 @@
     "prepublishOnly": "npm run lint && npm run test && npm run format:check",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
-    "postversion": "git push && git push --tags"
+    "postversion": "git push && git push --tags",
+    "prepare": "husky"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.25.1",
@@ -63,11 +64,19 @@
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^10.1.8",
     "eventsource": "^2.0.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.7.4",
     "supertest": "^7.1.4",
     "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "lint-staged": {
+    "src/**/*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   }
 }
