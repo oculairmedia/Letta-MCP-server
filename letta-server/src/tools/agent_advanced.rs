@@ -95,6 +95,7 @@ pub struct SearchFilters {
 #[derive(Debug, Deserialize, schemars::JsonSchema, FlattenTool)]
 pub struct AgentAdvancedRequest {
     /// The operation to perform (list, create, get, update, delete, send_message, etc.)
+    #[schemars(schema_with = "operation_schema")]
     pub operation: AgentOperation,
 
     /// Agent ID (required for get, update, delete, and message operations)
@@ -114,27 +115,28 @@ pub struct AgentAdvancedRequest {
     pub system: Option<String>,
 
     /// LLM configuration object (for create/update operations)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     #[schemars(schema_with = "value_object_schema")]
     pub llm_config: Option<Value>,
 
     /// Embedding model configuration (for create/update operations)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     #[schemars(schema_with = "value_object_schema")]
     pub embedding_config: Option<Value>,
 
     /// Tool IDs to attach to agent (for create/update operations)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     #[schemars(schema_with = "value_object_schema")]
     pub tool_ids: Option<Value>,
 
     /// Pagination settings (for list operations)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     #[schemars(schema_with = "pagination_schema")]
     pub pagination: Option<Pagination>,
 
     /// Messages to send to agent (for send_message operation)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    #[schemars(schema_with = "messages_schema")]
     pub messages: Option<Vec<Message>>,
 
     /// Enable streaming response (for send_message operation)
@@ -142,7 +144,7 @@ pub struct AgentAdvancedRequest {
     pub stream: Option<bool>,
 
     /// Filters for bulk delete operation (agent_name_filter, agent_tag_filter, agent_ids)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     #[schemars(schema_with = "bulk_delete_filters_schema")]
     pub filters: Option<BulkDeleteFilters>,
 
@@ -155,17 +157,17 @@ pub struct AgentAdvancedRequest {
     pub tags: Option<Vec<String>>,
 
     /// Search filters (for search_messages operation: start_date, end_date, role)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     #[schemars(schema_with = "search_filters_schema")]
     pub search_filters: Option<SearchFilters>,
 
     /// Agent export data (for import operation)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     #[schemars(schema_with = "value_object_schema")]
     pub export_data: Option<Value>,
 
     /// Update data object (for update operation)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     #[schemars(schema_with = "value_object_schema")]
     pub update_data: Option<Value>,
 }
@@ -175,28 +177,101 @@ fn value_object_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema
     schemars::json_schema!({ "type": "object" })
 }
 
-/// Schema helper for Pagination - adds explicit type to $ref
-fn pagination_schema(gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    let mut base_schema = gen.subschema_for::<Pagination>();
-    // Insert the type field into the schema
-    base_schema.insert("type".to_string(), serde_json::json!("object"));
-    base_schema
+/// Schema helper for AgentOperation - fully inlined enum to avoid $ref
+fn operation_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "description": "Agent operation discriminator",
+        "type": "string",
+        "enum": [
+            "list", "create", "get", "update", "delete", "search",
+            "list_tools", "send_message", "export", "import", "clone",
+            "get_config", "bulk_delete", "context", "reset_messages",
+            "summarize", "stream", "async_message", "cancel_message",
+            "preview_payload", "search_messages", "get_message", "count"
+        ]
+    })
 }
 
-/// Schema helper for BulkDeleteFilters - adds explicit type to $ref
-fn bulk_delete_filters_schema(gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    let mut base_schema = gen.subschema_for::<BulkDeleteFilters>();
-    // Insert the type field into the schema
-    base_schema.insert("type".to_string(), serde_json::json!("object"));
-    base_schema
+/// Schema helper for Pagination - fully inlined to avoid $ref
+fn pagination_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "description": "Common pagination parameters",
+        "type": "object",
+        "properties": {
+            "limit": {
+                "type": ["integer", "null"],
+                "format": "uint",
+                "minimum": 0
+            },
+            "offset": {
+                "type": ["integer", "null"],
+                "format": "uint",
+                "minimum": 0
+            }
+        }
+    })
 }
 
-/// Schema helper for SearchFilters - adds explicit type to $ref
-fn search_filters_schema(gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    let mut base_schema = gen.subschema_for::<SearchFilters>();
-    // Insert the type field into the schema
-    base_schema.insert("type".to_string(), serde_json::json!("object"));
-    base_schema
+/// Schema helper for BulkDeleteFilters - fully inlined to avoid $ref
+fn bulk_delete_filters_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "description": "Bulk delete filters",
+        "type": "object",
+        "properties": {
+            "agent_name_filter": {
+                "description": "Filter agents by name pattern",
+                "type": ["string", "null"]
+            },
+            "agent_tag_filter": {
+                "description": "Filter agents by tag",
+                "type": ["string", "null"]
+            },
+            "agent_ids": {
+                "description": "Specific agent IDs to delete",
+                "type": ["array", "null"],
+                "items": { "type": "string" }
+            }
+        }
+    })
+}
+
+/// Schema helper for SearchFilters - fully inlined to avoid $ref
+fn search_filters_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "description": "Search filters for messages",
+        "type": "object",
+        "properties": {
+            "start_date": {
+                "description": "Filter messages after this date (ISO 8601 format)",
+                "type": ["string", "null"]
+            },
+            "end_date": {
+                "description": "Filter messages before this date (ISO 8601 format)",
+                "type": ["string", "null"]
+            },
+            "role": {
+                "description": "Filter messages by role (user, assistant, system)",
+                "type": ["string", "null"]
+            }
+        }
+    })
+}
+
+/// Schema helper for Messages array - fully inlined to avoid $ref
+fn messages_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "description": "Messages to send to agent (for send_message operation)",
+        "type": ["array", "null"],
+        "items": {
+            "description": "Message structure for agent communication",
+            "type": "object",
+            "properties": {
+                "role": { "type": "string" },
+                "content": { "type": "string" }
+            },
+            "required": ["role", "content"]
+        }
+    })
 }
 
 /// Main handler for agent advanced operations

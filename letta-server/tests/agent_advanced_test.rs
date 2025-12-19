@@ -419,6 +419,78 @@ mod truncation {
 }
 
 // ============================================================
+// Schema Validation Tests
+// ============================================================
+
+mod schema_validation {
+    use letta_server::tools::agent_advanced::AgentAdvancedRequest;
+    use schemars::schema_for;
+
+    #[test]
+    fn test_schema_has_no_refs() {
+        let schema = schema_for!(AgentAdvancedRequest);
+        let schema_json = serde_json::to_string(&schema).unwrap();
+
+        // Check that $ref appears only in $defs (definitions) section, not in properties
+        // The properties should be inline
+        let schema_value: serde_json::Value = serde_json::from_str(&schema_json).unwrap();
+
+        // Properties should not contain $ref directly
+        if let Some(props) = schema_value.get("properties") {
+            let props_str = serde_json::to_string(props).unwrap();
+            // Count $ref occurrences - should be 0 in properties
+            let ref_count = props_str.matches("\"$ref\"").count();
+            assert_eq!(
+                ref_count, 0,
+                "Properties should not contain $ref references. Found {} refs in: {}",
+                ref_count, props_str
+            );
+        }
+    }
+
+    #[test]
+    fn test_only_operation_is_required() {
+        let schema = schema_for!(AgentAdvancedRequest);
+        let schema_json = serde_json::to_string(&schema).unwrap();
+        let schema_value: serde_json::Value = serde_json::from_str(&schema_json).unwrap();
+
+        if let Some(required) = schema_value.get("required") {
+            let required_array = required.as_array().expect("required should be an array");
+
+            // Only 'operation' should be required
+            assert_eq!(
+                required_array.len(),
+                1,
+                "Only 'operation' should be required, but found: {:?}",
+                required_array
+            );
+            assert_eq!(
+                required_array[0].as_str().unwrap(),
+                "operation",
+                "The only required field should be 'operation'"
+            );
+        } else {
+            // If no required field, that's wrong - operation should be required
+            panic!("Schema should have a 'required' field with 'operation'");
+        }
+    }
+
+    #[test]
+    fn test_schema_has_no_defs() {
+        let schema = schema_for!(AgentAdvancedRequest);
+        let schema_json = serde_json::to_string(&schema).unwrap();
+        let schema_value: serde_json::Value = serde_json::from_str(&schema_json).unwrap();
+
+        // Check that there's no $defs section (all types should be inlined)
+        assert!(
+            schema_value.get("$defs").is_none(),
+            "Schema should not have $defs section - all types should be inlined. Found: {:?}",
+            schema_value.get("$defs")
+        );
+    }
+}
+
+// ============================================================
 // Agent Summary Format Tests
 // ============================================================
 
