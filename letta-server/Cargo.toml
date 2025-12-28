@@ -14,8 +14,8 @@ path = "src/main.rs"
 # Workspace dependencies
 tokio = { workspace = true }
 # TurboMCP - use crates.io versions which are patched to our fork via [patch.crates-io]
-turbomcp = { version = "2.0.0-rc.3", features = ["http", "schemars"] }
-turbomcp-macros = "2.0.0-rc.3"
+turbomcp = { version = "2.3", features = ["http"] }
+turbomcp-macros = "2.3"
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -30,9 +30,9 @@ base64 = { workspace = true }
 bytes = { workspace = true }
 
 # TurboMCP internal crates - versions patched via workspace [patch.crates-io]
-turbomcp-protocol = "2.0.0-rc.3"
-turbomcp-server = "2.0.0-rc.3"
-turbomcp-transport = { version = "2.0.0-rc.3", features = ["http"] }
+turbomcp-protocol = "2.3"
+turbomcp-server = "2.3"
+turbomcp-transport = { version = "2.3", features = ["http"] }
 
 # Local dependencies
 letta-types = { path = "../letta-types" }
@@ -45,6 +45,5 @@ wiremock = "0.6"
 pretty_assertions = "1.4"
 
 [features]
-default = ["http", "schemars"]
-http = ["turbomcp/http"]
-schemars = ["turbomcp/schemars"]
+default = ["http"]
+http = ["turbomcp/http", "turbomcp-transport/http"]

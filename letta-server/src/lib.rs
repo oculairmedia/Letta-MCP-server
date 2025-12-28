@@ -365,9 +365,8 @@ impl LettaServer {
 impl LettaServer {
     /// Run HTTP server with custom security configuration
     pub async fn run_http_custom(&self, addr: &str) -> Result<(), Box<dyn std::error::Error>> {
-        use std::sync::Arc;
         use std::time::Duration;
-        use turbomcp_transport::streamable_http_v2::{run_server, StreamableHttpConfigBuilder};
+        use turbomcp_transport::streamable_http::StreamableHttpConfigBuilder;
 
         // Create permissive HTTP config for development
         let config = StreamableHttpConfigBuilder::new()
@@ -377,8 +376,8 @@ impl LettaServer {
             .with_rate_limit(1_000_000, Duration::from_secs(60)) // Very high limit for development
             .build();
 
-        // Run the HTTP server with custom config
-        run_server(config, Arc::new(self.clone())).await?;
+        // Run the HTTP server with custom config (v2.3 API takes ownership)
+        self.clone().run_http_with_config(addr, config).await?;
         Ok(())
     }
 }

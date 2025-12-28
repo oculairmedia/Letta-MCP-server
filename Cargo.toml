@@ -20,8 +20,8 @@ tokio = { version = "1.47", features = ["full"] }
 tokio-util = { version = "0.7", features = ["full"] }
 futures = "0.3"
 
-# TurboMCP
-turbomcp = { version = "2.0.0-rc.3", features = ["full", "http"] }
+# TurboMCP - patched to our fork via [patch.crates-io]
+turbomcp = { version = "2.3", features = ["http"] }
 
 # HTTP client
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "http2"] }
