@@ -88,7 +88,8 @@ jobs:
 
             - name: Test with all features
               # Note: We exclude letta's integration-tests feature since those require a running server
-              run: cargo test --features http,schemars --tests --verbose
+              # Note: schemars is now a direct dependency, not a feature
+              run: cargo test --features http --tests --verbose
 
             - name: Generate test report
               if: matrix.rust == 'stable'
