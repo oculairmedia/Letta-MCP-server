@@ -129,7 +129,7 @@ export async function handleListMemoryBlocks(server, args) {
 
         return formatToolResult(response, 'list_memory_blocks');
     } catch (error) {
-        server.createErrorResponse(error);
+        return server.createErrorResponse(error);
     }
 }
 

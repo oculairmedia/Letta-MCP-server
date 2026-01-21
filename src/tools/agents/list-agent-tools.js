@@ -24,7 +24,7 @@ export async function handleListAgentTools(server, args) {
             'list_agent_tools',
         );
     } catch (error) {
-        server.createErrorResponse(error);
+        return server.createErrorResponse(error);
     }
 }
 

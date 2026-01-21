@@ -25,7 +25,7 @@ export async function handleReadMemoryBlock(server, args) {
         // Format the response
         return formatToolResult(response.data, 'read_memory_block');
     } catch (error) {
-        server.createErrorResponse(error);
+        return server.createErrorResponse(error);
     }
 }
 

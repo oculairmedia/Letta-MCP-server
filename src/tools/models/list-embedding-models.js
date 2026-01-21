@@ -18,7 +18,7 @@ export async function handleListEmbeddingModels(server, _args) {
             'list_embedding_models',
         );
     } catch (error) {
-        server.createErrorResponse(error);
+        return server.createErrorResponse(error);
     }
 }
 

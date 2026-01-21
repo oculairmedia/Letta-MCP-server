@@ -38,7 +38,7 @@ export async function handleUpdateMemoryBlock(server, args) {
         // Format the response
         return formatToolResult(response.data, 'update_memory_block');
     } catch (error) {
-        server.createErrorResponse(error);
+        return server.createErrorResponse(error);
     }
 }
 

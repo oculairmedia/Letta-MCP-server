@@ -18,7 +18,7 @@ export async function handleListLlmModels(server, _args) {
             'list_llm_models',
         );
     } catch (error) {
-        server.createErrorResponse(error);
+        return server.createErrorResponse(error);
     }
 }
 

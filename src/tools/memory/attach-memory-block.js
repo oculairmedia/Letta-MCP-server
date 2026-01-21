@@ -56,7 +56,7 @@ export async function handleAttachMemoryBlock(server, args) {
             'attach_memory_block',
         );
     } catch (error) {
-        server.createErrorResponse(error);
+        return server.createErrorResponse(error);
     }
 }
 
