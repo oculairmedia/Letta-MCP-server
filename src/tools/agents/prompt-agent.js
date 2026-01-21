@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import { createLogger } from '../../core/logger.js';
 
 const logger = createLogger('prompt_agent');
@@ -96,19 +97,15 @@ export async function handlePromptAgent(server, args) {
             responseText = 'Error parsing agent response';
         }
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        agent_id: args.agent_id,
-                        agent_name: agentName,
-                        message: args.message,
-                        response: responseText,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                agent_id: args.agent_id,
+                agent_name: agentName,
+                message: args.message,
+                response: responseText,
+            },
+            'prompt_agent',
+        );
     } catch (error) {
         server.createErrorResponse(error);
     }

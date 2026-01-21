@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Unified tool handler for searching both archival memory and messages
  */
@@ -60,14 +61,7 @@ export async function handleSearchMemory(server, args) {
             );
         }
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify(results),
-                },
-            ],
-        };
+        return formatToolResult(results, 'search_memory');
     } catch (error) {
         return server.createErrorResponse(error);
     }

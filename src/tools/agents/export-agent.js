@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios'; // Assuming axios is available
@@ -116,14 +117,7 @@ export async function handleExportAgent(server, args) {
             resultPayload.base64_data = Buffer.from(agentJsonString).toString('base64');
         }
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify(resultPayload),
-                },
-            ],
-        };
+        return formatToolResult(resultPayload, 'export_agent');
     } catch (error) {
         // Handle potential 404 if agent not found, or other API errors
         if (error.response && error.response.status === 404) {

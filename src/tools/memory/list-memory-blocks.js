@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for listing memory blocks in the Letta system
  */
@@ -126,14 +127,7 @@ export async function handleListMemoryBlocks(server, args) {
             };
         }
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify(response),
-                },
-            ],
-        };
+        return formatToolResult(response, 'list_memory_blocks');
     } catch (error) {
         server.createErrorResponse(error);
     }

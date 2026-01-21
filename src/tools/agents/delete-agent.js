@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for deleting a specific agent
  */
@@ -15,16 +16,12 @@ export async function handleDeleteAgent(server, args) {
         await server.api.delete(`/agents/${agentId}`, { headers });
 
         // Successful deletion usually returns 200 or 204 with no body
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        agent_id: args.agent_id,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                agent_id: args.agent_id,
+            },
+            'delete_agent',
+        );
     } catch (error) {
         // Handle potential 404 if agent not found, or other API errors
         if (error.response && error.response.status === 404) {

@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for listing all configured MCP servers on the Letta server
  */
@@ -9,17 +10,13 @@ export async function handleListMcpServers(server, _args) {
         const response = await server.api.get('/tools/mcp/servers', { headers });
         const servers = response.data; // Assuming response.data is an object mapping server names to configs
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        server_count: Object.keys(servers).length,
-                        servers: servers,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                server_count: Object.keys(servers).length,
+                servers: servers,
+            },
+            'list_mcp_servers',
+        );
     } catch (error) {
         server.createErrorResponse(error);
     }

@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import { createLogger } from '../../core/logger.js';
 // McpError and ErrorCode imported by framework
 
@@ -111,14 +112,7 @@ export async function handleGetAgentSummary(server, args) {
             attached_sources: attachedSources,
         };
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify(summary),
-                },
-            ],
-        };
+        return formatToolResult(summary, 'get_agent_summary');
     } catch (error) {
         // Catch any unexpected errors during processing
         logger.error(`Unexpected error for agent ${agentId}:`, error);

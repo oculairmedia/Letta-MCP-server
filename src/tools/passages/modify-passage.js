@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import { createLogger } from '../../core/logger.js';
 
 const logger = createLogger('modify_passage');
@@ -99,16 +100,12 @@ export async function handleModifyPassage(server, args) {
             });
         }
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        passages: modifiedPassages,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                passages: modifiedPassages,
+            },
+            'modify_passage',
+        );
     } catch (error) {
         logger.error('[modify_passage] Error:', error.response?.data || error.message);
         if (error.response) {

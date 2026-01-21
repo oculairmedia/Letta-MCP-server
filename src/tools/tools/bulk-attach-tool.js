@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import { createLogger } from '../../core/logger.js';
 // We might need the list_agents handler logic if it's complex, or re-implement the API call.
 // For simplicity, let's assume we can call the API directly here.
@@ -40,17 +41,13 @@ export async function handleBulkAttachToolToAgents(server, args) {
         agentsToProcess = listResponse.data; // Assuming response.data is an array of AgentState objects
 
         if (!Array.isArray(agentsToProcess) || agentsToProcess.length === 0) {
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: JSON.stringify({
-                            message: 'No agents found matching the specified filter.',
-                            results: [],
-                        }),
-                    },
-                ],
-            };
+            return formatToolResult(
+                {
+                    message: 'No agents found matching the specified filter.',
+                    results: [],
+                },
+                'bulk_attach_tool_to_agents',
+            );
         }
         logger.info(`[bulk_attach_tool] Found ${agentsToProcess.length} agents to process.`);
 
@@ -90,21 +87,17 @@ export async function handleBulkAttachToolToAgents(server, args) {
         const successCount = results.filter((r) => r.status === 'success').length;
         const errorCount = results.filter((r) => r.status === 'error').length;
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        summary: {
-                            total_agents: agentsToProcess.length,
-                            success_count: successCount,
-                            error_count: errorCount,
-                        },
-                        results: results,
-                    }),
+        return formatToolResult(
+            {
+                summary: {
+                    total_agents: agentsToProcess.length,
+                    success_count: successCount,
+                    error_count: errorCount,
                 },
-            ],
-        };
+                results: results,
+            },
+            'bulk_attach_tool_to_agents',
+        );
     } catch (error) {
         // Handle errors during the list_agents call or unexpected issues
         logger.error('[bulk_attach_tool] Error:', error.response?.data || error.message);

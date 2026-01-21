@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import { createLogger } from '../../core/logger.js';
 
 const logger = createLogger('list-mcp-tools-by-server');
@@ -45,26 +46,22 @@ export async function handleListMcpToolsByServer(server, args) {
         const totalPages = Math.ceil(totalTools / pageSize);
         const paginatedTools = tools.slice(startIndex, endIndex);
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        mcp_server_name: args.mcp_server_name,
-                        pagination: {
-                            page,
-                            pageSize,
-                            totalTools,
-                            totalPages,
-                            hasNextPage: page < totalPages,
-                            hasPreviousPage: page > 1,
-                        },
-                        tool_count: paginatedTools.length,
-                        tools: paginatedTools,
-                    }),
+        return formatToolResult(
+            {
+                mcp_server_name: args.mcp_server_name,
+                pagination: {
+                    page,
+                    pageSize,
+                    totalTools,
+                    totalPages,
+                    hasNextPage: page < totalPages,
+                    hasPreviousPage: page > 1,
                 },
-            ],
-        };
+                tool_count: paginatedTools.length,
+                tools: paginatedTools,
+            },
+            'list_mcp_tools_by_server',
+        );
     } catch (error) {
         logger.error('Full error:', error.message); // Log message only to avoid circular refs
         // Handle potential 404 if server name not found, or other API errors

@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import { createLogger } from '../../core/logger.js';
 
 const logger = createLogger('add_mcp_tool_to_letta');
@@ -125,23 +126,19 @@ export async function handleAddMcpToolToLetta(server, args) {
         }
 
         // Return combined result
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        letta_tool_id: lettaToolId,
-                        letta_tool_name: lettaToolName,
-                        agent_id: agent_id,
-                        attached: attachSuccess,
-                        mcp_server_name: mcp_server_name,
-                        mcp_tool_name: mcp_tool_name,
-                        ...(attachError ? { error: attachError } : {}),
-                    }),
-                },
-            ],
-            isError: !attachSuccess, // Consider it an error if attachment failed
-        };
+        return formatToolResult(
+            {
+                letta_tool_id: lettaToolId,
+                letta_tool_name: lettaToolName,
+                agent_id: agent_id,
+                attached: attachSuccess,
+                mcp_server_name: mcp_server_name,
+                mcp_tool_name: mcp_tool_name,
+                ...(attachError ? { error: attachError } : {}),
+            },
+            'add_mcp_tool_to_letta',
+            { isError: !attachSuccess },
+        );
     } catch (error) {
         logger.error(`Error during MCP tool registration or attachment: ${error.message}`);
         // Ensure the error response includes context about which step failed if possible

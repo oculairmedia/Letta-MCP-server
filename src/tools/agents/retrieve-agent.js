@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for retrieving the state of a specific agent
  */
@@ -14,16 +15,12 @@ export async function handleRetrieveAgent(server, args) {
         const response = await server.api.get(`/agents/${agentId}`, { headers });
         const agentState = response.data; // Assuming response.data is the AgentState object
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        agent: agentState,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                agent: agentState,
+            },
+            'retrieve_agent',
+        );
     } catch (error) {
         // Handle potential 404 if agent not found, or other API errors
         if (error.response && error.response.status === 404) {

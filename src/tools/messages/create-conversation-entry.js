@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for creating a conversation entry in archival memory
  *
@@ -58,20 +59,16 @@ export async function handleCreateConversationEntry(server, args) {
             delete passage.embedding;
         }
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        success: true,
-                        passage_id: passage.id,
-                        timestamp: timestamp,
-                        role: args.role,
-                        source: source,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                success: true,
+                passage_id: passage.id,
+                timestamp: timestamp,
+                role: args.role,
+                source: source,
+            },
+            'create_conversation_entry',
+        );
     } catch (error) {
         return server.createErrorResponse(error);
     }

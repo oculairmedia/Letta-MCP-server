@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for deleting a memory block in the Letta system
  */
@@ -22,17 +23,13 @@ export async function handleDeleteMemoryBlock(server, args) {
         });
 
         // Return success response
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        success: true,
-                        deleted_block_id: args.block_id,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                success: true,
+                deleted_block_id: args.block_id,
+            },
+            'delete_memory_block',
+        );
     } catch (error) {
         return server.createErrorResponse(error);
     }

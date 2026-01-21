@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import { createLogger } from '../../core/logger.js';
 
 const logger = createLogger('attach_tool');
@@ -301,20 +302,16 @@ export async function handleAttachTool(server, args) {
         const overallSuccess =
             processingResults.every((r) => r.success) && attachmentResults.every((r) => r.success);
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        agent_id: agent_id,
-                        agent_name: agentName,
-                        processing_summary: processingResults,
-                        attachment_summary: attachmentResults,
-                    }),
-                },
-            ],
-            isError: !overallSuccess,
-        };
+        return formatToolResult(
+            {
+                agent_id: agent_id,
+                agent_name: agentName,
+                processing_summary: processingResults,
+                attachment_summary: attachmentResults,
+            },
+            'attach_tool',
+            { isError: !overallSuccess },
+        );
     } catch (error) {
         logger.error(`Unhandled error in handleAttachTool: ${error.message}`);
         server.createErrorResponse(error);

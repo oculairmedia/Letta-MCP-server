@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for listing available LLM models
  */
@@ -9,17 +10,13 @@ export async function handleListLlmModels(server, _args) {
         const response = await server.api.get('/models/', { headers });
         const models = response.data; // Assuming response.data is an array of LLMConfig objects
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        model_count: models.length,
-                        models: models,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                model_count: models.length,
+                models: models,
+            },
+            'list_llm_models',
+        );
     } catch (error) {
         server.createErrorResponse(error);
     }

@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for searching agent archival memory using semantic similarity
  */
@@ -41,16 +42,12 @@ export async function handleSearchArchivalMemory(server, args) {
             });
         }
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        passages: passages,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                passages: passages,
+            },
+            'search_archival_memory',
+        );
     } catch (error) {
         return server.createErrorResponse(error);
     }

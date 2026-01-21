@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import { createLogger } from '../../core/logger.js';
 
 const logger = createLogger('attach_memory_block');
@@ -44,20 +45,16 @@ export async function handleAttachMemoryBlock(server, args) {
         const agentName = agentData.name || 'Unknown';
 
         // Format the response
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        agent_id: args.agent_id,
-                        agent_name: agentName,
-                        block_id: args.block_id,
-                        block_name: blockName,
-                        label: label,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                agent_id: args.agent_id,
+                agent_name: agentName,
+                block_id: args.block_id,
+                block_name: blockName,
+                label: label,
+            },
+            'attach_memory_block',
+        );
     } catch (error) {
         server.createErrorResponse(error);
     }

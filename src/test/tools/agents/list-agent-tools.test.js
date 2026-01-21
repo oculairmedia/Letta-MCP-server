@@ -79,6 +79,12 @@ describe('List Agent Tools (LMP-95)', () => {
                         }),
                     },
                 ],
+                structuredContent: {
+                    agent_id: 'agent-123',
+                    agent_name: 'Test Agent',
+                    tool_count: 3,
+                    tools: ['tool-1', 'tool-2', 'tool-3'],
+                },
             });
         });
 

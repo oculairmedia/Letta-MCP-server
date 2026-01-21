@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for creating a passage in an agent's archival memory
  */
@@ -30,16 +31,12 @@ export async function handleCreatePassage(server, args) {
             });
         }
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        passages: createdPassages,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                passages: createdPassages,
+            },
+            'create_passage',
+        );
     } catch (error) {
         // Handle potential 404 if agent not found, 422 for validation, or other API errors
         if (error.response) {

@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for modifying an existing agent
  */
@@ -18,16 +19,12 @@ export async function handleModifyAgent(server, args) {
         const response = await server.api.patch(`/agents/${agentId}`, updatePayload, { headers });
         const updatedAgentState = response.data; // Assuming response.data is the updated AgentState object
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        agent: updatedAgentState,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                agent: updatedAgentState,
+            },
+            'modify_agent',
+        );
     } catch (error) {
         // Handle potential 404 if agent not found, 422 for validation errors, or other API errors
         if (error.response) {

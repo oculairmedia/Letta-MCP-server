@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import { createLogger } from '../../core/logger.js';
 
 const logger = createLogger('create_memory_block');
@@ -55,34 +56,26 @@ export async function handleCreateMemoryBlock(server, args) {
             const agentInfoResponse = await server.api.get(`/agents/${args.agent_id}`, { headers });
             const agentName = agentInfoResponse.data.name || 'Unknown';
 
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: JSON.stringify({
-                            block_id: blockId,
-                            name: args.name,
-                            label: args.label,
-                            agent_id: args.agent_id,
-                            agent_name: agentName,
-                        }),
-                    },
-                ],
-            };
+            return formatToolResult(
+                {
+                    block_id: blockId,
+                    name: args.name,
+                    label: args.label,
+                    agent_id: args.agent_id,
+                    agent_name: agentName,
+                },
+                'create_memory_block',
+            );
         } else {
             // Just return the created block info
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: JSON.stringify({
-                            block_id: blockId,
-                            name: args.name,
-                            label: args.label,
-                        }),
-                    },
-                ],
-            };
+            return formatToolResult(
+                {
+                    block_id: blockId,
+                    name: args.name,
+                    label: args.label,
+                },
+                'create_memory_block',
+            );
         }
     } catch (error) {
         server.createErrorResponse(error);

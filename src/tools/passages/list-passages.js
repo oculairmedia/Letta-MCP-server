@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for listing passages in an agent's archival memory
  */
@@ -41,16 +42,12 @@ export async function handleListPassages(server, args) {
             });
         }
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        passages: passages,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                passages: passages,
+            },
+            'list_passages',
+        );
     } catch (error) {
         // Handle potential 404 if agent not found, or other API errors
         if (error.response && error.response.status === 404) {

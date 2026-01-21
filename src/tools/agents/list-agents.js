@@ -1,4 +1,5 @@
 import { createLogger } from '../../core/logger.js';
+import { formatToolResult } from '../format-result.js';
 
 const logger = createLogger('list_agents');
 
@@ -32,17 +33,13 @@ export async function handleListAgents(server, args) {
             description: agent.description,
         }));
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        count: summarizedAgents.length,
-                        agents: summarizedAgents, // Use summarized list
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                count: summarizedAgents.length,
+                agents: summarizedAgents,
+            },
+            'list_agents',
+        );
     } catch (error) {
         logger.error('Error in list_agents:', error.message);
         logger.error('API Base URL:', server.apiBase);

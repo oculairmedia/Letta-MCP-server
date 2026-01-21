@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import { createLogger } from '../../core/logger.js';
 
 const logger = createLogger('upload_tool');
@@ -78,34 +79,26 @@ export async function handleUploadTool(server, args) {
             const agentInfoResponse = await server.api.get(`/agents/${args.agent_id}`, { headers });
             const agentName = agentInfoResponse.data.name || 'Unknown';
 
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: JSON.stringify({
-                            tool_id: toolId,
-                            tool_name: args.name,
-                            agent_id: args.agent_id,
-                            agent_name: agentName,
-                            category: category,
-                        }),
-                    },
-                ],
-            };
+            return formatToolResult(
+                {
+                    tool_id: toolId,
+                    tool_name: args.name,
+                    agent_id: args.agent_id,
+                    agent_name: agentName,
+                    category: category,
+                },
+                'upload_tool',
+            );
         } else {
             // Just return the created tool info
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: JSON.stringify({
-                            tool_id: toolId,
-                            tool_name: args.name,
-                            category: category,
-                        }),
-                    },
-                ],
-            };
+            return formatToolResult(
+                {
+                    tool_id: toolId,
+                    tool_name: args.name,
+                    category: category,
+                },
+                'upload_tool',
+            );
         }
     } catch (error) {
         server.createErrorResponse(error);

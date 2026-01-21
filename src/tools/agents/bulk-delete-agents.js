@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import { createLogger } from '../../core/logger.js';
 
 // McpError and ErrorCode imported for future use
@@ -43,17 +44,13 @@ export async function handleBulkDeleteAgents(server, args) {
             agentsToDelete = listResponse.data; // Assuming response.data is an array of AgentState objects
 
             if (!Array.isArray(agentsToDelete) || agentsToDelete.length === 0) {
-                return {
-                    content: [
-                        {
-                            type: 'text',
-                            text: JSON.stringify({
-                                message: 'No agents found matching the specified filter.',
-                                results: [],
-                            }),
-                        },
-                    ],
-                };
+                return formatToolResult(
+                    {
+                        message: 'No agents found matching the specified filter.',
+                        results: [],
+                    },
+                    'bulk_delete_agents',
+                );
             }
             logger.info(`Found ${agentsToDelete.length} agents to delete.`);
         }
@@ -87,21 +84,17 @@ export async function handleBulkDeleteAgents(server, args) {
         const successCount = results.filter((r) => r.status === 'success').length;
         const errorCount = results.filter((r) => r.status === 'error').length;
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        summary: {
-                            total_agents: agentsToDelete.length,
-                            success_count: successCount,
-                            error_count: errorCount,
-                        },
-                        results: results,
-                    }),
+        return formatToolResult(
+            {
+                summary: {
+                    total_agents: agentsToDelete.length,
+                    success_count: successCount,
+                    error_count: errorCount,
                 },
-            ],
-        };
+                results: results,
+            },
+            'bulk_delete_agents',
+        );
     } catch (error) {
         // Handle errors during the list_agents call or unexpected issues
         logger.error('Error:', error.response?.data || error.message);

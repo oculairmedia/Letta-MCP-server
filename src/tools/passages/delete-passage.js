@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for deleting a passage from an agent's archival memory
  */
@@ -18,17 +19,13 @@ export async function handleDeletePassage(server, args) {
         await server.api.delete(`/agents/${agentId}/archival-memory/${memoryId}`, { headers });
 
         // Successful deletion usually returns 200 or 204 with no body
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        memory_id: args.memory_id,
-                        agent_id: args.agent_id,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                memory_id: args.memory_id,
+                agent_id: args.agent_id,
+            },
+            'delete_passage',
+        );
     } catch (error) {
         // Handle potential 404 if agent or passage not found, or other API errors
         if (error.response && error.response.status === 404) {

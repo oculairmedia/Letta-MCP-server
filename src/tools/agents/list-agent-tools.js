@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for listing tools available for a specific agent
  */
@@ -13,19 +14,15 @@ export async function handleListAgentTools(server, args) {
         const agentName = agentInfoResponse.data.name;
         const tools = agentInfoResponse.data.tools || [];
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        agent_id: args.agent_id,
-                        agent_name: agentName,
-                        tool_count: tools.length,
-                        tools: tools,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                agent_id: args.agent_id,
+                agent_name: agentName,
+                tool_count: tools.length,
+                tools: tools,
+            },
+            'list_agent_tools',
+        );
     } catch (error) {
         server.createErrorResponse(error);
     }

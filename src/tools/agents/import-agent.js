@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import fs from 'fs';
 import path from 'path';
 import FormData from 'form-data'; // Assuming form-data is available
@@ -51,17 +52,13 @@ export async function handleImportAgent(server, args) {
 
         const importedAgentState = response.data; // Assuming response.data is the new AgentState object
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        agent_id: importedAgentState.id,
-                        agent: importedAgentState,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                agent_id: importedAgentState.id,
+                agent: importedAgentState,
+            },
+            'import_agent',
+        );
     } catch (error) {
         // Handle potential 422 for validation errors, or other API/file errors
         if (error.response) {

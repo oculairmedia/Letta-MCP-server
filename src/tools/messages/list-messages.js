@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for listing messages from an agent's conversation history
  */
@@ -23,17 +24,13 @@ export async function handleListMessages(server, args) {
             params,
         });
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        messages: response.data,
-                        count: response.data.length,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                messages: response.data,
+                count: response.data.length,
+            },
+            'list_messages',
+        );
     } catch (error) {
         return server.createErrorResponse(error);
     }

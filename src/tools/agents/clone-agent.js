@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 import fs from 'fs/promises'; // Use promises for async file operations
 import path from 'path';
 import os from 'os'; // To get temporary directory
@@ -92,16 +93,12 @@ export async function handleCloneAgent(server, args) {
         await fs.unlink(tempFilePath);
         logger.info(`Cleaned up temporary file ${tempFilePath}.`);
 
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        new_agent: importedAgentState,
-                    }),
-                },
-            ],
-        };
+        return formatToolResult(
+            {
+                new_agent: importedAgentState,
+            },
+            'clone_agent',
+        );
     } catch (error) {
         logger.error('Error:', error.response?.data || error.message);
         // Attempt cleanup even on error

@@ -1,3 +1,4 @@
+import { formatToolResult } from '../format-result.js';
 /**
  * Tool handler for updating a memory block in the Letta system
  */
@@ -35,14 +36,7 @@ export async function handleUpdateMemoryBlock(server, args) {
         });
 
         // Format the response
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify(response.data),
-                },
-            ],
-        };
+        return formatToolResult(response.data, 'update_memory_block');
     } catch (error) {
         server.createErrorResponse(error);
     }
