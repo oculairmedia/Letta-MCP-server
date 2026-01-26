@@ -45,40 +45,12 @@ export const outputSchemas = {
     prompt_agent: {
         type: 'object',
         properties: {
-            messages: {
-                type: 'array',
-                items: {
-                    type: 'object',
-                    properties: {
-                        role: { type: 'string', enum: ['user', 'assistant', 'system', 'tool'] },
-                        text: { type: 'string' },
-                        tool_calls: {
-                            type: 'array',
-                            items: {
-                                type: 'object',
-                                properties: {
-                                    id: { type: 'string' },
-                                    tool_name: { type: 'string' },
-                                    arguments: { type: 'object' },
-                                },
-                            },
-                        },
-                        tool_call_id: { type: 'string' },
-                    },
-                    required: ['role'],
-                },
-            },
-            usage: {
-                type: 'object',
-                properties: {
-                    completion_tokens: { type: 'integer' },
-                    prompt_tokens: { type: 'integer' },
-                    total_tokens: { type: 'integer' },
-                    step_count: { type: 'integer' },
-                },
-            },
+            agent_id: { type: 'string' },
+            agent_name: { type: 'string' },
+            message: { type: 'string' },
+            response: { type: 'string' },
         },
-        required: ['messages'],
+        required: ['agent_id', 'response'],
     },
 
     get_agent_summary: {
