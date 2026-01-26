@@ -30,7 +30,7 @@ export const outputSchemas = {
                     properties: {
                         id: { type: 'string' },
                         name: { type: 'string' },
-                        description: { type: 'string' },
+                        description: { type: ['string', 'null'] },
                         created_at: { type: 'string' },
                         model: { type: 'string' },
                         embedding_model: { type: 'string' },
@@ -86,7 +86,7 @@ export const outputSchemas = {
         properties: {
             agent_id: { type: 'string' },
             name: { type: 'string' },
-            description: { type: 'string' },
+            description: { type: ['string', 'null'] },
             model: { type: 'string' },
             memory_summary: {
                 type: 'object',
@@ -413,7 +413,7 @@ export const outputSchemas = {
         properties: {
             id: { type: 'string' },
             name: { type: 'string' },
-            description: { type: 'string' },
+            description: { type: ['string', 'null'] },
             created_at: { type: 'string' },
             model: { type: 'string' },
             embedding_model: { type: 'string' },
