@@ -157,12 +157,11 @@ impl LettaServer {
         args: Option<Value>,
         env_vars: Option<std::collections::HashMap<String, String>>,
         name: Option<String>,
+        verbose: Option<bool>,
     ) -> McpResult<String> {
-        // Parse operation from string
         let op = serde_json::from_value(serde_json::Value::String(operation))
             .map_err(|e| McpError::invalid_request(format!("Invalid operation: {}", e)))?;
 
-        // Create request from individual parameters
         let request = tool_manager::ToolManagerRequest {
             operation: op,
             tool_id,
@@ -181,12 +180,11 @@ impl LettaServer {
             request_heartbeat: None,
             limit: None,
             offset: None,
+            verbose,
         };
 
-        // Call handler
         let response = tool_manager::handle_tool_manager(&self.client, request).await?;
 
-        // Serialize to JSON string for MCP response
         serde_json::to_string(&response)
             .map_err(|e| McpError::internal(format!("Failed to serialize response: {}", e)))
     }

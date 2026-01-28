@@ -63,6 +63,11 @@ pub struct ToolManagerRequest {
     pub limit: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offset: Option<u32>,
+    /// LMS-113: Verbose flag for attach/detach operations
+    /// When false (default), returns minimal confirmation instead of full agent state
+    /// When true, returns full agent state (legacy behavior)
+    #[serde(default)]
+    pub verbose: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -281,10 +286,13 @@ async fn handle_attach_tool(
 ) -> Result<ToolManagerResponse, McpError> {
     let agent_id = request
         .agent_id
+        .clone()
         .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
     let tool_id = request
         .tool_id
+        .clone()
         .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let verbose = request.verbose.unwrap_or(false);
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -297,11 +305,24 @@ async fn handle_attach_tool(
         .await
         .map_err(|e| McpError::internal(format!("Failed to attach tool: {}", e)))?;
 
+    let tool_count = agent_state.tools.len();
+
+    let data = if verbose {
+        Some(serde_json::to_value(&agent_state)?)
+    } else {
+        Some(create_compact_attach_response(
+            &agent_id, &tool_id, tool_count,
+        ))
+    };
+
     Ok(ToolManagerResponse {
         success: true,
         operation: "attach".to_string(),
-        message: "Tool attached successfully".to_string(),
-        data: Some(serde_json::to_value(agent_state)?),
+        message: format!(
+            "Tool attached successfully. Agent now has {} tools.",
+            tool_count
+        ),
+        data,
         count: None,
     })
 }
@@ -312,10 +333,12 @@ async fn handle_bulk_attach(
 ) -> Result<ToolManagerResponse, McpError> {
     let tool_id = request
         .tool_id
+        .clone()
         .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
     let agent_ids = request
         .agent_ids
         .ok_or_else(|| McpError::invalid_request("agent_ids required".to_string()))?;
+    let verbose = request.verbose.unwrap_or(false);
 
     let letta_tool_id = letta::types::LettaId::from_str(&tool_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
@@ -332,11 +355,21 @@ async fn handle_bulk_attach(
                     .await
                 {
                     Ok(agent_state) => {
-                        results.push(serde_json::json!({
-                            "agent_id": agent_id,
-                            "success": true,
-                            "data": agent_state
-                        }));
+                        let tool_count = agent_state.tools.len();
+                        if verbose {
+                            results.push(serde_json::json!({
+                                "agent_id": agent_id,
+                                "success": true,
+                                "tool_count": tool_count,
+                                "data": agent_state
+                            }));
+                        } else {
+                            results.push(serde_json::json!({
+                                "agent_id": agent_id,
+                                "success": true,
+                                "tool_count": tool_count
+                            }));
+                        }
                     }
                     Err(e) => {
                         errors.push(serde_json::json!({
@@ -366,6 +399,7 @@ async fn handle_bulk_attach(
             errors.len()
         ),
         data: Some(serde_json::json!({
+            "tool_id": tool_id,
             "results": results,
             "errors": errors
         })),
@@ -481,10 +515,13 @@ async fn handle_detach_tool(
 ) -> Result<ToolManagerResponse, McpError> {
     let agent_id = request
         .agent_id
+        .clone()
         .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
     let tool_id = request
         .tool_id
+        .clone()
         .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let verbose = request.verbose.unwrap_or(false);
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -497,11 +534,24 @@ async fn handle_detach_tool(
         .await
         .map_err(|e| McpError::internal(format!("Failed to detach tool: {}", e)))?;
 
+    let tool_count = agent_state.tools.len();
+
+    let data = if verbose {
+        Some(serde_json::to_value(&agent_state)?)
+    } else {
+        Some(create_compact_detach_response(
+            &agent_id, &tool_id, tool_count,
+        ))
+    };
+
     Ok(ToolManagerResponse {
         success: true,
         operation: "detach".to_string(),
-        message: "Tool detached successfully".to_string(),
-        data: Some(serde_json::to_value(agent_state)?),
+        message: format!(
+            "Tool detached successfully. Agent now has {} tools.",
+            tool_count
+        ),
+        data,
         count: None,
     })
 }
@@ -599,10 +649,25 @@ async fn handle_add_base_tools(
 }
 
 // ========================================
-// Helper Functions for LMS-50 Optimizations
+// Helper Functions for LMS-50/LMS-113 Optimizations
 // ========================================
 
-/// Truncate a string to max_len characters and indicate if truncated
+fn create_compact_attach_response(agent_id: &str, tool_id: &str, tool_count: usize) -> Value {
+    serde_json::json!({
+        "agent_id": agent_id,
+        "tool_id": tool_id,
+        "tool_count": tool_count
+    })
+}
+
+fn create_compact_detach_response(agent_id: &str, tool_id: &str, tool_count: usize) -> Value {
+    serde_json::json!({
+        "agent_id": agent_id,
+        "tool_id": tool_id,
+        "tool_count": tool_count
+    })
+}
+
 fn truncate_string(s: &str, max_len: usize) -> (String, bool) {
     if s.len() <= max_len {
         (s.to_string(), false)
