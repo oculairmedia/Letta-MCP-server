@@ -9,7 +9,7 @@ name: npm Publish (Rust Binary)
 #   letta-mcp-darwin-arm64 - macOS Apple Silicon binary
 #   letta-mcp-linux-x64    - Linux x64 binary
 #   letta-mcp-linux-arm64  - Linux arm64 binary
-#   letta-mcp-win32-x64    - Windows x64 binary
+#   letta-mcp-windows-x64  - Windows x64 binary
 
 on:
     workflow_dispatch:
@@ -140,28 +140,30 @@ jobs:
 
             - name: Prepare platform packages
               run: |
-                  PLATFORMS=("darwin-x64" "darwin-arm64" "linux-x64" "linux-arm64" "win32-x64")
+                  declare -A PLATFORM_DIRS=(
+                    ["darwin-x64"]="darwin-x64"
+                    ["darwin-arm64"]="darwin-arm64"
+                    ["linux-x64"]="linux-x64"
+                    ["linux-arm64"]="linux-arm64"
+                    ["win32-x64"]="windows-x64"
+                  )
 
-                  for platform in "${PLATFORMS[@]}"; do
-                    echo "📦 Preparing letta-mcp-${platform}..."
-
-                    pkg_dir="npm/platforms/${platform}"
+                  for platform in "${!PLATFORM_DIRS[@]}"; do
+                    pkg_dir_name="${PLATFORM_DIRS[$platform]}"
+                    pkg_dir="npm/platforms/${pkg_dir_name}"
                     mkdir -p "${pkg_dir}/bin"
 
-                    # Determine binary name
                     if [ "$platform" = "win32-x64" ]; then
                       binary_name="letta-server.exe"
                     else
                       binary_name="letta-server"
                     fi
 
-                    # Copy binary from artifacts
                     cp "artifacts/binary-${platform}/${binary_name}" "${pkg_dir}/bin/${binary_name}"
                     chmod +x "${pkg_dir}/bin/${binary_name}" 2>/dev/null || true
 
-                    # Verify binary exists
                     ls -la "${pkg_dir}/bin/"
-                    echo "✅ ${platform} package ready"
+                    echo "✅ ${pkg_dir_name} package ready"
                   done
 
             - name: Copy shared files to main package
@@ -175,15 +177,16 @@ jobs:
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
               run: |
-                  PLATFORMS=("darwin-x64" "darwin-arm64" "linux-x64" "linux-arm64" "win32-x64")
+                  PLATFORM_DIRS=("darwin-x64" "darwin-arm64" "linux-x64" "linux-arm64" "windows-x64")
                   TAG="${{ inputs.npm_tag }}"
 
-                  for platform in "${PLATFORMS[@]}"; do
-                    echo "📤 Publishing letta-mcp-${platform}@${{ inputs.version }}..."
-                    cd "npm/platforms/${platform}"
+                  for dir_name in "${PLATFORM_DIRS[@]}"; do
+                    pkg_name=$(jq -r .name "npm/platforms/${dir_name}/package.json")
+                    echo "📤 Publishing ${pkg_name}@${{ inputs.version }}..."
+                    cd "npm/platforms/${dir_name}"
                     npm publish --access public --tag "${TAG}" --provenance
                     cd ../../..
-                    echo "✅ Published letta-mcp-${platform}"
+                    echo "✅ Published ${pkg_name}"
                   done
 
             - name: Publish main package
@@ -236,7 +239,7 @@ jobs:
                       - `letta-mcp-darwin-arm64` - macOS Apple Silicon
                       - `letta-mcp-linux-x64` - Linux x64
                       - `letta-mcp-linux-arm64` - Linux arm64
-                      - `letta-mcp-win32-x64` - Windows x64
+                      - `letta-mcp-windows-x64` - Windows x64
                   draft: false
                   prerelease: ${{ inputs.npm_tag != 'latest' }}
                   generate_release_notes: true
