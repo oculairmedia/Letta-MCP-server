@@ -172,6 +172,8 @@ impl LettaServer {
             tool_id,
             agent_id,
             agent_ids,
+            agent_name_filter: None,
+            agent_tag_filter: None,
             source_code,
             source_type,
             tags,
@@ -326,7 +328,7 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "MCP Server Operations Hub - Unified tool for complete MCP server lifecycle management. Supports 10 operations: add, update, delete, test, connect, resync (server management) and list_servers, list_tools, register_tool, execute (tool operations)."
+        description = "MCP Server Operations Hub - Unified tool for complete MCP server lifecycle management. Supports 11 operations: add, update, delete, test, connect, resync (server management), list_servers, list_tools, register_tool, execute (tool operations), and attach_mcp_server (discover + register + attach all tools from an MCP server to an agent)."
     )]
     async fn letta_mcp_ops(
         &self,
@@ -337,6 +339,7 @@ impl LettaServer {
         tool_args: Option<Value>,
         oauth_config: Option<Value>,
         pagination: Option<Value>,
+        agent_id: Option<String>,
     ) -> McpResult<String> {
         // Parse operation from string
         let op = serde_json::from_value(serde_json::Value::String(operation))
@@ -352,6 +355,7 @@ impl LettaServer {
             oauth_config,
             pagination,
             request_heartbeat: None,
+            agent_id,
         };
 
         // Call handler

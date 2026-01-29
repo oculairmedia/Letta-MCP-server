@@ -8,6 +8,7 @@ use letta::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::str::FromStr;
 use tracing::info;
 use turbomcp::McpError;
 
@@ -24,6 +25,7 @@ pub enum McpOperation {
     ListServers,
     ListTools,
     RegisterTool,
+    AttachMcpServer,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -43,6 +45,8 @@ pub struct McpOpsRequest {
     pub pagination: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -141,6 +145,7 @@ pub async fn handle_mcp_ops(
         McpOperation::ListServers => handle_list_servers(client, request).await,
         McpOperation::ListTools => handle_list_tools(client, request).await,
         McpOperation::RegisterTool => handle_register_tool(client, request).await,
+        McpOperation::AttachMcpServer => handle_attach_mcp_server(client, request).await,
     }
 }
 
@@ -591,6 +596,125 @@ async fn handle_register_tool(
         data: Some(serde_json::to_value(&result)?),
         server_name: Some(server_name),
         tool_name: Some(tool_name),
+        ..Default::default()
+    })
+}
+
+async fn handle_attach_mcp_server(
+    client: &LettaClient,
+    request: McpOpsRequest,
+) -> Result<McpOpsResponse, McpError> {
+    let server_name = request
+        .server_name
+        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
+    let agent_id = request
+        .agent_id
+        .ok_or_else(|| McpError::invalid_request("agent_id required for attach_mcp_server"))?;
+
+    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
+        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+
+    let mcp_tools = client
+        .tools()
+        .list_mcp_tools_by_server(&server_name)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to list MCP tools: {}", e)))?;
+
+    let total_discovered = mcp_tools.len();
+    if total_discovered == 0 {
+        return Ok(McpOpsResponse::success(
+            "attach_mcp_server",
+            &format!("No tools found on MCP server '{}'", server_name),
+        )
+        .with_data(serde_json::json!({
+            "agent_id": agent_id,
+            "total_discovered": 0,
+            "registered": 0,
+            "attached": 0,
+            "failed": 0,
+            "tools": []
+        }))
+        .with_server_name(server_name));
+    }
+
+    let mut tools_results = Vec::new();
+    let mut registered_count = 0u32;
+    let mut attached_count = 0u32;
+    let mut failed_count = 0u32;
+
+    for mcp_tool in &mcp_tools {
+        let tool_name = &mcp_tool.name;
+
+        match client.tools().add_mcp_tool(&server_name, tool_name).await {
+            Ok(registered_tool) => {
+                registered_count += 1;
+                let tool_id = registered_tool.id.as_ref().map(|id| id.to_string());
+
+                if let Some(ref tid) = registered_tool.id {
+                    match client
+                        .memory()
+                        .attach_tool_to_agent(&letta_agent_id, tid)
+                        .await
+                    {
+                        Ok(_) => {
+                            attached_count += 1;
+                            tools_results.push(serde_json::json!({
+                                "name": tool_name,
+                                "tool_id": tool_id,
+                                "status": "attached"
+                            }));
+                        }
+                        Err(e) => {
+                            failed_count += 1;
+                            tools_results.push(serde_json::json!({
+                                "name": tool_name,
+                                "tool_id": tool_id,
+                                "status": "register_ok_attach_failed",
+                                "error": e.to_string()
+                            }));
+                        }
+                    }
+                } else {
+                    failed_count += 1;
+                    tools_results.push(serde_json::json!({
+                        "name": tool_name,
+                        "tool_id": null,
+                        "status": "registered_no_id",
+                        "error": "Registered tool has no ID"
+                    }));
+                }
+            }
+            Err(e) => {
+                failed_count += 1;
+                tools_results.push(serde_json::json!({
+                    "name": tool_name,
+                    "tool_id": null,
+                    "status": "register_failed",
+                    "error": e.to_string()
+                }));
+            }
+        }
+    }
+
+    let message = format!(
+        "Attached {} of {} tools from '{}' to agent",
+        attached_count, total_discovered, server_name
+    );
+
+    Ok(McpOpsResponse {
+        success: failed_count == 0,
+        operation: "attach_mcp_server".into(),
+        message,
+        data: Some(serde_json::json!({
+            "agent_id": agent_id,
+            "total_discovered": total_discovered,
+            "registered": registered_count,
+            "attached": attached_count,
+            "failed": failed_count,
+            "tools": tools_results
+        })),
+        server_name: Some(server_name),
+        hints: Some(vec!["Use 'list_tools' to verify attached tools".into()]),
         ..Default::default()
     })
 }

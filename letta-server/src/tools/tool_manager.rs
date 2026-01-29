@@ -2,6 +2,8 @@
 //!
 //! Consolidated tool for tool management operations using discriminator pattern.
 
+use letta::types::tool::ListToolsParams;
+use letta::types::ListAgentsParams;
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -36,6 +38,10 @@ pub struct ToolManagerRequest {
     pub agent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_ids: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_name_filter: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_tag_filter: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -136,29 +142,52 @@ async fn handle_list_tools(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    // LMS-50 optimization: Pagination with default limit=25, max=100
     const DEFAULT_LIMIT: u32 = 25;
     const MAX_LIMIT: u32 = 100;
 
     let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
     let offset = request.offset.unwrap_or(0);
+    let tag_filter = request.tags.clone();
+    let name_filter = request.name.clone();
+
+    let list_params = if name_filter.is_some() {
+        Some(ListToolsParams {
+            name: name_filter,
+            ..Default::default()
+        })
+    } else {
+        None
+    };
 
     let tools = client
         .tools()
-        .list(None)
+        .list(list_params)
         .await
         .map_err(|e| McpError::internal(format!("Failed to list tools: {}", e)))?;
 
-    let total = tools.len();
+    let filtered_tools: Vec<_> = if let Some(ref filter_tags) = tag_filter {
+        tools
+            .iter()
+            .filter(|t| {
+                if let Some(ref tool_tags) = t.tags {
+                    filter_tags.iter().any(|ft| tool_tags.contains(ft))
+                } else {
+                    false
+                }
+            })
+            .collect()
+    } else {
+        tools.iter().collect()
+    };
 
-    // Apply pagination
-    let paginated_tools: Vec<_> = tools
+    let total = filtered_tools.len();
+
+    let paginated_tools: Vec<_> = filtered_tools
         .iter()
         .skip(offset as usize)
         .take(limit as usize)
         .collect();
 
-    // LMS-50: Convert to summaries (exclude source_code, json_schema, args_json_schema)
     let summaries: Vec<ToolSummary> = paginated_tools.iter().map(|t| tool_to_summary(t)).collect();
 
     let returned = summaries.len();
@@ -335,13 +364,74 @@ async fn handle_bulk_attach(
         .tool_id
         .clone()
         .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
-    let agent_ids = request
-        .agent_ids
-        .ok_or_else(|| McpError::invalid_request("agent_ids required".to_string()))?;
     let verbose = request.verbose.unwrap_or(false);
 
     let letta_tool_id = letta::types::LettaId::from_str(&tool_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
+
+    let agent_ids = if let Some(ids) = request.agent_ids {
+        if !ids.is_empty() {
+            ids
+        } else {
+            let filter_name = request.agent_name_filter.clone();
+            let filter_tag = request.agent_tag_filter.clone();
+
+            if filter_name.is_none() && filter_tag.is_none() {
+                return Err(McpError::invalid_request(
+                    "Either agent_ids or agent_name_filter/agent_tag_filter required".to_string(),
+                ));
+            }
+
+            let list_params = ListAgentsParams {
+                name: filter_name,
+                tags: filter_tag.map(|tag| vec![tag]),
+                ..Default::default()
+            };
+
+            let agents = client
+                .agents()
+                .list(Some(list_params))
+                .await
+                .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+
+            if agents.is_empty() {
+                return Err(McpError::invalid_request(
+                    "No agents matched the provided filters".to_string(),
+                ));
+            }
+
+            agents.iter().map(|a| a.id.to_string()).collect()
+        }
+    } else {
+        let filter_name = request.agent_name_filter.clone();
+        let filter_tag = request.agent_tag_filter.clone();
+
+        if filter_name.is_none() && filter_tag.is_none() {
+            return Err(McpError::invalid_request(
+                "Either agent_ids or agent_name_filter/agent_tag_filter required".to_string(),
+            ));
+        }
+
+        let list_params = ListAgentsParams {
+            name: filter_name,
+            tags: filter_tag.map(|tag| vec![tag]),
+            ..Default::default()
+        };
+
+        let agents = client
+            .agents()
+            .list(Some(list_params))
+            .await
+            .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+
+        if agents.is_empty() {
+            return Err(McpError::invalid_request(
+                "No agents matched the provided filters".to_string(),
+            ));
+        }
+
+        agents.iter().map(|a| a.id.to_string()).collect()
+    };
 
     let mut results = Vec::new();
     let mut errors = Vec::new();
