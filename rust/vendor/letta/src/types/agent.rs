@@ -674,6 +674,9 @@ pub enum ResponseFormatType {
     Text,
     /// JSON object response.
     JsonObject,
+    /// Other response format types.
+    #[serde(other)]
+    Other,
 }
 
 /// Response format configuration.

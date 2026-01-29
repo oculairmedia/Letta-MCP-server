@@ -1,35 +1,32 @@
 services:
-  letta-mcp-rust:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: letta-mcp-rust:latest
-    container_name: letta-mcp-rust
-    restart: unless-stopped
-    ports:
-      - "3001:3001"  # nginx proxy port
-    environment:
-      # Required - Letta API connection
-      LETTA_BASE_URL: ${LETTA_BASE_URL}
-      LETTA_PASSWORD: ${LETTA_PASSWORD}
+    letta-mcp-rust:
+        image: ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest
+        container_name: letta-mcp-rust
+        restart: unless-stopped
+        ports:
+            - '6507:6507'
+        environment:
+            # Required - Letta API connection
+            LETTA_BASE_URL: ${LETTA_BASE_URL}
+            LETTA_PASSWORD: ${LETTA_PASSWORD}
 
-      # Optional - Internal server port (proxied by nginx)
-      PORT: 6507
+            # Optional - Internal server port (proxied by nginx)
+            PORT: 6507
 
-      # Optional - Rust logging
-      RUST_LOG: ${RUST_LOG:-info}
-      RUST_BACKTRACE: ${RUST_BACKTRACE:-0}
-    env_file:
-      - ../.env  # Load from parent directory
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    networks:
-      - letta-network
+            # Optional - Rust logging
+            RUST_LOG: ${RUST_LOG:-info}
+            RUST_BACKTRACE: ${RUST_BACKTRACE:-0}
+        env_file:
+            - ../.env # Load from parent directory
+        healthcheck:
+            test: ['CMD-SHELL', 'timeout 1 bash -c "</dev/tcp/localhost/6507" || exit 1']
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 10s
+        networks:
+            - letta-network
 
 networks:
-  letta-network:
-    driver: bridge
+    letta-network:
+        driver: bridge
