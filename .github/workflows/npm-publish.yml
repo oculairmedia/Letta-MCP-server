@@ -80,21 +80,15 @@ jobs:
             - name: Build release binary
               run: |
                   if [ "${{ matrix.platform }}" = "linux-arm64" ]; then
-                    cross build --release --target ${{ matrix.target }} --package letta-server
+                    cross build --release --target ${{ matrix.target }} --package letta-server --features vendored-openssl
                   else
                     cargo build --release --target ${{ matrix.target }} --package letta-server
                   fi
               shell: bash
 
             - name: Strip binary (Unix)
-              if: matrix.platform != 'win32-x64'
-              run: |
-                  BINARY_PATH="target/${{ matrix.target }}/release/${{ matrix.binary }}"
-                  if [ "${{ matrix.platform }}" = "linux-arm64" ]; then
-                    aarch64-linux-gnu-strip "$BINARY_PATH"
-                  else
-                    strip "$BINARY_PATH"
-                  fi
+              if: matrix.platform != 'win32-x64' && matrix.platform != 'linux-arm64'
+              run: strip "target/${{ matrix.target }}/release/${{ matrix.binary }}"
 
             - name: Upload binary artifact
               uses: actions/upload-artifact@v4

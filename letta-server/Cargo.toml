@@ -28,7 +28,7 @@ chrono = { workspace = true }
 letta = { workspace = true }
 base64 = { workspace = true }
 bytes = { workspace = true }
-openssl = { workspace = true }
+openssl = { workspace = true, optional = true }
 
 # TurboMCP internal crates - versions patched via workspace [patch.crates-io]
 turbomcp-protocol = "2.3"
@@ -48,3 +48,4 @@ pretty_assertions = "1.4"
 [features]
 default = ["http"]
 http = ["turbomcp/http", "turbomcp-transport/http"]
+vendored-openssl = ["openssl"]
