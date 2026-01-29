@@ -48,10 +48,10 @@ impl<'a> ProvidersApi<'a> {
         }
 
         if query_params.is_empty() {
-            self.client.get("v1/providers").await
+            self.client.get("v1/providers/").await
         } else {
             self.client
-                .get_with_query("v1/providers", &query_params)
+                .get_with_query("v1/providers/", &query_params)
                 .await
         }
     }
@@ -165,9 +165,9 @@ impl<'a> ProvidersApi<'a> {
                 }
 
                 if query_params.is_empty() {
-                    client.get("v1/providers").await
+                    client.get("v1/providers/").await
                 } else {
-                    client.get_with_query("v1/providers", &query_params).await
+                    client.get_with_query("v1/providers/", &query_params).await
                 }
             }
         };

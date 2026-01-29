@@ -47,9 +47,9 @@ impl<'a> ProjectApi<'a> {
         }
 
         if params.is_empty() {
-            self.client.get("v1/projects").await
+            self.client.get("v1/projects/").await
         } else {
-            self.client.get_with_query("v1/projects", &params).await
+            self.client.get_with_query("v1/projects/", &params).await
         }
     }
 }

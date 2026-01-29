@@ -28,7 +28,7 @@ impl<'a> RunApi<'a> {
     pub async fn list(&self, agent_ids: &[LettaId]) -> LettaResult<Vec<Run>> {
         let id_list = agent_ids.iter().map(|id| id.as_str()).collect::<Vec<_>>();
         self.client
-            .get_with_query(&format!("v1/runs"), &[("agent_ids", id_list.join(","))])
+            .get_with_query("v1/runs/", &[("agent_ids", id_list.join(","))])
             .await
     }
 
@@ -85,10 +85,7 @@ impl<'a> RunApi<'a> {
     pub async fn list_active(&self, agent_ids: &[LettaId]) -> LettaResult<Vec<Run>> {
         let id_list = agent_ids.iter().map(|id| id.as_str()).collect::<Vec<_>>();
         self.client
-            .get_with_query(
-                &format!("v1/runs/active"),
-                &[("agent_ids", id_list.join(","))],
-            )
+            .get_with_query("v1/runs/active/", &[("agent_ids", id_list.join(","))])
             .await
     }
 }

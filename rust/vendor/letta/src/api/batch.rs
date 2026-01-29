@@ -24,7 +24,7 @@ impl<'a> BatchApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(&self) -> LettaResult<Vec<BatchRun>> {
-        self.client.get("v1/messages/batches").await
+        self.client.get("v1/messages/batches/").await
     }
 
     /// Create a batch of messages.

@@ -34,7 +34,7 @@ impl<'a> GroupApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(&self, params: Option<GroupsListRequest>) -> LettaResult<Vec<Group>> {
         self.client
-            .get_with_query("v1/groups", &params.unwrap_or_default())
+            .get_with_query("v1/groups/", &params.unwrap_or_default())
             .await
     }
 

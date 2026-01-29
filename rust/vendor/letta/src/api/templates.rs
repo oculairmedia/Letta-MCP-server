@@ -56,9 +56,9 @@ impl<'a> TemplateApi<'a> {
         }
 
         if params.is_empty() {
-            self.client.get("v1/templates").await
+            self.client.get("v1/templates/").await
         } else {
-            self.client.get_with_query("v1/templates", &params).await
+            self.client.get_with_query("v1/templates/", &params).await
         }
     }
 

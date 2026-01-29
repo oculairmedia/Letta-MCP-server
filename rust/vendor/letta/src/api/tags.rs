@@ -42,9 +42,9 @@ impl<'a> TagsApi<'a> {
         }
 
         if query_params.is_empty() {
-            self.client.get("v1/tags").await
+            self.client.get("v1/tags/").await
         } else {
-            self.client.get_with_query("v1/tags", &query_params).await
+            self.client.get_with_query("v1/tags/", &query_params).await
         }
     }
 
@@ -91,9 +91,9 @@ impl<'a> TagsApi<'a> {
                 }
 
                 if query_params.is_empty() {
-                    client.get("v1/tags").await
+                    client.get("v1/tags/").await
                 } else {
-                    client.get_with_query("v1/tags", &query_params).await
+                    client.get_with_query("v1/tags/", &query_params).await
                 }
             }
         };

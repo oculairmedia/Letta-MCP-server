@@ -33,7 +33,7 @@ impl<'a> AgentApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(&self, params: Option<ListAgentsParams>) -> LettaResult<Vec<AgentState>> {
         self.client
-            .get_with_query("v1/agents", &params.unwrap_or_default())
+            .get_with_query("v1/agents/", &params.unwrap_or_default())
             .await
     }
 

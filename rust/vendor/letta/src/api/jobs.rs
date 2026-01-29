@@ -46,9 +46,9 @@ impl<'a> JobApi<'a> {
         }
 
         if params.is_empty() {
-            self.client.get("v1/jobs").await
+            self.client.get("v1/jobs/").await
         } else {
-            self.client.get_with_query("v1/jobs", &params).await
+            self.client.get_with_query("v1/jobs/", &params).await
         }
     }
 
@@ -76,9 +76,9 @@ impl<'a> JobApi<'a> {
         }
 
         if params.is_empty() {
-            self.client.get("v1/jobs/active").await
+            self.client.get("v1/jobs/active/").await
         } else {
-            self.client.get_with_query("v1/jobs/active", &params).await
+            self.client.get_with_query("v1/jobs/active/", &params).await
         }
     }
 

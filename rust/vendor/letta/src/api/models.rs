@@ -43,9 +43,11 @@ impl<'a> ModelsApi<'a> {
         }
 
         if query_params.is_empty() {
-            self.client.get("v1/models").await
+            self.client.get("v1/models/").await
         } else {
-            self.client.get_with_query("v1/models", &query_params).await
+            self.client
+                .get_with_query("v1/models/", &query_params)
+                .await
         }
     }
 
@@ -73,10 +75,10 @@ impl<'a> ModelsApi<'a> {
         }
 
         if query_params.is_empty() {
-            self.client.get("v1/models/embedding").await
+            self.client.get("v1/models/embedding/").await
         } else {
             self.client
-                .get_with_query("v1/models/embedding", &query_params)
+                .get_with_query("v1/models/embedding/", &query_params)
                 .await
         }
     }
