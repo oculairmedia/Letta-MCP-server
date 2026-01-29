@@ -1,5 +1,5 @@
 {
-  "name": "@oculairmedia/letta-mcp-linux-x64",
+  "name": "letta-mcp-linux-x64",
   "version": "3.0.0",
   "description": "Letta MCP Server binary for Linux x64",
   "license": "MIT",
@@ -8,7 +8,11 @@
     "type": "git",
     "url": "git+https://github.com/oculairmedia/Letta-MCP-server.git"
   },
-  "os": ["linux"],
-  "cpu": ["x64"],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
   "preferUnplugged": true
 }

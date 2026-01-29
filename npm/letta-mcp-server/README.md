@@ -14,11 +14,11 @@ The correct binary for your platform is installed automatically.
 
 | Platform | Package |
 |----------|---------|
-| macOS Intel | `@oculairmedia/letta-mcp-darwin-x64` |
-| macOS Apple Silicon | `@oculairmedia/letta-mcp-darwin-arm64` |
-| Linux x64 | `@oculairmedia/letta-mcp-linux-x64` |
-| Linux arm64 | `@oculairmedia/letta-mcp-linux-arm64` |
-| Windows x64 | `@oculairmedia/letta-mcp-win32-x64` |
+| macOS Intel | `letta-mcp-darwin-x64` |
+| macOS Apple Silicon | `letta-mcp-darwin-arm64` |
+| Linux x64 | `letta-mcp-linux-x64` |
+| Linux arm64 | `letta-mcp-linux-arm64` |
+| Windows x64 | `letta-mcp-win32-x64` |
 
 ## Usage
 

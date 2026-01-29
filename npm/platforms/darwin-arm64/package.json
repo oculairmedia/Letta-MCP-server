@@ -1,5 +1,5 @@
 {
-  "name": "@oculairmedia/letta-mcp-darwin-arm64",
+  "name": "letta-mcp-darwin-arm64",
   "version": "3.0.0",
   "description": "Letta MCP Server binary for macOS arm64 (Apple Silicon)",
   "license": "MIT",
@@ -8,7 +8,11 @@
     "type": "git",
     "url": "git+https://github.com/oculairmedia/Letta-MCP-server.git"
   },
-  "os": ["darwin"],
-  "cpu": ["arm64"],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
   "preferUnplugged": true
 }
