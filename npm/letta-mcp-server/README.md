@@ -18,7 +18,7 @@ The correct binary for your platform is installed automatically.
 | macOS Apple Silicon | `letta-mcp-darwin-arm64` |
 | Linux x64 | `letta-mcp-linux-x64` |
 | Linux arm64 | `letta-mcp-linux-arm64` |
-| Windows x64 | `letta-mcp-win32-x64` |
+| Windows x64 | `letta-mcp-windows-x64` |
 
 ## Usage
 
