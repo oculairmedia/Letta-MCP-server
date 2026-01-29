@@ -1,0 +1,246 @@
+name: npm Publish (Rust Binary)
+
+# Publishes the Rust-based letta-mcp-server npm package with platform-specific binaries.
+# Architecture: Main wrapper package + 5 platform packages (Turbo/Biome pattern).
+#
+# Packages published:
+#   letta-mcp-server              - Main package with binary resolver
+#   @oculairmedia/letta-mcp-darwin-x64   - macOS Intel binary
+#   @oculairmedia/letta-mcp-darwin-arm64 - macOS Apple Silicon binary
+#   @oculairmedia/letta-mcp-linux-x64    - Linux x64 binary
+#   @oculairmedia/letta-mcp-linux-arm64  - Linux arm64 binary
+#   @oculairmedia/letta-mcp-win32-x64    - Windows x64 binary
+
+on:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: 'Version to publish (e.g., 3.0.0, 3.1.0-beta.1)'
+                required: true
+                type: string
+            dry_run:
+                description: 'Dry run (build but do not publish)'
+                required: false
+                type: boolean
+                default: false
+            npm_tag:
+                description: 'npm dist-tag (latest, beta, alpha)'
+                required: false
+                type: string
+                default: 'latest'
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    # ──────────────────────────────────────────────────────
+    # Stage 1: Cross-compile Rust binary for all platforms
+    # ──────────────────────────────────────────────────────
+    build-binary:
+        name: Build ${{ matrix.platform }}
+        runs-on: ${{ matrix.runner }}
+        strategy:
+            fail-fast: true
+            matrix:
+                include:
+                    - platform: darwin-x64
+                      target: x86_64-apple-darwin
+                      runner: macos-13 # Intel Mac
+                      binary: letta-server
+                    - platform: darwin-arm64
+                      target: aarch64-apple-darwin
+                      runner: macos-14 # Apple Silicon
+                      binary: letta-server
+                    - platform: linux-x64
+                      target: x86_64-unknown-linux-gnu
+                      runner: ubuntu-latest
+                      binary: letta-server
+                    - platform: linux-arm64
+                      target: aarch64-unknown-linux-gnu
+                      runner: ubuntu-latest
+                      binary: letta-server
+                    - platform: win32-x64
+                      target: x86_64-pc-windows-msvc
+                      runner: windows-latest
+                      binary: letta-server.exe
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-action/setup@v1
+              with:
+                  toolchain: nightly
+                  targets: ${{ matrix.target }}
+
+            # Cross-compilation tools for Linux ARM64 on x64 runner
+            - name: Install cross-compilation tools (Linux ARM64)
+              if: matrix.platform == 'linux-arm64'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+                  echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+            - name: Build release binary
+              run: cargo build --release --target ${{ matrix.target }} --package letta-server
+
+            - name: Strip binary (Unix)
+              if: matrix.platform != 'win32-x64'
+              run: |
+                  BINARY_PATH="target/${{ matrix.target }}/release/${{ matrix.binary }}"
+                  if [ "${{ matrix.platform }}" = "linux-arm64" ]; then
+                    aarch64-linux-gnu-strip "$BINARY_PATH"
+                  else
+                    strip "$BINARY_PATH"
+                  fi
+
+            - name: Upload binary artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: binary-${{ matrix.platform }}
+                  path: target/${{ matrix.target }}/release/${{ matrix.binary }}
+                  if-no-files-found: error
+
+    # ──────────────────────────────────────────────────────
+    # Stage 2: Package and publish all npm packages
+    # ──────────────────────────────────────────────────────
+    publish-npm:
+        name: Publish npm packages
+        needs: build-binary
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write # For GitHub release
+            id-token: write # For npm provenance
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  registry-url: 'https://registry.npmjs.org'
+
+            - name: Download all binary artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  path: artifacts
+
+            - name: Set version in all package.json files
+              run: |
+                  VERSION="${{ inputs.version }}"
+                  echo "Setting version to ${VERSION} in all packages..."
+
+                  # Main package
+                  jq --arg v "$VERSION" '.version = $v | .optionalDependencies |= with_entries(.value = $v)' \
+                    npm/letta-mcp-server/package.json > tmp.json && mv tmp.json npm/letta-mcp-server/package.json
+
+                  # Platform packages
+                  for dir in npm/platforms/*/; do
+                    jq --arg v "$VERSION" '.version = $v' "${dir}package.json" > tmp.json && mv tmp.json "${dir}package.json"
+                  done
+
+                  echo "Version set. Verifying:"
+                  cat npm/letta-mcp-server/package.json | jq '{version, optionalDependencies}'
+
+            - name: Prepare platform packages
+              run: |
+                  PLATFORMS=("darwin-x64" "darwin-arm64" "linux-x64" "linux-arm64" "win32-x64")
+
+                  for platform in "${PLATFORMS[@]}"; do
+                    echo "📦 Preparing @oculairmedia/letta-mcp-${platform}..."
+
+                    pkg_dir="npm/platforms/${platform}"
+                    mkdir -p "${pkg_dir}/bin"
+
+                    # Determine binary name
+                    if [ "$platform" = "win32-x64" ]; then
+                      binary_name="letta-server.exe"
+                    else
+                      binary_name="letta-server"
+                    fi
+
+                    # Copy binary from artifacts
+                    cp "artifacts/binary-${platform}/${binary_name}" "${pkg_dir}/bin/${binary_name}"
+                    chmod +x "${pkg_dir}/bin/${binary_name}" 2>/dev/null || true
+
+                    # Verify binary exists
+                    ls -la "${pkg_dir}/bin/"
+                    echo "✅ ${platform} package ready"
+                  done
+
+            - name: Copy shared files to main package
+              run: |
+                  cp LICENSE npm/letta-mcp-server/ 2>/dev/null || echo "No LICENSE file found"
+                  # README will be generated/copied in a future step
+
+            # Publish platform packages first, then main package
+            - name: Publish platform packages
+              if: ${{ !inputs.dry_run }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+              run: |
+                  PLATFORMS=("darwin-x64" "darwin-arm64" "linux-x64" "linux-arm64" "win32-x64")
+                  TAG="${{ inputs.npm_tag }}"
+
+                  for platform in "${PLATFORMS[@]}"; do
+                    echo "📤 Publishing @oculairmedia/letta-mcp-${platform}@${{ inputs.version }}..."
+                    cd "npm/platforms/${platform}"
+                    npm publish --access public --tag "${TAG}" --provenance
+                    cd ../../..
+                    echo "✅ Published @oculairmedia/letta-mcp-${platform}"
+                  done
+
+            - name: Publish main package
+              if: ${{ !inputs.dry_run }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+              run: |
+                  TAG="${{ inputs.npm_tag }}"
+                  echo "📤 Publishing letta-mcp-server@${{ inputs.version }}..."
+                  cd npm/letta-mcp-server
+                  npm publish --tag "${TAG}" --provenance
+                  cd ../..
+                  echo "✅ Published letta-mcp-server@${{ inputs.version }}"
+
+            - name: Dry run summary
+              if: ${{ inputs.dry_run }}
+              run: |
+                  echo "🔍 DRY RUN - Would have published:"
+                  echo ""
+                  echo "Main package:"
+                  cat npm/letta-mcp-server/package.json | jq '{name, version, optionalDependencies}'
+                  echo ""
+                  echo "Platform packages:"
+                  for dir in npm/platforms/*/; do
+                    cat "${dir}package.json" | jq '{name, version, os, cpu}'
+                    ls -lh "${dir}bin/"
+                  done
+
+            - name: Create GitHub Release
+              if: ${{ !inputs.dry_run }}
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: v${{ inputs.version }}
+                  name: v${{ inputs.version }}
+                  body: |
+                      ## letta-mcp-server v${{ inputs.version }}
+
+                      ### Install via npm
+                      ```bash
+                      npm install -g letta-mcp-server@${{ inputs.version }}
+                      ```
+
+                      ### Or use Docker
+                      ```bash
+                      docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest
+                      ```
+
+                      ### Platform packages
+                      - `@oculairmedia/letta-mcp-darwin-x64` - macOS Intel
+                      - `@oculairmedia/letta-mcp-darwin-arm64` - macOS Apple Silicon
+                      - `@oculairmedia/letta-mcp-linux-x64` - Linux x64
+                      - `@oculairmedia/letta-mcp-linux-arm64` - Linux arm64
+                      - `@oculairmedia/letta-mcp-win32-x64` - Windows x64
+                  draft: false
+                  prerelease: ${{ inputs.npm_tag != 'latest' }}
+                  generate_release_notes: true
