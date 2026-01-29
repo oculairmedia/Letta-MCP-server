@@ -51,6 +51,11 @@ impl LettaServer {
         })
     }
 
+    pub async fn health_check(&self) -> Result<u32, Box<dyn std::error::Error>> {
+        let count = self.client.agents().count().await?;
+        Ok(count)
+    }
+
     // ========================================
     // CONSOLIDATED TOOL 1: Agent Advanced
     // ========================================

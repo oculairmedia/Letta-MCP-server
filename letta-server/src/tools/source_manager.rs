@@ -661,10 +661,13 @@ async fn handle_list_agents_using(
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
-    // Get all agents and filter by those using this source
+    let list_params = letta::types::ListAgentsParams {
+        limit: Some(50),
+        ..Default::default()
+    };
     let agents = client
         .agents()
-        .list(None)
+        .list(Some(list_params))
         .await
         .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
 

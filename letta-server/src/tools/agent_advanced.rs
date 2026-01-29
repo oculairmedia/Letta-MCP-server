@@ -893,10 +893,13 @@ async fn handle_bulk_delete(
         McpError::invalid_request("filters are required for bulk_delete operation".to_string())
     })?;
 
-    // List all agents
+    let list_params = letta::types::ListAgentsParams {
+        limit: Some(50),
+        ..Default::default()
+    };
     let agents = client
         .agents()
-        .list(None)
+        .list(Some(list_params))
         .await
         .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
 

@@ -8,6 +8,9 @@ use reqwest::header::HeaderMap;
 use std::time::Duration;
 use url::Url;
 
+/// Default maximum response body size (10 MB).
+const DEFAULT_MAX_RESPONSE_BYTES: usize = 10 * 1024 * 1024;
+
 /// Configuration for the Letta client.
 #[derive(Debug, Clone)]
 pub struct ClientConfig {
@@ -17,7 +20,9 @@ pub struct ClientConfig {
     pub auth: AuthConfig,
     /// Request timeout duration.
     pub timeout: Duration,
-    /// Additional headers to include with all requests.
+    /// Maximum response body size in bytes before rejecting.
+    pub max_response_bytes: usize,
+    /// Additional HTTP headers to include in every request.
     pub headers: HeaderMap,
 }
 
@@ -30,6 +35,7 @@ impl ClientConfig {
             auth: AuthConfig::default(),
             timeout: Duration::from_secs(30),
             headers: HeaderMap::new(),
+            max_response_bytes: DEFAULT_MAX_RESPONSE_BYTES,
         })
     }
 
@@ -204,9 +210,58 @@ impl LettaClient {
         self.retry_config = config;
     }
 
+    fn max_response_bytes(&self) -> usize {
+        self.config.max_response_bytes
+    }
+
+    async fn guarded_json<T: serde::de::DeserializeOwned>(
+        &self,
+        response: reqwest::Response,
+        url: &url::Url,
+        method: &str,
+    ) -> LettaResult<T> {
+        let content_length = response.content_length();
+        let max = self.max_response_bytes();
+
+        if let Some(len) = content_length {
+            if len as usize > max {
+                return Err(LettaError::config(format!(
+                    "Response too large: {} bytes (limit: {} bytes) for {} {}. \
+                     Use pagination (limit/offset) to reduce payload size.",
+                    len, max, method, url
+                )));
+            }
+        }
+
+        let bytes = response.bytes().await?;
+        let size = bytes.len();
+
+        if size > max {
+            return Err(LettaError::config(format!(
+                "Response too large: {} bytes (limit: {} bytes) for {} {}. \
+                 Use pagination (limit/offset) to reduce payload size.",
+                size, max, method, url
+            )));
+        }
+
+        serde_json::from_slice(&bytes).map_err(|e| {
+            tracing::error!(
+                "Failed to decode {} {} response ({} bytes): {}",
+                method,
+                url,
+                size,
+                e
+            );
+            LettaError::config(format!(
+                "Failed to decode response ({} bytes) for {} {}: {}",
+                size, method, url, e
+            ))
+        })
+    }
+
     // HTTP helper methods
 
-    /// Make a GET request.
+    /// Send a GET request and deserialize the JSON response.
     pub async fn get<T>(&self, path: &str) -> LettaResult<T>
     where
         T: serde::de::DeserializeOwned,
@@ -242,7 +297,7 @@ impl LettaClient {
                 ));
             }
 
-            Ok(response.json().await?)
+            self.guarded_json(response, &url, "GET").await
         })
         .await
     }
@@ -288,7 +343,7 @@ impl LettaClient {
                 ));
             }
 
-            Ok(response.json().await?)
+            self.guarded_json(response, &url, "POST").await
         })
         .await
     }
@@ -334,7 +389,7 @@ impl LettaClient {
                 ));
             }
 
-            Ok(response.json().await?)
+            self.guarded_json(response, &url, "PATCH").await
         })
         .await
     }
@@ -371,7 +426,7 @@ impl LettaClient {
                 ));
             }
 
-            Ok(response.json().await?)
+            self.guarded_json(response, &url, "PATCH").await
         })
         .await
     }
@@ -417,7 +472,7 @@ impl LettaClient {
                 ));
             }
 
-            Ok(response.json().await?)
+            self.guarded_json(response, &url, "PUT").await
         })
         .await
     }
@@ -473,12 +528,12 @@ impl LettaClient {
                 ));
             }
 
-            Ok(response.json().await?)
+            self.guarded_json(response, &url, "PUT").await
         })
         .await
     }
 
-    /// Make a DELETE request.
+    /// Send a DELETE request and deserialize the JSON response.
     #[tracing::instrument(skip(self), fields(path = %path))]
     pub async fn delete<T>(&self, path: &str) -> LettaResult<T>
     where
@@ -510,12 +565,12 @@ impl LettaClient {
                 ));
             }
 
-            Ok(response.json().await?)
+            self.guarded_json(response, &url, "DELETE").await
         })
         .await
     }
 
-    /// Make a DELETE request expecting no response body.
+    /// Send a DELETE request without expecting a response body.
     #[tracing::instrument(skip(self), fields(path = %path))]
     pub async fn delete_no_response(&self, path: &str) -> LettaResult<()> {
         let url = self.base_url().join(path.trim_start_matches('/'))?;
@@ -549,7 +604,7 @@ impl LettaClient {
         .await
     }
 
-    /// Make a GET request with query parameters.
+    /// Send a GET request with query parameters and deserialize the JSON response.
     #[tracing::instrument(skip(self, query), fields(path = %path))]
     pub async fn get_with_query<T, Q>(&self, path: &str, query: &Q) -> LettaResult<T>
     where
@@ -583,12 +638,12 @@ impl LettaClient {
                 ));
             }
 
-            Ok(response.json().await?)
+            self.guarded_json(response, &url, "GET").await
         })
         .await
     }
 
-    /// Make a POST request with custom headers.
+    /// Send a POST request with additional headers and deserialize the JSON response.
     #[tracing::instrument(skip(self, body, extra_headers), fields(path = %path))]
     pub async fn post_with_headers<T, B>(
         &self,
@@ -613,7 +668,6 @@ impl LettaClient {
                     .map_err(|_| LettaError::config("Failed to parse Content-Type header"))?,
             );
 
-            // Add extra headers
             for (key, value) in extra_headers.iter() {
                 headers.insert(key.clone(), value.clone());
             }
@@ -639,12 +693,12 @@ impl LettaClient {
                 ));
             }
 
-            Ok(response.json().await?)
+            self.guarded_json(response, &url, "POST").await
         })
         .await
     }
 
-    /// Make a POST request with multipart form data.
+    /// Send a POST request with a multipart form body and deserialize the JSON response.
     #[tracing::instrument(skip(self, form), fields(path = %path))]
     pub async fn post_multipart<T>(
         &self,
@@ -683,7 +737,7 @@ impl LettaClient {
             ));
         }
 
-        Ok(response.json().await?)
+        self.guarded_json(response, &url, "POST").await
     }
 }
 

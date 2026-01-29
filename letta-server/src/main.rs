@@ -1,13 +1,8 @@
-//! Letta MCP Server - Main Entry Point
-//!
-//! This binary starts the Letta MCP server with the selected transport protocol.
-
 use letta_server::LettaServer;
 use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing/logging
     let log_level = env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
     tracing_subscriber::fmt()
         .with_env_filter(log_level)
@@ -17,7 +12,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_line_number(false)
         .init();
 
-    // Get configuration from environment
     let base_url =
         env::var("LETTA_BASE_URL").expect("LETTA_BASE_URL environment variable is required");
     let password =
@@ -35,10 +29,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Transport: {}", transport);
     tracing::info!("Letta API: {}", base_url);
 
-    // Create server instance with Letta SDK
     let server = LettaServer::new(base_url, password)?;
 
-    // Run with selected transport
+    // LMS-116: Startup health check — validate Letta API connectivity before accepting connections
+    tracing::info!("Running startup health check...");
+    match server.health_check().await {
+        Ok(agent_count) => {
+            tracing::info!(
+                "✅ Health check passed — Letta API reachable ({} agents)",
+                agent_count
+            );
+        }
+        Err(e) => {
+            tracing::warn!(
+                "⚠️  Health check failed: {}. Server will start but API operations may fail.",
+                e
+            );
+        }
+    }
+
     match transport.to_lowercase().as_str() {
         "http" => {
             let addr = format!("0.0.0.0:{}", port);
@@ -48,7 +57,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tracing::info!("⚠️  CORS: Allowing all origins (development mode)");
             tracing::info!("Ready for MCP client connections");
 
-            // Use custom HTTP runner with permissive security for development
             server.run_http_custom(&addr).await?;
         }
         _ => {
