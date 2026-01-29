@@ -181,7 +181,7 @@ jobs:
                   for platform in "${PLATFORMS[@]}"; do
                     echo "📤 Publishing letta-mcp-${platform}@${{ inputs.version }}..."
                     cd "npm/platforms/${platform}"
-                    npm publish --tag "${TAG}" --provenance
+                    npm publish --access public --tag "${TAG}" --provenance
                     cd ../../..
                     echo "✅ Published letta-mcp-${platform}"
                   done
@@ -194,7 +194,7 @@ jobs:
                   TAG="${{ inputs.npm_tag }}"
                   echo "📤 Publishing letta-mcp-server@${{ inputs.version }}..."
                   cd npm/letta-mcp-server
-                  npm publish --tag "${TAG}" --provenance
+                  npm publish --access public --tag "${TAG}" --provenance
                   cd ../..
                   echo "✅ Published letta-mcp-server@${{ inputs.version }}"
 
