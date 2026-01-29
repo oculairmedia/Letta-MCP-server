@@ -1,0 +1,14 @@
+{
+  "name": "@oculairmedia/letta-mcp-darwin-x64",
+  "version": "3.0.0",
+  "description": "Letta MCP Server binary for macOS x64 (Intel)",
+  "license": "MIT",
+  "author": "Oculair Media",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oculairmedia/Letta-MCP-server.git"
+  },
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "preferUnplugged": true
+}

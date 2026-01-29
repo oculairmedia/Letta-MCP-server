@@ -1,0 +1,43 @@
+{
+  "name": "letta-mcp-server",
+  "version": "3.0.0",
+  "description": "High-performance MCP server for Letta AI — manages agents, memory, tools, and sources via the Model Context Protocol",
+  "keywords": [
+    "mcp",
+    "letta",
+    "ai",
+    "agents",
+    "memory",
+    "model-context-protocol",
+    "rust"
+  ],
+  "homepage": "https://github.com/oculairmedia/Letta-MCP-server#readme",
+  "bugs": {
+    "url": "https://github.com/oculairmedia/Letta-MCP-server/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oculairmedia/Letta-MCP-server.git"
+  },
+  "license": "MIT",
+  "author": "Oculair Media",
+  "bin": {
+    "letta-mcp": "bin/letta-mcp"
+  },
+  "files": [
+    "bin/letta-mcp",
+    "README.md",
+    "LICENSE"
+  ],
+  "optionalDependencies": {
+    "@oculairmedia/letta-mcp-darwin-x64": "3.0.0",
+    "@oculairmedia/letta-mcp-darwin-arm64": "3.0.0",
+    "@oculairmedia/letta-mcp-linux-x64": "3.0.0",
+    "@oculairmedia/letta-mcp-linux-arm64": "3.0.0",
+    "@oculairmedia/letta-mcp-win32-x64": "3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "preferUnplugged": true
+}

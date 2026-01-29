@@ -1,0 +1,147 @@
+#!/usr/bin/env node
+
+/**
+ * letta-mcp - Binary wrapper for the Letta MCP Server (Rust implementation).
+ *
+ * This script resolves and executes the platform-specific Rust binary.
+ * The binary is installed as an optional dependency matching the user's
+ * OS and architecture (same pattern as Turbo, Biome, esbuild).
+ */
+
+const child_process = require("child_process");
+const fs = require("fs");
+const path = require("path");
+
+// Platform packages follow the naming convention:
+//   @oculairmedia/letta-mcp-{os}-{arch}
+//
+// Each package contains a single binary at: bin/letta-server[.exe]
+//
+// npm automatically installs only the package matching the user's platform
+// via the `os` and `cpu` fields in each platform package's package.json.
+
+const PLATFORMS = {
+  "darwin-x64": "@oculairmedia/letta-mcp-darwin-x64",
+  "darwin-arm64": "@oculairmedia/letta-mcp-darwin-arm64",
+  "linux-x64": "@oculairmedia/letta-mcp-linux-x64",
+  "linux-arm64": "@oculairmedia/letta-mcp-linux-arm64",
+  "win32-x64": "@oculairmedia/letta-mcp-win32-x64",
+};
+
+function getBinaryPath() {
+  // 1. Check for explicit override via environment variable
+  const envPath = process.env.LETTA_MCP_BINARY_PATH;
+  if (envPath) {
+    if (!fs.existsSync(envPath)) {
+      console.error(
+        `LETTA_MCP_BINARY_PATH points to a non-existent file: ${envPath}`
+      );
+      console.error(
+        "This variable is intended for development. Unset it for normal use."
+      );
+      process.exit(1);
+    }
+    return envPath;
+  }
+
+  // 2. Resolve the platform-specific package
+  const platformKey = `${process.platform}-${process.arch}`;
+  const packageName = PLATFORMS[platformKey];
+
+  if (!packageName) {
+    console.error();
+    console.error("Letta MCP Server does not support your platform.");
+    console.error(`  Platform: ${process.platform}`);
+    console.error(`  Architecture: ${process.arch}`);
+    console.error();
+    console.error("Supported platforms:");
+    for (const [key, pkg] of Object.entries(PLATFORMS)) {
+      console.error(`  ${key} -> ${pkg}`);
+    }
+    console.error();
+    console.error(
+      "As an alternative, you can use the Docker image:"
+    );
+    console.error(
+      "  docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest"
+    );
+    process.exit(1);
+  }
+
+  const ext = process.platform === "win32" ? ".exe" : "";
+  const binaryName = `letta-server${ext}`;
+
+  // Try to resolve the binary from the platform package
+  try {
+    const pkgDir = path.dirname(require.resolve(`${packageName}/package.json`));
+    const binaryPath = path.join(pkgDir, "bin", binaryName);
+
+    if (fs.existsSync(binaryPath)) {
+      return binaryPath;
+    }
+  } catch (e) {
+    // Package not installed — fall through to error
+  }
+
+  // 3. Attempt just-in-time install (npm may have skipped optionalDependencies)
+  try {
+    console.warn("Letta MCP Server binary not found. Attempting to install...");
+    const selfDir = path.dirname(
+      require.resolve("letta-mcp-server/package.json")
+    );
+    child_process.execSync("npm install --no-save --prefer-offline --no-audit", {
+      cwd: selfDir,
+      stdio: "pipe",
+      env: { ...process.env, npm_config_global: undefined },
+    });
+
+    const pkgDir = path.dirname(require.resolve(`${packageName}/package.json`));
+    const binaryPath = path.join(pkgDir, "bin", binaryName);
+
+    if (fs.existsSync(binaryPath)) {
+      console.warn("Binary installed successfully.");
+      return binaryPath;
+    }
+  } catch (e) {
+    // JIT install failed — fall through to error
+  }
+
+  // 4. Give up with a helpful error
+  console.error();
+  console.error("***");
+  console.error();
+  console.error("Letta MCP Server failed to start.");
+  console.error();
+  console.error(
+    `Could not find the binary for your platform (${platformKey}).`
+  );
+  console.error(`Expected package: ${packageName}`);
+  console.error();
+  console.error("This can happen if:");
+  console.error("  - npm install was run with --no-optional");
+  console.error(
+    "  - The platform package was not published for your platform"
+  );
+  console.error("  - node_modules was copied from a different platform");
+  console.error();
+  console.error("Try reinstalling:");
+  console.error("  npm install letta-mcp-server");
+  console.error();
+  console.error("Or use the Docker image:");
+  console.error(
+    "  docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest"
+  );
+  console.error();
+  console.error("***");
+  process.exit(1);
+}
+
+// Execute the Rust binary, forwarding all arguments and stdio
+try {
+  child_process.execFileSync(getBinaryPath(), process.argv.slice(2), {
+    stdio: "inherit",
+  });
+} catch (e) {
+  if (e && e.status) process.exit(e.status);
+  throw e;
+}
