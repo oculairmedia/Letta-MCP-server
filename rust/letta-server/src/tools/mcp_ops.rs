@@ -11,6 +11,8 @@ use serde_json::Value;
 use tracing::info;
 use turbomcp::McpError;
 
+use super::response_utils::{get_pagination_params, truncate_with_flag};
+
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum McpOperation {
@@ -142,40 +144,6 @@ pub async fn handle_mcp_ops(
         McpOperation::ListTools => handle_list_tools(client, request).await,
         McpOperation::RegisterTool => handle_register_tool(client, request).await,
     }
-}
-
-/// Truncate a string to max_length characters, adding "..." if truncated
-fn truncate_string(s: &str, max_length: usize) -> (String, bool) {
-    if s.len() <= max_length {
-        (s.to_string(), false)
-    } else {
-        let truncated = format!("{}...", &s[..max_length.saturating_sub(3)]);
-        (truncated, true)
-    }
-}
-
-/// Extract pagination parameters from request
-fn get_pagination_params(
-    pagination: &Option<Value>,
-    default_limit: usize,
-    max_limit: usize,
-) -> (usize, usize) {
-    let limit = pagination
-        .as_ref()
-        .and_then(|p| p.get("limit"))
-        .and_then(|l| l.as_u64())
-        .map(|l| l as usize)
-        .unwrap_or(default_limit)
-        .min(max_limit);
-
-    let offset = pagination
-        .as_ref()
-        .and_then(|p| p.get("offset"))
-        .and_then(|o| o.as_u64())
-        .map(|o| o as usize)
-        .unwrap_or(0);
-
-    (limit, offset)
 }
 
 async fn handle_add_server(
@@ -502,8 +470,8 @@ async fn handle_list_tools(
                         .and_then(|d| d.as_str().map(String::from));
 
                     // Truncate description if needed
-                    let (desc, truncated) = match description {
-                        Some(d) => truncate_string(&d, MAX_DESCRIPTION_LENGTH),
+                    let (desc, was_truncated) = match description {
+                        Some(d) => truncate_with_flag(&d, MAX_DESCRIPTION_LENGTH),
                         None => (String::new(), false),
                     };
 
@@ -514,7 +482,7 @@ async fn handle_list_tools(
                         "description": desc,
                     });
 
-                    if truncated {
+                    if was_truncated {
                         summary["description_truncated"] = serde_json::json!(true);
                     }
                     summary

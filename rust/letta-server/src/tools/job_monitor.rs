@@ -319,18 +319,20 @@ async fn handle_list_active_jobs(
     })
 }
 
-/// Truncate a JSON field if it exceeds max_length when serialized
+/// Truncate a JSON field if it exceeds max_length when serialized.
+/// Uses char-safe slicing to avoid panics on multi-byte UTF-8.
 fn truncate_json_field(field: &Option<Value>, max_length: usize) -> Option<Value> {
     field.as_ref().and_then(|val| {
         let serialized = serde_json::to_string(val).ok()?;
-        if serialized.len() <= max_length {
+        let char_count = serialized.chars().count();
+        if char_count <= max_length {
             Some(val.clone())
         } else {
-            // Create truncated version
-            let truncated = &serialized[..max_length];
+            // Create truncated version using char-safe slicing
+            let truncated: String = serialized.chars().take(max_length).collect();
             let result = serde_json::json!({
                 "truncated": true,
-                "original_length": serialized.len(),
+                "original_length": char_count,
                 "preview": truncated,
             });
             Some(result)
@@ -338,9 +340,11 @@ fn truncate_json_field(field: &Option<Value>, max_length: usize) -> Option<Value
     })
 }
 
-/// Truncate a string field
+/// Truncate a string field.
+/// Uses char-safe slicing to avoid panics on multi-byte UTF-8.
 fn truncate_string_field(field: &str, max_length: usize) -> TruncatedField {
-    if field.len() <= max_length {
+    let char_count = field.chars().count();
+    if char_count <= max_length {
         TruncatedField {
             value: field.to_string(),
             truncated: false,
@@ -348,9 +352,9 @@ fn truncate_string_field(field: &str, max_length: usize) -> TruncatedField {
         }
     } else {
         TruncatedField {
-            value: field[..max_length].to_string(),
+            value: field.chars().take(max_length).collect(),
             truncated: true,
-            original_length: Some(field.len()),
+            original_length: Some(char_count),
         }
     }
 }

@@ -2,22 +2,22 @@
 //!
 //! Tests that memory operations properly truncate large responses
 
-use letta_server::tools::memory_utils::{
-    truncate_block_value, truncate_preview, truncate_string, BlockSummary, PaginationMeta,
-    PassageSummary,
+use letta_server::tools::memory_utils::{truncate_block_value, BlockSummary, PassageSummary};
+use letta_server::tools::response_utils::{
+    truncate_preview, truncate_with_indicator, PaginationMeta,
 };
 use serde_json::json;
 
 #[test]
-fn test_truncate_string() {
+fn test_truncate_with_indicator() {
     // Short string should not be truncated
     let short = "Hello, world!";
-    let result = truncate_string(short, 100);
+    let result = truncate_with_indicator(short, 100);
     assert_eq!(result, short);
 
     // Long string should be truncated with indicator
     let long = "a".repeat(1000);
-    let result = truncate_string(&long, 100);
+    let result = truncate_with_indicator(&long, 100);
     assert!(result.len() < 200); // Should be much shorter than original
     assert!(result.contains("truncated"));
     assert!(result.contains("900 more chars"));
@@ -72,14 +72,13 @@ fn test_passage_summary_from_value() {
 
 #[test]
 fn test_pagination_meta() {
-    let meta = PaginationMeta::new(100, 20, 20)
-        .with_offset(0)
-        .with_hint("Use 'get_block' for full content".to_string());
+    let meta = PaginationMeta::new(100, 20, 0, 20)
+        .with_hint("Use 'get_block' for full content");
 
     assert_eq!(meta.total, 100);
     assert_eq!(meta.returned, 20);
     assert_eq!(meta.limit, 20);
-    assert_eq!(meta.offset, Some(0));
+    assert_eq!(meta.offset, 0);
     assert_eq!(meta.hints.len(), 1);
 }
 

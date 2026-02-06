@@ -10,6 +10,8 @@ use serde_json::Value;
 use turbomcp::McpError;
 use turbomcp_macros::FlattenTool;
 
+use super::response_utils::truncate_with_indicator;
+
 /// Agent operation discriminator
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -39,24 +41,6 @@ pub enum AgentOperation {
     SearchMessages,
     GetMessage,
     Count,
-}
-
-// ===================================================
-// Response Optimization Helper Functions (LMS-48)
-// ===================================================
-
-/// Truncate text with indicator showing how many chars were truncated
-fn truncate_text(text: &str, max_chars: usize) -> String {
-    if text.len() <= max_chars {
-        text.to_string()
-    } else {
-        let remaining = text.len() - max_chars;
-        format!(
-            "{}...[truncated, {} more chars]",
-            &text[..max_chars],
-            remaining
-        )
-    }
 }
 
 /// Bulk delete filters
@@ -287,7 +271,7 @@ async fn handle_list_agents(
             let model = agent.llm_config.as_ref().map(|config| config.model.clone());
 
             // Truncate description to 100 chars
-            let description = agent.description.as_ref().map(|d| truncate_text(d, 100));
+            let description = agent.description.as_ref().map(|d| truncate_with_indicator(d, 100));
 
             serde_json::json!({
                 "id": agent.id.to_string(),
@@ -373,7 +357,7 @@ async fn handle_search_agents(
         .map(|agent| {
             let model = agent.llm_config.as_ref().map(|config| config.model.clone());
 
-            let description = agent.description.as_ref().map(|d| truncate_text(d, 100));
+            let description = agent.description.as_ref().map(|d| truncate_with_indicator(d, 100));
 
             serde_json::json!({
                 "id": agent.id.to_string(),
@@ -483,12 +467,12 @@ async fn handle_get_agent(
 
     // Truncate system prompt to 500 chars
     if let Some(system) = agent_value.get("system").and_then(|s| s.as_str()) {
-        agent_value["system"] = serde_json::json!(truncate_text(system, 500));
+        agent_value["system"] = serde_json::json!(truncate_with_indicator(system, 500));
     }
 
     // Truncate description to 200 chars
     if let Some(description) = agent_value.get("description").and_then(|d| d.as_str()) {
-        agent_value["description"] = serde_json::json!(truncate_text(description, 200));
+        agent_value["description"] = serde_json::json!(truncate_with_indicator(description, 200));
     }
 
     // Replace full tool objects with tool_ids array and tool_count
@@ -605,7 +589,7 @@ async fn handle_send_message(
             if let Some(content) = msg.get("text").and_then(|t| t.as_str()) {
                 let original_length = content.len();
                 if original_length > 1000 {
-                    msg["text"] = serde_json::json!(truncate_text(content, 1000));
+                    msg["text"] = serde_json::json!(truncate_with_indicator(content, 1000));
                     msg["full_response_length"] = serde_json::json!(original_length);
                 }
             }
@@ -653,7 +637,7 @@ async fn handle_list_tools(
         .iter()
         .take(limit)
         .map(|tool| {
-            let description = tool.description.as_ref().map(|d| truncate_text(d, 80));
+            let description = tool.description.as_ref().map(|d| truncate_with_indicator(d, 80));
             let id = tool
                 .id
                 .as_ref()
@@ -1103,7 +1087,7 @@ async fn handle_search_messages(
                 .unwrap_or("");
 
             let content_length = content.len();
-            let content_preview = truncate_text(content, 200);
+            let content_preview = truncate_with_indicator(content, 200);
 
             let role = msg_value
                 .get("role")

@@ -6,9 +6,9 @@
 //! - File operations (upload, list, delete)
 //! - Response optimization and pagination
 
+use letta_server::tools::response_utils::PaginationMeta;
 use letta_server::tools::source_manager::{
-    AgentReference, FileSummary, PaginationMetadata, SourceManagerRequest, SourceOperation,
-    SourceSummary,
+    AgentReference, FileSummary, SourceManagerRequest, SourceOperation, SourceSummary,
 };
 use serde_json::json;
 
@@ -362,33 +362,28 @@ fn test_agent_reference_serialization() {
 
 #[test]
 fn test_pagination_metadata() {
-    let pagination = PaginationMetadata {
-        total: 100,
-        returned: 20,
-        limit: 20,
-        hint: Some("Use limit parameter to see more".to_string()),
-    };
+    let pagination = PaginationMeta::new(100, 20, 0, 20)
+        .with_hint("Use limit parameter to see more");
 
     let json = serde_json::to_value(&pagination).unwrap();
     assert_eq!(json["total"], 100);
     assert_eq!(json["returned"], 20);
     assert_eq!(json["limit"], 20);
-    assert!(json["hint"].is_string());
+    assert!(!json["hints"].as_array().unwrap().is_empty());
 }
 
 #[test]
 fn test_pagination_no_hint_when_all_returned() {
-    let pagination = PaginationMetadata {
-        total: 15,
-        returned: 15,
-        limit: 20,
-        hint: None,
-    };
+    let pagination = PaginationMeta::new(15, 15, 0, 20);
 
     let json = serde_json::to_value(&pagination).unwrap();
     assert_eq!(json["total"], 15);
     assert_eq!(json["returned"], 15);
-    assert!(!json.as_object().unwrap().contains_key("hint"));
+    // hints should be empty (and skipped in serialization)
+    assert!(
+        !json.as_object().unwrap().contains_key("hints")
+            || json["hints"].as_array().unwrap().is_empty()
+    );
 }
 
 // ============================================================

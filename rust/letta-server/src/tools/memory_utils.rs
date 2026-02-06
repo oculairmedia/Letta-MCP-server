@@ -2,31 +2,16 @@
 //!
 //! Helper functions and types for truncating and summarizing memory responses
 //! to reduce token usage while maintaining useful information.
+//!
+//! Truncation and pagination utilities are imported from `response_utils`.
+//! This module provides memory-specific types: `BlockSummary`, `PassageSummary`,
+//! `truncate_block_value`, and `truncate_passage_text`.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// Truncate a string to a maximum length, adding indicator if truncated
-pub fn truncate_string(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        let truncated = s.chars().take(max_len).collect::<String>();
-        let remaining = s.len() - max_len;
-        format!("{}...[truncated, {} more chars]", truncated, remaining)
-    }
-}
-
-/// Truncate a string to show preview only
-pub fn truncate_preview(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        let preview = s.chars().take(max_len).collect::<String>();
-        format!("{}...", preview)
-    }
-}
+use super::response_utils::{truncate_preview, truncate_with_indicator};
 
 /// Block summary for list operations
 #[derive(Debug, Serialize, Deserialize)]
@@ -134,39 +119,7 @@ impl PassageSummary {
     }
 }
 
-/// Pagination metadata
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaginationMeta {
-    pub total: usize,
-    pub returned: usize,
-    pub limit: usize,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub offset: Option<usize>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub hints: Vec<String>,
-}
-
-impl PaginationMeta {
-    pub fn new(total: usize, returned: usize, limit: usize) -> Self {
-        PaginationMeta {
-            total,
-            returned,
-            limit,
-            offset: None,
-            hints: Vec::new(),
-        }
-    }
-
-    pub fn with_offset(mut self, offset: usize) -> Self {
-        self.offset = Some(offset);
-        self
-    }
-
-    pub fn with_hint(mut self, hint: String) -> Self {
-        self.hints.push(hint);
-        self
-    }
-}
+// PaginationMeta is imported from response_utils
 
 /// Truncate a block's value field in a Value object
 pub fn truncate_block_value(block: &mut Value, max_len: usize) -> bool {
@@ -178,7 +131,7 @@ pub fn truncate_block_value(block: &mut Value, max_len: usize) -> bool {
 
     if let Some((value_str, value_len)) = value_info {
         if value_len > max_len {
-            let truncated = truncate_string(&value_str, max_len);
+            let truncated = truncate_with_indicator(&value_str, max_len);
             if let Some(obj) = block.as_object_mut() {
                 obj.insert("value".to_string(), Value::String(truncated));
                 obj.insert("value_length".to_string(), Value::Number(value_len.into()));
@@ -200,7 +153,7 @@ pub fn truncate_passage_text(passage: &mut Value, max_len: usize) -> bool {
 
     if let Some((text_str, text_len)) = text_info {
         if text_len > max_len {
-            let truncated = truncate_string(&text_str, max_len);
+            let truncated = truncate_with_indicator(&text_str, max_len);
             if let Some(obj) = passage.as_object_mut() {
                 obj.insert("text".to_string(), Value::String(truncated));
                 obj.insert("text_length".to_string(), Value::Number(text_len.into()));
@@ -217,12 +170,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_truncate_string() {
+    fn test_truncate_with_indicator() {
         let short = "Hello";
-        assert_eq!(truncate_string(short, 10), "Hello");
+        assert_eq!(truncate_with_indicator(short, 10), "Hello");
 
         let long = "Hello, this is a very long string that needs truncation";
-        let result = truncate_string(long, 20);
+        let result = truncate_with_indicator(long, 20);
         assert!(result.contains("Hello, this is a ver"));
         assert!(result.contains("truncated"));
     }

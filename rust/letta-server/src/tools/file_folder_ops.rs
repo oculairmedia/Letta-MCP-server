@@ -18,21 +18,14 @@ use std::str::FromStr;
 use tracing::{error, info};
 use turbomcp::McpError;
 
+use super::response_utils::truncate_with_suffix;
+
 /// Constants for response size optimization
 const DEFAULT_FILE_LIMIT: usize = 25;
 const MAX_FILE_LIMIT: usize = 100;
 const DEFAULT_FOLDER_LIMIT: usize = 20;
 const MAX_FOLDER_LIMIT: usize = 50;
 const MAX_DESCRIPTION_LENGTH: usize = 100;
-
-/// Truncate a string to a maximum length with ellipsis
-fn truncate_string(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...[truncated]", &s[..max_len.saturating_sub(15)])
-    }
-}
 
 /// File/folder operation request
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -471,7 +464,7 @@ async fn handle_list_folders(
             description: f
                 .description
                 .as_ref()
-                .map(|d| truncate_string(d, MAX_DESCRIPTION_LENGTH)),
+                .map(|d| truncate_with_suffix(d, MAX_DESCRIPTION_LENGTH)),
             file_count: None,  // Not included in SDK response
             agent_count: None, // Not included in SDK response
         })

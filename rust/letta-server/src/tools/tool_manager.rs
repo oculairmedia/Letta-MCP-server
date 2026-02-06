@@ -9,6 +9,8 @@ use std::str::FromStr;
 use tracing::info;
 use turbomcp::McpError;
 
+use super::response_utils::{truncate_with_flag, truncate_with_suffix};
+
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolOperation {
@@ -199,8 +201,8 @@ async fn handle_get_tool(
 
     if let Some(ref code) = tool.source_code {
         source_code_length = Some(code.len());
-        if code.len() > MAX_SOURCE_CODE_LENGTH {
-            let (truncated, _) = truncate_string(code, MAX_SOURCE_CODE_LENGTH);
+        let (truncated, was_truncated) = truncate_with_flag(code, MAX_SOURCE_CODE_LENGTH);
+        if was_truncated {
             tool.source_code = Some(truncated);
             source_code_truncated = true;
             hint = Some("Full source available via direct API call if needed".to_string());
@@ -552,7 +554,7 @@ async fn handle_run_from_source(
     if let Some(obj) = response_json.as_object_mut() {
         if let Some(output) = obj.get("output").and_then(|v| v.as_str()) {
             let output_length = output.len();
-            let (truncated_output, is_truncated) = truncate_string(output, MAX_OUTPUT_LENGTH);
+            let (truncated_output, is_truncated) = truncate_with_flag(output, MAX_OUTPUT_LENGTH);
 
             obj.insert("output".to_string(), serde_json::json!(truncated_output));
             obj.insert(
@@ -602,16 +604,6 @@ async fn handle_add_base_tools(
 // Helper Functions for LMS-50 Optimizations
 // ========================================
 
-/// Truncate a string to max_len characters and indicate if truncated
-fn truncate_string(s: &str, max_len: usize) -> (String, bool) {
-    if s.len() <= max_len {
-        (s.to_string(), false)
-    } else {
-        let truncated = s.chars().take(max_len).collect::<String>();
-        (format!("{}...[truncated]", truncated), true)
-    }
-}
-
 /// Count the number of lines in a string
 fn count_lines(s: &str) -> u32 {
     s.lines().count() as u32
@@ -628,10 +620,7 @@ fn count_json_properties(schema: &Option<Value>) -> Option<u32> {
 
 /// Convert Tool to ToolSummary for list operation
 fn tool_to_summary(tool: &letta::types::tool::Tool) -> ToolSummary {
-    let description = tool.description.as_ref().map(|d| {
-        let (truncated, _) = truncate_string(d, 100);
-        truncated
-    });
+    let description = tool.description.as_ref().map(|d| truncate_with_suffix(d, 100));
 
     let source_lines = tool.source_code.as_ref().map(|code| count_lines(code));
     let args_count = count_json_properties(&tool.args_json_schema);

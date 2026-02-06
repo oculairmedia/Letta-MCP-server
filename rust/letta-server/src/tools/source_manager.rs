@@ -9,6 +9,8 @@ use std::str::FromStr;
 use tracing::info;
 use turbomcp::McpError;
 
+use super::response_utils::{truncate_with_suffix, PaginationMeta};
+
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceOperation {
@@ -65,7 +67,7 @@ pub struct SourceManagerResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub pagination: Option<PaginationMetadata>,
+    pub pagination: Option<PaginationMeta>,
 }
 
 impl SourceManagerResponse {
@@ -89,20 +91,10 @@ impl SourceManagerResponse {
         self
     }
 
-    fn with_pagination(mut self, pagination: PaginationMetadata) -> Self {
+    fn with_pagination(mut self, pagination: PaginationMeta) -> Self {
         self.pagination = Some(pagination);
         self
     }
-}
-
-/// Pagination metadata for list operations
-#[derive(Debug, Serialize)]
-pub struct PaginationMetadata {
-    pub total: usize,
-    pub returned: usize,
-    pub limit: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hint: Option<String>,
 }
 
 /// Optimized source summary (excludes full file/agent arrays)
@@ -155,15 +147,6 @@ pub struct FileUploadSummary {
     pub content_type: Option<String>,
 }
 
-/// Truncate a string to a maximum length
-fn truncate_string(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...[truncated]", &s[..max_len])
-    }
-}
-
 pub async fn handle_source_manager(
     client: &LettaClient,
     request: SourceManagerRequest,
@@ -214,7 +197,7 @@ async fn handle_list_sources(
     let summaries: Vec<SourceSummary> = sources_to_return
         .into_iter()
         .map(|source| {
-            let description = source.description.map(|d| truncate_string(&d, 100));
+            let description = source.description.map(|d| truncate_with_suffix(&d, 100));
 
             SourceSummary {
                 id: source.id.map(|id| id.to_string()).unwrap_or_default(),
@@ -228,19 +211,13 @@ async fn handle_list_sources(
         })
         .collect();
 
-    let pagination = PaginationMetadata {
-        total,
-        returned,
-        limit,
-        hint: if total > returned {
-            Some(format!(
-                "Showing {} of {} sources. Use limit parameter to see more (max {}).",
-                returned, total, MAX_LIMIT
-            ))
-        } else {
-            None
-        },
-    };
+    let mut pagination = PaginationMeta::new(total, returned, 0, limit as usize);
+    if total > returned {
+        pagination = pagination.with_hint(format!(
+            "Showing {} of {} sources. Use limit parameter to see more (max {}).",
+            returned, total, MAX_LIMIT
+        ));
+    }
 
     Ok(SourceManagerResponse::success(
         "list",
@@ -526,12 +503,8 @@ async fn handle_list_files(
         })
         .collect();
 
-    let pagination = PaginationMetadata {
-        total,
-        returned: summaries.len(),
-        limit,
-        hint: Some(format!("File content is NEVER included in list operations. Use individual file retrieval to get content. Showing {} files (limit: {}).", summaries.len(), limit)),
-    };
+    let pagination = PaginationMeta::new(total, summaries.len(), 0, limit as usize)
+        .with_hint(format!("File content is NEVER included in list operations. Use individual file retrieval to get content. Showing {} files (limit: {}).", summaries.len(), limit));
 
     Ok(SourceManagerResponse {
         success: true,

@@ -7,9 +7,9 @@
 //! - Response truncation
 
 use letta_server::tools::memory_unified::{MemoryOperation, MemoryUnifiedRequest};
-use letta_server::tools::memory_utils::{
-    truncate_block_value, truncate_preview, truncate_string, BlockSummary, PaginationMeta,
-    PassageSummary,
+use letta_server::tools::memory_utils::{truncate_block_value, BlockSummary, PassageSummary};
+use letta_server::tools::response_utils::{
+    truncate_preview, truncate_with_indicator, PaginationMeta,
 };
 use serde_json::json;
 
@@ -173,16 +173,16 @@ fn test_all_memory_operations_parse() {
 // ============================================================
 
 #[test]
-fn test_truncate_string_short() {
+fn test_truncate_with_indicator_short() {
     let text = "Hello world";
-    let result = truncate_string(text, 100);
+    let result = truncate_with_indicator(text, 100);
     assert_eq!(result, text);
 }
 
 #[test]
-fn test_truncate_string_long() {
+fn test_truncate_with_indicator_long() {
     let text = "a".repeat(500);
-    let result = truncate_string(&text, 100);
+    let result = truncate_with_indicator(&text, 100);
 
     assert!(result.len() < text.len());
     assert!(result.contains("truncated"));
@@ -297,25 +297,24 @@ fn test_passage_summary_truncates_long_text() {
 
 #[test]
 fn test_pagination_meta_basic() {
-    let meta = PaginationMeta::new(100, 20, 20);
+    let meta = PaginationMeta::new(100, 20, 0, 20);
 
     assert_eq!(meta.total, 100);
     assert_eq!(meta.returned, 20);
     assert_eq!(meta.limit, 20);
-    assert!(meta.offset.is_none());
+    assert_eq!(meta.offset, 0);
 }
 
 #[test]
 fn test_pagination_meta_with_offset() {
-    let meta = PaginationMeta::new(100, 20, 20).with_offset(40);
+    let meta = PaginationMeta::new(100, 20, 40, 20);
 
-    assert_eq!(meta.offset, Some(40));
+    assert_eq!(meta.offset, 40);
 }
 
 #[test]
 fn test_pagination_meta_with_hint() {
-    let meta =
-        PaginationMeta::new(50, 10, 10).with_hint("Use get_block for full content".to_string());
+    let meta = PaginationMeta::new(50, 10, 0, 10).with_hint("Use get_block for full content");
 
     assert_eq!(meta.hints.len(), 1);
     assert!(meta.hints[0].contains("get_block"));
@@ -323,9 +322,9 @@ fn test_pagination_meta_with_hint() {
 
 #[test]
 fn test_pagination_meta_multiple_hints() {
-    let meta = PaginationMeta::new(100, 20, 20)
-        .with_hint("Hint 1".to_string())
-        .with_hint("Hint 2".to_string());
+    let meta = PaginationMeta::new(100, 20, 0, 20)
+        .with_hint("Hint 1")
+        .with_hint("Hint 2");
 
     assert_eq!(meta.hints.len(), 2);
 }
