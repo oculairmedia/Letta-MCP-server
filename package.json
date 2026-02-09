@@ -48,9 +48,9 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.25.1",
-    "axios": "^1.13.2",
-    "cors": "^2.8.5",
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "axios": "^1.13.5",
+    "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
     "form-data": "^4.0.5",
