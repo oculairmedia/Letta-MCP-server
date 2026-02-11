@@ -60,3 +60,5 @@ rust/test_*.sh
 # Backup and reject files
 *.backup
 *.rej
+.opencode/
+.vibesync-cache/
