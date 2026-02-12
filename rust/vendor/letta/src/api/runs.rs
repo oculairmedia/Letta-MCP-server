@@ -2,7 +2,7 @@
 
 use crate::client::LettaClient;
 use crate::error::LettaResult;
-use crate::types::{LettaId, LettaMessageUnion, Run, Step};
+use crate::types::{LettaId, LettaMessageUnion, Run, RunMetrics, Step, UsageStatistics};
 
 /// Run API operations.
 #[derive(Debug)]
@@ -86,6 +86,34 @@ impl<'a> RunApi<'a> {
         let id_list = agent_ids.iter().map(|id| id.as_str()).collect::<Vec<_>>();
         self.client
             .get_with_query("v1/runs/active/", &[("agent_ids", id_list.join(","))])
+            .await
+    }
+
+    /// Get run metrics payload.
+    pub async fn get_metrics(&self, run_id: &LettaId) -> LettaResult<RunMetrics> {
+        self.client
+            .get(&format!("v1/runs/{}/metrics", run_id))
+            .await
+    }
+
+    /// Get run usage payload.
+    pub async fn get_usage(&self, run_id: &LettaId) -> LettaResult<UsageStatistics> {
+        self.client
+            .get(&format!("v1/runs/{}/usage", run_id))
+            .await
+    }
+
+    /// Get run trace payload.
+    pub async fn get_trace(&self, run_id: &LettaId) -> LettaResult<serde_json::Value> {
+        self.client
+            .get(&format!("v1/runs/{}/trace", run_id))
+            .await
+    }
+
+    /// Request run stream payload.
+    pub async fn stream(&self, run_id: &LettaId) -> LettaResult<serde_json::Value> {
+        self.client
+            .post(&format!("v1/runs/{}/stream", run_id), &serde_json::json!({}))
             .await
     }
 }

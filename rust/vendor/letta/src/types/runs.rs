@@ -250,21 +250,7 @@ pub struct StepUsage {
 }
 
 /// Provider execution trace information.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProviderTrace {
-    /// Provider name.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub provider: Option<String>,
-    /// Model used.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub model: Option<String>,
-    /// Execution duration in milliseconds.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub duration_ms: Option<i64>,
-    /// Raw provider response.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub raw_response: Option<serde_json::Value>,
-}
+pub type ProviderTrace = crate::types::telemetry::TelemetryTrace;
 
 /// Step feedback.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -274,6 +260,114 @@ pub enum StepFeedback {
     Positive,
     /// Negative feedback.
     Negative,
+}
+
+/// Request to modify step feedback.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ModifyFeedbackRequest {
+    /// Feedback value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub feedback: Option<StepFeedback>,
+    /// Optional tags associated with the feedback.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+}
+
+/// Step metrics object.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StepMetrics {
+    /// Step metrics ID.
+    pub id: LettaId,
+    /// Organization ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub organization_id: Option<LettaId>,
+    /// Provider ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_id: Option<LettaId>,
+    /// Run ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub run_id: Option<LettaId>,
+    /// Agent ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<LettaId>,
+    /// Step start timestamp in nanoseconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step_start_ns: Option<i64>,
+    /// LLM request start timestamp in nanoseconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub llm_request_start_ns: Option<i64>,
+    /// LLM request duration in nanoseconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub llm_request_ns: Option<i64>,
+    /// Tool execution duration in nanoseconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_execution_ns: Option<i64>,
+    /// Step duration in nanoseconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step_ns: Option<i64>,
+    /// Base template ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_template_id: Option<LettaId>,
+    /// Template ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template_id: Option<LettaId>,
+    /// Project ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<LettaId>,
+}
+
+/// Run metrics object.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunMetrics {
+    /// Run metrics ID.
+    pub id: LettaId,
+    /// Organization ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub organization_id: Option<LettaId>,
+    /// Agent ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<LettaId>,
+    /// Project ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<LettaId>,
+    /// Run start timestamp in nanoseconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub run_start_ns: Option<i64>,
+    /// Run duration in nanoseconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub run_ns: Option<i64>,
+    /// Number of steps in the run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub num_steps: Option<i32>,
+    /// Tools used during the run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools_used: Option<Vec<String>>,
+    /// Template ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template_id: Option<LettaId>,
+    /// Base template ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_template_id: Option<LettaId>,
+}
+
+/// Usage statistics for run responses.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UsageStatistics {
+    /// Completion token count.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completion_tokens: Option<i32>,
+    /// Prompt token count.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_tokens: Option<i32>,
+    /// Total token count.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_tokens: Option<i32>,
+    /// Prompt token detail payload.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_tokens_details: Option<serde_json::Value>,
+    /// Completion token detail payload.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completion_tokens_details: Option<serde_json::Value>,
 }
 
 impl fmt::Display for StepFeedback {

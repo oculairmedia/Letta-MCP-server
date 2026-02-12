@@ -4,8 +4,10 @@
 //! organized by functional area.
 
 pub mod agents;
+pub mod archives;
 pub mod batch;
 pub mod blocks;
+pub mod conversations;
 pub mod files;
 pub mod folders;
 pub mod groups;
@@ -14,6 +16,7 @@ pub mod identities;
 pub mod jobs;
 pub mod memory;
 pub mod messages;
+pub mod mcp_servers;
 pub mod misc;
 pub mod models;
 pub mod projects;
@@ -28,8 +31,10 @@ pub mod voice;
 
 // Re-export API structs
 pub use agents::AgentApi;
+pub use archives::ArchiveApi;
 pub use batch::BatchApi;
 pub use blocks::BlocksApi;
+pub use conversations::ConversationApi;
 pub use files::AgentFileApi;
 pub use folders::{AgentFolderApi, FolderApi};
 pub use groups::GroupApi;
@@ -38,6 +43,7 @@ pub use identities::IdentitiesApi;
 pub use jobs::{JobApi, StepApi};
 pub use memory::MemoryApi;
 pub use messages::MessageApi;
+pub use mcp_servers::McpServerApi;
 pub use models::ModelsApi;
 pub use projects::ProjectApi;
 pub use providers::ProvidersApi;

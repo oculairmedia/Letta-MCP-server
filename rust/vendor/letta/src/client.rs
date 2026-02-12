@@ -180,6 +180,11 @@ impl LettaClient {
         crate::api::SourceApi::new(self)
     }
 
+    /// Get the archive API.
+    pub fn archives(&self) -> crate::api::ArchiveApi<'_> {
+        crate::api::ArchiveApi::new(self)
+    }
+
     /// Get the tool API.
     pub fn tools(&self) -> crate::api::ToolApi<'_> {
         crate::api::ToolApi::new(self)

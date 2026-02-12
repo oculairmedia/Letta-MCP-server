@@ -61,7 +61,7 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "Advanced agent operations hub - Supports 22 operations including CRUD (list, create, get, update, delete), tools (list_tools), messaging (send_message), management (export, import, clone, get_config, bulk_delete), advanced (context, reset_messages, summarize, stream), async (async_message, cancel_message), and utility (preview_payload, search_messages, get_message, count) operations."
+        description = "Advanced agent operations hub - Supports 27 operations including CRUD (list, create, get, update, delete), tools (list_tools), messaging (send_message, send_conversation_message), management (export, import, clone, get_config, bulk_delete), advanced (context, reset_messages, summarize, stream), async (async_message, cancel_message), conversation lifecycle (list_conversations, get_conversation, cancel_conversation, compact_conversation), and utility (preview_payload, search_messages, get_message, count) operations."
     )]
     async fn letta_agent_advanced(
         &self,
@@ -76,7 +76,7 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "Unified Memory Operations Hub - Provides unified interface for all memory operations. Supports 16 operations including core memory (get_core_memory, update_core_memory), blocks (get_block_by_label, list_blocks, create_block, get_block, update_block, attach_block, detach_block, list_agents_using_block), archival memory (search_archival, list_passages, create_passage, update_passage, delete_passage), and unified search (search_memory)."
+        description = "Unified Memory Operations Hub - Provides unified interface for all memory operations. Supports 24 operations including core memory (get_core_memory, update_core_memory), blocks (get_block_by_label, list_blocks, create_block, get_block, update_block, attach_block, detach_block, list_agents_using_block), archival memory (search_archival, list_passages, create_passage, update_passage, delete_passage), archives (list_archives, get_archive, create_archive, update_archive, delete_archive, attach_archive, detach_archive, list_agents_using_archive), and unified search (search_memory)."
     )]
     async fn letta_memory_unified(
         &self,
@@ -85,6 +85,7 @@ impl LettaServer {
         block_id: Option<String>,
         block_label: Option<String>,
         passage_id: Option<String>,
+        archive_id: Option<String>,
         label: Option<String>,
         value: Option<String>,
         text: Option<String>,
@@ -118,6 +119,7 @@ impl LettaServer {
             block_id,
             block_label,
             passage_id,
+            archive_id,
             label,
             value,
             text,
@@ -334,8 +336,10 @@ impl LettaServer {
         &self,
         operation: String,
         server_name: Option<String>,
+        mcp_server_id: Option<String>,
         server_config: Option<Value>,
         tool_name: Option<String>,
+        tool_id: Option<String>,
         tool_args: Option<Value>,
         oauth_config: Option<Value>,
         pagination: Option<Value>,
@@ -349,8 +353,10 @@ impl LettaServer {
         let request = mcp_ops::McpOpsRequest {
             operation: op,
             server_name,
+            mcp_server_id,
             server_config,
             tool_name,
+            tool_id,
             tool_args,
             oauth_config,
             pagination,

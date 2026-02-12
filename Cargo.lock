@@ -3780,8 +3780,8 @@ dependencies = [
 
 [[package]]
 name = "turbomcp"
-version = "2.3.5"
-source = "git+https://github.com/oculairmedia/turbomcp.git?branch=feature%2Fflatten-structs#03bde67d488d420ef61d40e222e1ab1874aa59d7"
+version = "2.3.7"
+source = "git+https://github.com/oculairmedia/turbomcp.git?branch=feature%2Fflatten-structs#8ae47c783795a29ca985406c1daa3ae6265f0866"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -3815,8 +3815,8 @@ dependencies = [
 
 [[package]]
 name = "turbomcp-macros"
-version = "2.3.5"
-source = "git+https://github.com/oculairmedia/turbomcp.git?branch=feature%2Fflatten-structs#03bde67d488d420ef61d40e222e1ab1874aa59d7"
+version = "2.3.7"
+source = "git+https://github.com/oculairmedia/turbomcp.git?branch=feature%2Fflatten-structs#8ae47c783795a29ca985406c1daa3ae6265f0866"
 dependencies = [
  "axum",
  "proc-macro2",
@@ -3830,8 +3830,8 @@ dependencies = [
 
 [[package]]
 name = "turbomcp-protocol"
-version = "2.3.5"
-source = "git+https://github.com/oculairmedia/turbomcp.git?branch=feature%2Fflatten-structs#03bde67d488d420ef61d40e222e1ab1874aa59d7"
+version = "2.3.7"
+source = "git+https://github.com/oculairmedia/turbomcp.git?branch=feature%2Fflatten-structs#8ae47c783795a29ca985406c1daa3ae6265f0866"
 dependencies = [
  "ahash",
  "arc-swap",
@@ -3864,8 +3864,8 @@ dependencies = [
 
 [[package]]
 name = "turbomcp-server"
-version = "2.3.5"
-source = "git+https://github.com/oculairmedia/turbomcp.git?branch=feature%2Fflatten-structs#03bde67d488d420ef61d40e222e1ab1874aa59d7"
+version = "2.3.7"
+source = "git+https://github.com/oculairmedia/turbomcp.git?branch=feature%2Fflatten-structs#8ae47c783795a29ca985406c1daa3ae6265f0866"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -3898,8 +3898,8 @@ dependencies = [
 
 [[package]]
 name = "turbomcp-transport"
-version = "2.3.5"
-source = "git+https://github.com/oculairmedia/turbomcp.git?branch=feature%2Fflatten-structs#03bde67d488d420ef61d40e222e1ab1874aa59d7"
+version = "2.3.7"
+source = "git+https://github.com/oculairmedia/turbomcp.git?branch=feature%2Fflatten-structs#8ae47c783795a29ca985406c1daa3ae6265f0866"
 dependencies = [
  "ahash",
  "anyhow",

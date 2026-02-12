@@ -34,6 +34,14 @@ pub enum MemoryOperation {
     CreatePassage,
     UpdatePassage,
     DeletePassage,
+    ListArchives,
+    GetArchive,
+    CreateArchive,
+    UpdateArchive,
+    DeleteArchive,
+    AttachArchive,
+    DetachArchive,
+    ListAgentsUsingArchive,
     // Unified search
     SearchMemory,
 }
@@ -70,6 +78,8 @@ pub struct MemoryUnifiedRequest {
     pub block_label: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub passage_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub archive_id: Option<String>,
 
     // Create/Update data
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -120,6 +130,8 @@ pub struct MemoryUnifiedResponse {
     pub block_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub passage_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub archive_id: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
@@ -188,6 +200,14 @@ pub async fn handle_memory_unified(
         MemoryOperation::CreatePassage => handle_create_passage(client, request).await,
         MemoryOperation::UpdatePassage => handle_update_passage(client, request).await,
         MemoryOperation::DeletePassage => handle_delete_passage(client, request).await,
+        MemoryOperation::ListArchives => handle_list_archives(client, request).await,
+        MemoryOperation::GetArchive => handle_get_archive(client, request).await,
+        MemoryOperation::CreateArchive => handle_create_archive(client, request).await,
+        MemoryOperation::UpdateArchive => handle_update_archive(client, request).await,
+        MemoryOperation::DeleteArchive => handle_delete_archive(client, request).await,
+        MemoryOperation::AttachArchive => handle_attach_archive(client, request).await,
+        MemoryOperation::DetachArchive => handle_detach_archive(client, request).await,
+        MemoryOperation::ListAgentsUsingArchive => handle_list_agents_using_archive(client, request).await,
         MemoryOperation::SearchMemory => handle_search_memory(client, request).await,
     }
 }
@@ -221,6 +241,7 @@ async fn handle_get_core_memory(
         core_memory: Some(serde_json::to_value(memory)?),
         block_id: None,
         passage_id: None,
+        archive_id: None,
         data: None,
         blocks: None,
         passages: None,
@@ -272,6 +293,7 @@ async fn handle_update_core_memory(
         data: Some(serde_json::to_value(updated_block)?),
         block_id: None,
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         blocks: None,
         passages: None,
@@ -313,6 +335,7 @@ async fn handle_get_block_by_label(
         data: Some(serde_json::to_value(block)?),
         block_id: None,
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         blocks: None,
         passages: None,
@@ -352,6 +375,7 @@ async fn handle_list_blocks(
         messages: None,
         block_id: None,
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         data: None,
         passages: None,
@@ -396,6 +420,7 @@ async fn handle_create_block(
         block_id: block.id.as_ref().map(|id| id.to_string()),
         data: Some(serde_json::to_value(block)?),
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         blocks: None,
         passages: None,
@@ -430,6 +455,7 @@ async fn handle_get_block(
         block_id: Some(block_id),
         data: Some(serde_json::to_value(block)?),
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         blocks: None,
         passages: None,
@@ -476,6 +502,7 @@ async fn handle_update_block(
         block_id: Some(block_id),
         data: Some(serde_json::to_value(block)?),
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         blocks: None,
         passages: None,
@@ -515,6 +542,7 @@ async fn handle_attach_block(
         block_id: Some(block_id),
         data: Some(serde_json::to_value(agent_state)?),
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         blocks: None,
         passages: None,
@@ -554,6 +582,7 @@ async fn handle_detach_block(
         block_id: Some(block_id),
         data: Some(serde_json::to_value(agent_state)?),
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         blocks: None,
         passages: None,
@@ -619,6 +648,7 @@ async fn handle_search_archival(
         messages: None,
         block_id: None,
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         data: None,
         blocks: None,
@@ -663,6 +693,7 @@ async fn handle_list_passages(
         messages: None,
         block_id: None,
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         data: None,
         blocks: None,
@@ -699,6 +730,7 @@ async fn handle_create_passage(
         passages: Some(serde_json::to_value(&passages)?),
         block_id: None,
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         data: None,
         blocks: None,
@@ -748,12 +780,314 @@ async fn handle_delete_passage(
         message: "Passage deleted successfully".to_string(),
         agent_id: Some(agent_id),
         passage_id: Some(passage_id),
+        archive_id: None,
         block_id: None,
         core_memory: None,
         data: None,
         blocks: None,
         passages: None,
         count: None,
+        archival: None,
+        messages: None,
+    })
+}
+
+async fn handle_list_archives(
+    client: &LettaClient,
+    _request: MemoryUnifiedRequest,
+) -> Result<MemoryUnifiedResponse, McpError> {
+    let archives = client
+        .archives()
+        .list()
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to list archives: {}", e)))?;
+
+    let count = archives.len();
+
+    Ok(MemoryUnifiedResponse {
+        success: true,
+        operation: "list_archives".to_string(),
+        message: format!("Found {} archives", count),
+        agent_id: None,
+        block_id: None,
+        passage_id: None,
+        archive_id: None,
+        data: None,
+        blocks: None,
+        passages: None,
+        core_memory: None,
+        count: Some(count),
+        archival: Some(ArchivalSearchResult {
+            passages: vec![serde_json::to_value(&archives)?],
+            count,
+        }),
+        messages: None,
+    })
+}
+
+async fn handle_get_archive(
+    client: &LettaClient,
+    request: MemoryUnifiedRequest,
+) -> Result<MemoryUnifiedResponse, McpError> {
+    let archive_id = request.archive_id.ok_or_else(|| {
+        McpError::invalid_request("archive_id is required for get_archive".to_string())
+    })?;
+
+    let letta_archive_id = letta::types::LettaId::from_str(&archive_id)
+        .map_err(|e| McpError::invalid_request(format!("Invalid archive_id: {}", e)))?;
+
+    let archive = client
+        .archives()
+        .get(&letta_archive_id)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to get archive: {}", e)))?;
+
+    Ok(MemoryUnifiedResponse {
+        success: true,
+        operation: "get_archive".to_string(),
+        message: "Archive retrieved successfully".to_string(),
+        agent_id: None,
+        block_id: None,
+        passage_id: None,
+        archive_id: Some(archive_id),
+        data: Some(serde_json::to_value(archive)?),
+        blocks: None,
+        passages: None,
+        core_memory: None,
+        count: None,
+        archival: None,
+        messages: None,
+    })
+}
+
+async fn handle_create_archive(
+    client: &LettaClient,
+    request: MemoryUnifiedRequest,
+) -> Result<MemoryUnifiedResponse, McpError> {
+    let name = request.label.ok_or_else(|| {
+        McpError::invalid_request("label is required for create_archive".to_string())
+    })?;
+
+    let create_request = letta::types::ArchiveCreateRequest {
+        name,
+        embedding: None,
+        embedding_config: None,
+        description: request.text,
+    };
+
+    let archive = client
+        .archives()
+        .create(create_request)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to create archive: {}", e)))?;
+
+    Ok(MemoryUnifiedResponse {
+        success: true,
+        operation: "create_archive".to_string(),
+        message: "Archive created successfully".to_string(),
+        agent_id: None,
+        block_id: None,
+        passage_id: None,
+        archive_id: archive.id.as_ref().map(|id| id.to_string()),
+        data: Some(serde_json::to_value(archive)?),
+        blocks: None,
+        passages: None,
+        core_memory: None,
+        count: None,
+        archival: None,
+        messages: None,
+    })
+}
+
+async fn handle_update_archive(
+    client: &LettaClient,
+    request: MemoryUnifiedRequest,
+) -> Result<MemoryUnifiedResponse, McpError> {
+    let archive_id = request.archive_id.ok_or_else(|| {
+        McpError::invalid_request("archive_id is required for update_archive".to_string())
+    })?;
+
+    let letta_archive_id = letta::types::LettaId::from_str(&archive_id)
+        .map_err(|e| McpError::invalid_request(format!("Invalid archive_id: {}", e)))?;
+
+    let update_request = letta::types::ArchiveUpdateRequest {
+        name: request.label,
+        description: request.text,
+    };
+
+    let archive = client
+        .archives()
+        .update(&letta_archive_id, update_request)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to update archive: {}", e)))?;
+
+    Ok(MemoryUnifiedResponse {
+        success: true,
+        operation: "update_archive".to_string(),
+        message: "Archive updated successfully".to_string(),
+        agent_id: None,
+        block_id: None,
+        passage_id: None,
+        archive_id: Some(archive_id),
+        data: Some(serde_json::to_value(archive)?),
+        blocks: None,
+        passages: None,
+        core_memory: None,
+        count: None,
+        archival: None,
+        messages: None,
+    })
+}
+
+async fn handle_delete_archive(
+    client: &LettaClient,
+    request: MemoryUnifiedRequest,
+) -> Result<MemoryUnifiedResponse, McpError> {
+    let archive_id = request.archive_id.ok_or_else(|| {
+        McpError::invalid_request("archive_id is required for delete_archive".to_string())
+    })?;
+
+    let letta_archive_id = letta::types::LettaId::from_str(&archive_id)
+        .map_err(|e| McpError::invalid_request(format!("Invalid archive_id: {}", e)))?;
+
+    let response = client
+        .archives()
+        .delete(&letta_archive_id)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to delete archive: {}", e)))?;
+
+    Ok(MemoryUnifiedResponse {
+        success: true,
+        operation: "delete_archive".to_string(),
+        message: "Archive deleted successfully".to_string(),
+        agent_id: None,
+        block_id: None,
+        passage_id: None,
+        archive_id: Some(archive_id),
+        data: Some(serde_json::to_value(response)?),
+        blocks: None,
+        passages: None,
+        core_memory: None,
+        count: None,
+        archival: None,
+        messages: None,
+    })
+}
+
+async fn handle_attach_archive(
+    client: &LettaClient,
+    request: MemoryUnifiedRequest,
+) -> Result<MemoryUnifiedResponse, McpError> {
+    let agent_id = request.agent_id.ok_or_else(|| {
+        McpError::invalid_request("agent_id is required for attach_archive".to_string())
+    })?;
+    let archive_id = request.archive_id.ok_or_else(|| {
+        McpError::invalid_request("archive_id is required for attach_archive".to_string())
+    })?;
+
+    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
+        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+    let letta_archive_id = letta::types::LettaId::from_str(&archive_id)
+        .map_err(|e| McpError::invalid_request(format!("Invalid archive_id: {}", e)))?;
+
+    let agent_state = client
+        .archives()
+        .agent_archives(letta_agent_id)
+        .attach(&letta_archive_id)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to attach archive: {}", e)))?;
+
+    Ok(MemoryUnifiedResponse {
+        success: true,
+        operation: "attach_archive".to_string(),
+        message: "Archive attached to agent successfully".to_string(),
+        agent_id: Some(agent_id),
+        block_id: None,
+        passage_id: None,
+        archive_id: Some(archive_id),
+        data: Some(serde_json::to_value(agent_state)?),
+        blocks: None,
+        passages: None,
+        core_memory: None,
+        count: None,
+        archival: None,
+        messages: None,
+    })
+}
+
+async fn handle_detach_archive(
+    client: &LettaClient,
+    request: MemoryUnifiedRequest,
+) -> Result<MemoryUnifiedResponse, McpError> {
+    let agent_id = request.agent_id.ok_or_else(|| {
+        McpError::invalid_request("agent_id is required for detach_archive".to_string())
+    })?;
+    let archive_id = request.archive_id.ok_or_else(|| {
+        McpError::invalid_request("archive_id is required for detach_archive".to_string())
+    })?;
+
+    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
+        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+    let letta_archive_id = letta::types::LettaId::from_str(&archive_id)
+        .map_err(|e| McpError::invalid_request(format!("Invalid archive_id: {}", e)))?;
+
+    let agent_state = client
+        .archives()
+        .agent_archives(letta_agent_id)
+        .detach(&letta_archive_id)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to detach archive: {}", e)))?;
+
+    Ok(MemoryUnifiedResponse {
+        success: true,
+        operation: "detach_archive".to_string(),
+        message: "Archive detached from agent successfully".to_string(),
+        agent_id: Some(agent_id),
+        block_id: None,
+        passage_id: None,
+        archive_id: Some(archive_id),
+        data: Some(serde_json::to_value(agent_state)?),
+        blocks: None,
+        passages: None,
+        core_memory: None,
+        count: None,
+        archival: None,
+        messages: None,
+    })
+}
+
+async fn handle_list_agents_using_archive(
+    client: &LettaClient,
+    request: MemoryUnifiedRequest,
+) -> Result<MemoryUnifiedResponse, McpError> {
+    let archive_id = request.archive_id.ok_or_else(|| {
+        McpError::invalid_request("archive_id is required for list_agents_using_archive".to_string())
+    })?;
+
+    let letta_archive_id = letta::types::LettaId::from_str(&archive_id)
+        .map_err(|e| McpError::invalid_request(format!("Invalid archive_id: {}", e)))?;
+
+    let agents = client
+        .archives()
+        .list_agents(&letta_archive_id)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to list agents using archive: {}", e)))?;
+
+    let count = agents.len();
+
+    Ok(MemoryUnifiedResponse {
+        success: true,
+        operation: "list_agents_using_archive".to_string(),
+        message: format!("Found {} agents using archive", count),
+        agent_id: None,
+        block_id: None,
+        passage_id: None,
+        archive_id: Some(archive_id),
+        data: Some(serde_json::to_value(&agents)?),
+        blocks: None,
+        passages: None,
+        core_memory: None,
+        count: Some(count),
         archival: None,
         messages: None,
     })
@@ -814,6 +1148,7 @@ async fn handle_search_memory(
         count: Some(archival_count + messages_count),
         block_id: None,
         passage_id: None,
+        archive_id: None,
         core_memory: None,
         data: None,
         blocks: None,

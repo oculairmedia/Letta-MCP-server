@@ -39,6 +39,11 @@ pub enum AgentOperation {
     SearchMessages,
     GetMessage,
     Count,
+    ListConversations,
+    GetConversation,
+    SendConversationMessage,
+    CancelConversation,
+    CompactConversation,
 }
 
 // ===================================================
@@ -170,6 +175,9 @@ pub struct AgentAdvancedRequest {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     #[schemars(schema_with = "value_object_schema")]
     pub update_data: Option<Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conversation_id: Option<String>,
 }
 
 /// Schema helper for Value fields - generates object type
@@ -187,7 +195,9 @@ fn operation_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
             "list_tools", "send_message", "export", "import", "clone",
             "get_config", "bulk_delete", "context", "reset_messages",
             "summarize", "stream", "async_message", "cancel_message",
-            "preview_payload", "search_messages", "get_message", "count"
+            "preview_payload", "search_messages", "get_message", "count",
+            "list_conversations", "get_conversation", "send_conversation_message",
+            "cancel_conversation", "compact_conversation"
         ]
     })
 }
@@ -307,6 +317,13 @@ pub async fn handle_agent_advanced(
         AgentOperation::SearchMessages => handle_search_messages(client, request).await?,
         AgentOperation::GetMessage => handle_get_message(client, request).await?,
         AgentOperation::Count => handle_count(client, request).await?,
+        AgentOperation::ListConversations => handle_list_conversations(client, request).await?,
+        AgentOperation::GetConversation => handle_get_conversation(client, request).await?,
+        AgentOperation::SendConversationMessage => {
+            handle_send_conversation_message(client, request).await?
+        }
+        AgentOperation::CancelConversation => handle_cancel_conversation(client, request).await?,
+        AgentOperation::CompactConversation => handle_compact_conversation(client, request).await?,
     };
 
     Ok(serde_json::to_string_pretty(&response)?)
@@ -1265,5 +1282,162 @@ async fn handle_count(
         "count",
         serde_json::json!({ "count": count }),
         format!("Total agents: {}", count),
+    ))
+}
+
+async fn handle_list_conversations(
+    client: &LettaClient,
+    _request: AgentAdvancedRequest,
+) -> Result<StandardResponse, McpError> {
+    let conversations = client
+        .conversations()
+        .list()
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to list conversations: {}", e)))?;
+
+    Ok(StandardResponse::success(
+        "list_conversations",
+        serde_json::json!({
+            "count": conversations.len(),
+            "conversations": conversations,
+        }),
+        "Conversations listed successfully",
+    ))
+}
+
+async fn handle_get_conversation(
+    client: &LettaClient,
+    request: AgentAdvancedRequest,
+) -> Result<StandardResponse, McpError> {
+    let conversation_id = request.conversation_id.ok_or_else(|| {
+        McpError::invalid_request("conversation_id is required for get_conversation".to_string())
+    })?;
+
+    let letta_conversation_id: letta::types::LettaId = conversation_id.parse().map_err(|e| {
+        McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
+    })?;
+
+    let conversation = client
+        .conversations()
+        .get(&letta_conversation_id)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to get conversation: {}", e)))?;
+
+    Ok(StandardResponse::success(
+        "get_conversation",
+        serde_json::to_value(conversation)?,
+        "Conversation retrieved successfully",
+    ))
+}
+
+async fn handle_send_conversation_message(
+    client: &LettaClient,
+    request: AgentAdvancedRequest,
+) -> Result<StandardResponse, McpError> {
+    let conversation_id = request.conversation_id.ok_or_else(|| {
+        McpError::invalid_request(
+            "conversation_id is required for send_conversation_message".to_string(),
+        )
+    })?;
+    let messages = request.messages.ok_or_else(|| {
+        McpError::invalid_request(
+            "messages is required for send_conversation_message".to_string(),
+        )
+    })?;
+
+    let letta_conversation_id: letta::types::LettaId = conversation_id.parse().map_err(|e| {
+        McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
+    })?;
+
+    let message_values: Vec<Value> = messages
+        .into_iter()
+        .map(|m| serde_json::json!({ "role": m.role, "content": m.content }))
+        .collect();
+
+    let message_request = letta::types::ConversationMessageRequest {
+        messages: Some(Value::Array(message_values)),
+        input: None,
+        max_steps: None,
+        use_assistant_message: None,
+        assistant_message_tool_name: None,
+        assistant_message_tool_kwarg: None,
+        include_return_message_types: None,
+        enable_thinking: None,
+        client_tools: None,
+        override_model: None,
+        streaming: request.stream,
+        stream_tokens: None,
+        include_pings: None,
+        background: None,
+    };
+
+    let response = client
+        .conversations()
+        .send_message(&letta_conversation_id, message_request)
+        .await
+        .map_err(|e| {
+            McpError::internal(format!("Failed to send conversation message: {}", e))
+        })?;
+
+    Ok(StandardResponse::success(
+        "send_conversation_message",
+        serde_json::to_value(response)?,
+        "Conversation message sent successfully",
+    ))
+}
+
+async fn handle_cancel_conversation(
+    client: &LettaClient,
+    request: AgentAdvancedRequest,
+) -> Result<StandardResponse, McpError> {
+    let conversation_id = request.conversation_id.ok_or_else(|| {
+        McpError::invalid_request(
+            "conversation_id is required for cancel_conversation".to_string(),
+        )
+    })?;
+
+    let letta_conversation_id: letta::types::LettaId = conversation_id.parse().map_err(|e| {
+        McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
+    })?;
+
+    let response = client
+        .conversations()
+        .cancel(&letta_conversation_id)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to cancel conversation: {}", e)))?;
+
+    Ok(StandardResponse::success(
+        "cancel_conversation",
+        response,
+        "Conversation cancelled successfully",
+    ))
+}
+
+async fn handle_compact_conversation(
+    client: &LettaClient,
+    request: AgentAdvancedRequest,
+) -> Result<StandardResponse, McpError> {
+    let conversation_id = request.conversation_id.ok_or_else(|| {
+        McpError::invalid_request(
+            "conversation_id is required for compact_conversation".to_string(),
+        )
+    })?;
+
+    let letta_conversation_id: letta::types::LettaId = conversation_id.parse().map_err(|e| {
+        McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
+    })?;
+
+    let compact_payload = request.update_data;
+
+    let response = client
+        .conversations()
+        .compact(&letta_conversation_id, compact_payload)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to compact conversation: {}", e)))?;
+
+    Ok(StandardResponse::success(
+        "compact_conversation",
+        response,
+        "Conversation compacted successfully",
     ))
 }
