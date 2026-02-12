@@ -3,29 +3,21 @@
 //! Helper functions and types for truncating and summarizing memory responses
 //! to reduce token usage while maintaining useful information.
 
+use crate::tools::response_utils::{
+    truncate_preview as shared_truncate_preview, truncate_with_indicator,
+};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Truncate a string to a maximum length, adding indicator if truncated
 pub fn truncate_string(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        let truncated = s.chars().take(max_len).collect::<String>();
-        let remaining = s.len() - max_len;
-        format!("{}...[truncated, {} more chars]", truncated, remaining)
-    }
+    truncate_with_indicator(s, max_len)
 }
 
 /// Truncate a string to show preview only
 pub fn truncate_preview(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        let preview = s.chars().take(max_len).collect::<String>();
-        format!("{}...", preview)
-    }
+    shared_truncate_preview(s, max_len)
 }
 
 /// Block summary for list operations

@@ -7,9 +7,10 @@ use letta::{
     types::tool::{McpServerConfig, TestMcpServerRequest, UpdateMcpServerRequest},
     LettaClient,
 };
+use crate::tools::id_utils::parse_letta_id;
+use crate::tools::validation_utils::require_field;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::str::FromStr;
 use tracing::info;
 use turbomcp::McpError;
 
@@ -198,9 +199,7 @@ async fn handle_add_server(
     client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let server_config_value = request
-        .server_config
-        .ok_or_else(|| McpError::invalid_request("server_config required"))?;
+    let server_config_value = require_field(request.server_config, "server_config required")?;
 
     // Deserialize Value to McpServerConfig
     let server_config: McpServerConfig = serde_json::from_value(server_config_value)
@@ -236,12 +235,8 @@ async fn handle_update_server(
     client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let server_name = request
-        .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
-    let server_config_value = request
-        .server_config
-        .ok_or_else(|| McpError::invalid_request("server_config required"))?;
+    let server_name = require_field(request.server_name, "server_name required")?;
+    let server_config_value = require_field(request.server_config, "server_config required")?;
 
     // Deserialize Value to UpdateMcpServerRequest
     let update_request: UpdateMcpServerRequest = serde_json::from_value(server_config_value)
@@ -267,9 +262,7 @@ async fn handle_delete_server(
     client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let server_name = request
-        .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
+    let server_name = require_field(request.server_name, "server_name required")?;
 
     client
         .tools()
@@ -287,9 +280,7 @@ async fn handle_test_server(
     client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let server_config_value = request
-        .server_config
-        .ok_or_else(|| McpError::invalid_request("server_config required"))?;
+    let server_config_value = require_field(request.server_config, "server_config required")?;
 
     // Deserialize Value to McpServerConfig for the flattened TestMcpServerRequest
     let config: McpServerConfig = serde_json::from_value(server_config_value)
@@ -333,11 +324,9 @@ async fn handle_connect_server(
     client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let mcp_server_id = request
-        .mcp_server_id
-        .ok_or_else(|| McpError::invalid_request("mcp_server_id required for connect"))?;
-    let letta_mcp_server_id = letta::types::LettaId::from_str(&mcp_server_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid mcp_server_id: {}", e)))?;
+    let mcp_server_id =
+        require_field(request.mcp_server_id, "mcp_server_id required for connect")?;
+    let letta_mcp_server_id = parse_letta_id(&mcp_server_id, "mcp_server_id")?;
 
     let result = client
         .mcp_servers()
@@ -359,11 +348,8 @@ async fn handle_resync_server(
     client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let mcp_server_id = request
-        .mcp_server_id
-        .ok_or_else(|| McpError::invalid_request("mcp_server_id required for resync"))?;
-    let letta_mcp_server_id = letta::types::LettaId::from_str(&mcp_server_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid mcp_server_id: {}", e)))?;
+    let mcp_server_id = require_field(request.mcp_server_id, "mcp_server_id required for resync")?;
+    let letta_mcp_server_id = parse_letta_id(&mcp_server_id, "mcp_server_id")?;
 
     let result = client
         .mcp_servers()
@@ -385,17 +371,11 @@ async fn handle_execute_tool(
     client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let mcp_server_id = request
-        .mcp_server_id
-        .ok_or_else(|| McpError::invalid_request("mcp_server_id required for execute"))?;
-    let tool_id = request
-        .tool_id
-        .ok_or_else(|| McpError::invalid_request("tool_id required for execute"))?;
+    let mcp_server_id = require_field(request.mcp_server_id, "mcp_server_id required for execute")?;
+    let tool_id = require_field(request.tool_id, "tool_id required for execute")?;
 
-    let letta_mcp_server_id = letta::types::LettaId::from_str(&mcp_server_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid mcp_server_id: {}", e)))?;
-    let letta_tool_id = letta::types::LettaId::from_str(&tool_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
+    let letta_mcp_server_id = parse_letta_id(&mcp_server_id, "mcp_server_id")?;
+    let letta_tool_id = parse_letta_id(&tool_id, "tool_id")?;
 
     let args = match request.tool_args {
         Some(Value::Object(map)) => map,
@@ -518,8 +498,7 @@ async fn handle_list_tools(
 ) -> Result<McpOpsResponse, McpError> {
     let (all_tools, used_server_name, used_mcp_server_id) =
         if let Some(mcp_server_id) = request.mcp_server_id {
-            let letta_mcp_server_id = letta::types::LettaId::from_str(&mcp_server_id)
-                .map_err(|e| McpError::invalid_request(format!("Invalid mcp_server_id: {}", e)))?;
+            let letta_mcp_server_id = parse_letta_id(&mcp_server_id, "mcp_server_id")?;
 
             let tools = client
                 .mcp_servers()
@@ -636,12 +615,8 @@ async fn handle_register_tool(
     client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let server_name = request
-        .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
-    let tool_name = request
-        .tool_name
-        .ok_or_else(|| McpError::invalid_request("tool_name required"))?;
+    let server_name = require_field(request.server_name, "server_name required")?;
+    let tool_name = require_field(request.tool_name, "tool_name required")?;
 
     let result = client
         .tools()
@@ -667,15 +642,10 @@ async fn handle_attach_mcp_server(
     client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let server_name = request
-        .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id required for attach_mcp_server"))?;
+    let server_name = require_field(request.server_name, "server_name required")?;
+    let agent_id = require_field(request.agent_id, "agent_id required for attach_mcp_server")?;
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+    let letta_agent_id = parse_letta_id(&agent_id, "agent_id")?;
 
     let mcp_tools = client
         .tools()

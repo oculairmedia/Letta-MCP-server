@@ -3,6 +3,7 @@
 //! Consolidated tool for job monitoring operations with response size optimizations.
 
 use letta::LettaClient;
+use crate::tools::validation_utils::require_field;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
@@ -160,9 +161,7 @@ async fn handle_get_job(
     client: &LettaClient,
     request: JobMonitorRequest,
 ) -> Result<JobMonitorResponse, McpError> {
-    let job_id = request
-        .job_id
-        .ok_or_else(|| McpError::invalid_request("job_id required".to_string()))?;
+    let job_id = require_field(request.job_id, "job_id required".to_string())?;
     let letta_id = letta::types::LettaId::from_str(&job_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid job_id: {}", e)))?;
 
@@ -224,9 +223,7 @@ async fn handle_cancel_job(
     client: &LettaClient,
     request: JobMonitorRequest,
 ) -> Result<JobMonitorResponse, McpError> {
-    let job_id = request
-        .job_id
-        .ok_or_else(|| McpError::invalid_request("job_id required".to_string()))?;
+    let job_id = require_field(request.job_id, "job_id required".to_string())?;
     let letta_id = letta::types::LettaId::from_str(&job_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid job_id: {}", e)))?;
 

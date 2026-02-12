@@ -3,6 +3,7 @@
 //! Consolidated tool for source management operations.
 
 use letta::LettaClient;
+use crate::tools::validation_utils::require_field;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
@@ -255,9 +256,7 @@ async fn handle_get_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -277,9 +276,7 @@ async fn handle_create_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let name = request
-        .name
-        .ok_or_else(|| McpError::invalid_request("name required"))?;
+    let name = require_field(request.name, "name required")?;
 
     let create_request = if let Some(desc) = request.description {
         letta::types::source::CreateSourceRequest::builder()
@@ -308,9 +305,7 @@ async fn handle_update_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -336,9 +331,7 @@ async fn handle_delete_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -358,12 +351,8 @@ async fn handle_attach_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id required"))?;
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let agent_id = require_field(request.agent_id, "agent_id required")?;
+    let source_id = require_field(request.source_id, "source_id required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -391,12 +380,8 @@ async fn handle_detach_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id required"))?;
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let agent_id = require_field(request.agent_id, "agent_id required")?;
+    let source_id = require_field(request.source_id, "source_id required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -484,9 +469,7 @@ async fn handle_list_files(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -547,15 +530,12 @@ async fn handle_upload_file(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
-    let file_name = request
-        .file_name
-        .ok_or_else(|| McpError::invalid_request("file_name required"))?;
-    let file_data_b64 = request.file_data.ok_or_else(|| {
-        McpError::invalid_request("file_data required (base64 encoded)".to_string())
-    })?;
+    let source_id = require_field(request.source_id, "source_id required")?;
+    let file_name = require_field(request.file_name, "file_name required")?;
+    let file_data_b64 = require_field(
+        request.file_data,
+        "file_data required (base64 encoded)",
+    )?;
 
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
@@ -623,12 +603,8 @@ async fn handle_delete_file(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
-    let file_id = request
-        .file_id
-        .ok_or_else(|| McpError::invalid_request("file_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
+    let file_id = require_field(request.file_id, "file_id required")?;
 
     let letta_source_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
@@ -655,9 +631,7 @@ async fn handle_list_agents_using(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
