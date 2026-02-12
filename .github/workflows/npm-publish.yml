@@ -65,7 +65,7 @@ jobs:
                       binary: letta-server.exe
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - name: Install Rust toolchain
               uses: dtolnay/rust-toolchain@nightly
@@ -91,7 +91,7 @@ jobs:
               run: strip "target/${{ matrix.target }}/release/${{ matrix.binary }}"
 
             - name: Upload binary artifact
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v6
               with:
                   name: binary-${{ matrix.platform }}
                   path: target/${{ matrix.target }}/release/${{ matrix.binary }}
@@ -109,15 +109,15 @@ jobs:
             id-token: write # For npm provenance
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v6
               with:
                   node-version: '20'
                   registry-url: 'https://registry.npmjs.org'
 
             - name: Download all binary artifacts
-              uses: actions/download-artifact@v4
+              uses: actions/download-artifact@v7
               with:
                   path: artifacts
 
