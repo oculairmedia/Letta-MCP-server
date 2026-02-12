@@ -34,7 +34,7 @@
     "letta-mcp-darwin-arm64": "3.0.0",
     "letta-mcp-linux-x64": "3.0.0",
     "letta-mcp-linux-arm64": "3.0.0",
-    "letta-mcp-windows-x64": "3.0.0"
+    "letta-mcp-windows-x64": "3.0.1"
   },
   "engines": {
     "node": ">=18.0.0"
