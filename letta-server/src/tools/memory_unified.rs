@@ -207,7 +207,9 @@ pub async fn handle_memory_unified(
         MemoryOperation::DeleteArchive => handle_delete_archive(client, request).await,
         MemoryOperation::AttachArchive => handle_attach_archive(client, request).await,
         MemoryOperation::DetachArchive => handle_detach_archive(client, request).await,
-        MemoryOperation::ListAgentsUsingArchive => handle_list_agents_using_archive(client, request).await,
+        MemoryOperation::ListAgentsUsingArchive => {
+            handle_list_agents_using_archive(client, request).await
+        }
         MemoryOperation::SearchMemory => handle_search_memory(client, request).await,
     }
 }
@@ -1061,7 +1063,9 @@ async fn handle_list_agents_using_archive(
     request: MemoryUnifiedRequest,
 ) -> Result<MemoryUnifiedResponse, McpError> {
     let archive_id = request.archive_id.ok_or_else(|| {
-        McpError::invalid_request("archive_id is required for list_agents_using_archive".to_string())
+        McpError::invalid_request(
+            "archive_id is required for list_agents_using_archive".to_string(),
+        )
     })?;
 
     let letta_archive_id = letta::types::LettaId::from_str(&archive_id)

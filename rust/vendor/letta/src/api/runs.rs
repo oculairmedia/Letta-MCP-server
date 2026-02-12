@@ -98,22 +98,21 @@ impl<'a> RunApi<'a> {
 
     /// Get run usage payload.
     pub async fn get_usage(&self, run_id: &LettaId) -> LettaResult<UsageStatistics> {
-        self.client
-            .get(&format!("v1/runs/{}/usage", run_id))
-            .await
+        self.client.get(&format!("v1/runs/{}/usage", run_id)).await
     }
 
     /// Get run trace payload.
     pub async fn get_trace(&self, run_id: &LettaId) -> LettaResult<serde_json::Value> {
-        self.client
-            .get(&format!("v1/runs/{}/trace", run_id))
-            .await
+        self.client.get(&format!("v1/runs/{}/trace", run_id)).await
     }
 
     /// Request run stream payload.
     pub async fn stream(&self, run_id: &LettaId) -> LettaResult<serde_json::Value> {
         self.client
-            .post(&format!("v1/runs/{}/stream", run_id), &serde_json::json!({}))
+            .post(
+                &format!("v1/runs/{}/stream", run_id),
+                &serde_json::json!({}),
+            )
             .await
     }
 }

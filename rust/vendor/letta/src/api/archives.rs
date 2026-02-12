@@ -91,7 +91,11 @@ impl<'a> ArchiveApi<'a> {
     }
 
     /// Archive passage deletion endpoint.
-    pub async fn delete_passage(&self, archive_id: &LettaId, passage_id: &LettaId) -> LettaResult<()> {
+    pub async fn delete_passage(
+        &self,
+        archive_id: &LettaId,
+        passage_id: &LettaId,
+    ) -> LettaResult<()> {
         self.client
             .delete_no_response(&format!(
                 "v1/archives/{}/passages/{}",
@@ -123,10 +127,7 @@ impl<'a> AgentArchiveApi<'a> {
     pub async fn attach(&self, archive_id: &LettaId) -> LettaResult<AgentState> {
         self.client
             .patch(
-                &format!(
-                    "v1/agents/{}/archives/attach/{}",
-                    self.agent_id, archive_id
-                ),
+                &format!("v1/agents/{}/archives/attach/{}", self.agent_id, archive_id),
                 &(),
             )
             .await
@@ -136,10 +137,7 @@ impl<'a> AgentArchiveApi<'a> {
     pub async fn detach(&self, archive_id: &LettaId) -> LettaResult<AgentState> {
         self.client
             .patch(
-                &format!(
-                    "v1/agents/{}/archives/detach/{}",
-                    self.agent_id, archive_id
-                ),
+                &format!("v1/agents/{}/archives/detach/{}", self.agent_id, archive_id),
                 &(),
             )
             .await

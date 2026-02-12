@@ -21,7 +21,10 @@ impl<'a> McpServerApi<'a> {
     }
 
     /// Create an MCP server.
-    pub async fn create(&self, request: CreateMcpServerRequestV2) -> LettaResult<McpServerSchemaV2> {
+    pub async fn create(
+        &self,
+        request: CreateMcpServerRequestV2,
+    ) -> LettaResult<McpServerSchemaV2> {
         self.client.post("v1/mcp-servers/", &request).await
     }
 
@@ -79,7 +82,10 @@ impl<'a> McpServerApi<'a> {
     /// Get a tool from an MCP server.
     pub async fn get_tool(&self, mcp_server_id: &LettaId, tool_id: &LettaId) -> LettaResult<Tool> {
         self.client
-            .get(&format!("v1/mcp-servers/{}/tools/{}", mcp_server_id, tool_id))
+            .get(&format!(
+                "v1/mcp-servers/{}/tools/{}",
+                mcp_server_id, tool_id
+            ))
             .await
     }
 

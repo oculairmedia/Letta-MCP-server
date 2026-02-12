@@ -1313,9 +1313,9 @@ async fn handle_get_conversation(
         McpError::invalid_request("conversation_id is required for get_conversation".to_string())
     })?;
 
-    let letta_conversation_id: letta::types::LettaId = conversation_id.parse().map_err(|e| {
-        McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
-    })?;
+    let letta_conversation_id: letta::types::LettaId = conversation_id
+        .parse()
+        .map_err(|e| McpError::invalid_request(format!("Invalid conversation_id format: {}", e)))?;
 
     let conversation = client
         .conversations()
@@ -1340,14 +1340,12 @@ async fn handle_send_conversation_message(
         )
     })?;
     let messages = request.messages.ok_or_else(|| {
-        McpError::invalid_request(
-            "messages is required for send_conversation_message".to_string(),
-        )
+        McpError::invalid_request("messages is required for send_conversation_message".to_string())
     })?;
 
-    let letta_conversation_id: letta::types::LettaId = conversation_id.parse().map_err(|e| {
-        McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
-    })?;
+    let letta_conversation_id: letta::types::LettaId = conversation_id
+        .parse()
+        .map_err(|e| McpError::invalid_request(format!("Invalid conversation_id format: {}", e)))?;
 
     let message_values: Vec<Value> = messages
         .into_iter()
@@ -1375,9 +1373,7 @@ async fn handle_send_conversation_message(
         .conversations()
         .send_message(&letta_conversation_id, message_request)
         .await
-        .map_err(|e| {
-            McpError::internal(format!("Failed to send conversation message: {}", e))
-        })?;
+        .map_err(|e| McpError::internal(format!("Failed to send conversation message: {}", e)))?;
 
     Ok(StandardResponse::success(
         "send_conversation_message",
@@ -1391,14 +1387,12 @@ async fn handle_cancel_conversation(
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
     let conversation_id = request.conversation_id.ok_or_else(|| {
-        McpError::invalid_request(
-            "conversation_id is required for cancel_conversation".to_string(),
-        )
+        McpError::invalid_request("conversation_id is required for cancel_conversation".to_string())
     })?;
 
-    let letta_conversation_id: letta::types::LettaId = conversation_id.parse().map_err(|e| {
-        McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
-    })?;
+    let letta_conversation_id: letta::types::LettaId = conversation_id
+        .parse()
+        .map_err(|e| McpError::invalid_request(format!("Invalid conversation_id format: {}", e)))?;
 
     let response = client
         .conversations()
@@ -1423,9 +1417,9 @@ async fn handle_compact_conversation(
         )
     })?;
 
-    let letta_conversation_id: letta::types::LettaId = conversation_id.parse().map_err(|e| {
-        McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
-    })?;
+    let letta_conversation_id: letta::types::LettaId = conversation_id
+        .parse()
+        .map_err(|e| McpError::invalid_request(format!("Invalid conversation_id format: {}", e)))?;
 
     let compact_payload = request.update_data;
 

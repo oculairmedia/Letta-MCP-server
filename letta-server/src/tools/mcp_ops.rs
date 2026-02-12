@@ -516,87 +516,88 @@ async fn handle_list_tools(
     client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let (all_tools, used_server_name, used_mcp_server_id) = if let Some(mcp_server_id) = request.mcp_server_id {
-        let letta_mcp_server_id = letta::types::LettaId::from_str(&mcp_server_id)
-            .map_err(|e| McpError::invalid_request(format!("Invalid mcp_server_id: {}", e)))?;
+    let (all_tools, used_server_name, used_mcp_server_id) =
+        if let Some(mcp_server_id) = request.mcp_server_id {
+            let letta_mcp_server_id = letta::types::LettaId::from_str(&mcp_server_id)
+                .map_err(|e| McpError::invalid_request(format!("Invalid mcp_server_id: {}", e)))?;
 
-        let tools = client
-            .mcp_servers()
-            .list_tools(&letta_mcp_server_id)
-            .await
-            .map_err(|e| McpError::internal(format!("Failed to list MCP tools: {}", e)))?;
+            let tools = client
+                .mcp_servers()
+                .list_tools(&letta_mcp_server_id)
+                .await
+                .map_err(|e| McpError::internal(format!("Failed to list MCP tools: {}", e)))?;
 
-        let mapped: Vec<Value> = tools
-            .into_iter()
-            .map(|tool| {
-                let description = tool.description.clone().unwrap_or_default();
-                let (desc, truncated) = truncate_string(&description, MAX_DESCRIPTION_LENGTH);
-                let mut summary = serde_json::json!({
-                    "id": tool.id,
-                    "name": tool.name,
-                    "description": desc,
-                    "source_type": tool.source_type,
-                    "tool_type": tool.tool_type,
-                });
-                if truncated {
-                    summary["description_truncated"] = serde_json::json!(true);
-                }
-                summary
-            })
-            .collect();
-
-        (mapped, None, Some(mcp_server_id))
-    } else {
-        let server_name = request
-            .server_name
-            .ok_or_else(|| McpError::invalid_request("mcp_server_id or server_name required"))?;
-
-        let result = client
-            .tools()
-            .list_mcp_tools_by_server(&server_name)
-            .await
-            .map_err(|e| McpError::internal(format!("Failed to list MCP tools: {}", e)))?;
-
-        let mapped: Vec<Value> = if let Value::Array(arr) = serde_json::to_value(&result)? {
-            arr.into_iter()
+            let mapped: Vec<Value> = tools
+                .into_iter()
                 .map(|tool| {
-                    if let Value::Object(mut tool_obj) = tool {
-                        let name = tool_obj.remove("name");
-                        let description = tool_obj
-                            .remove("description")
-                            .and_then(|d| d.as_str().map(String::from));
-
-                        let (desc, truncated) = match description {
-                            Some(d) => truncate_string(&d, MAX_DESCRIPTION_LENGTH),
-                            None => (String::new(), false),
-                        };
-
-                        let mut summary = serde_json::json!({
-                            "name": name,
-                            "server_name": &server_name,
-                            "description": desc,
-                        });
-
-                        if truncated {
-                            summary["description_truncated"] = serde_json::json!(true);
-                        }
-                        summary
-                    } else {
-                        tool
+                    let description = tool.description.clone().unwrap_or_default();
+                    let (desc, truncated) = truncate_string(&description, MAX_DESCRIPTION_LENGTH);
+                    let mut summary = serde_json::json!({
+                        "id": tool.id,
+                        "name": tool.name,
+                        "description": desc,
+                        "source_type": tool.source_type,
+                        "tool_type": tool.tool_type,
+                    });
+                    if truncated {
+                        summary["description_truncated"] = serde_json::json!(true);
                     }
+                    summary
                 })
-                .collect()
-        } else if let Value::Object(obj) = serde_json::to_value(&result)? {
-            obj.get("tools")
-                .and_then(|t| t.as_array())
-                .cloned()
-                .unwrap_or_default()
-        } else {
-            vec![]
-        };
+                .collect();
 
-        (mapped, Some(server_name), None)
-    };
+            (mapped, None, Some(mcp_server_id))
+        } else {
+            let server_name = request.server_name.ok_or_else(|| {
+                McpError::invalid_request("mcp_server_id or server_name required")
+            })?;
+
+            let result = client
+                .tools()
+                .list_mcp_tools_by_server(&server_name)
+                .await
+                .map_err(|e| McpError::internal(format!("Failed to list MCP tools: {}", e)))?;
+
+            let mapped: Vec<Value> = if let Value::Array(arr) = serde_json::to_value(&result)? {
+                arr.into_iter()
+                    .map(|tool| {
+                        if let Value::Object(mut tool_obj) = tool {
+                            let name = tool_obj.remove("name");
+                            let description = tool_obj
+                                .remove("description")
+                                .and_then(|d| d.as_str().map(String::from));
+
+                            let (desc, truncated) = match description {
+                                Some(d) => truncate_string(&d, MAX_DESCRIPTION_LENGTH),
+                                None => (String::new(), false),
+                            };
+
+                            let mut summary = serde_json::json!({
+                                "name": name,
+                                "server_name": &server_name,
+                                "description": desc,
+                            });
+
+                            if truncated {
+                                summary["description_truncated"] = serde_json::json!(true);
+                            }
+                            summary
+                        } else {
+                            tool
+                        }
+                    })
+                    .collect()
+            } else if let Value::Object(obj) = serde_json::to_value(&result)? {
+                obj.get("tools")
+                    .and_then(|t| t.as_array())
+                    .cloned()
+                    .unwrap_or_default()
+            } else {
+                vec![]
+            };
+
+            (mapped, Some(server_name), None)
+        };
 
     let total_count = all_tools.len();
     let (limit, offset) =

@@ -226,9 +226,7 @@ impl<'a> StepApi<'a> {
 
     /// Get provider telemetry payload for a step.
     pub async fn get_provider_trace(&self, step_id: &LettaId) -> LettaResult<TelemetryTrace> {
-        self.client
-            .get(&format!("v1/telemetry/{}", step_id))
-            .await
+        self.client.get(&format!("v1/telemetry/{}", step_id)).await
     }
 }
 

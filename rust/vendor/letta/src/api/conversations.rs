@@ -23,7 +23,8 @@ pub enum ConversationStreamingEvent {
 }
 
 /// Conversation stream type.
-pub type ConversationStream = Pin<Box<dyn Stream<Item = LettaResult<ConversationStreamingEvent>> + Send>>;
+pub type ConversationStream =
+    Pin<Box<dyn Stream<Item = LettaResult<ConversationStreamingEvent>> + Send>>;
 
 /// Conversation API operations.
 #[derive(Debug)]
@@ -88,7 +89,10 @@ impl<'a> ConversationApi<'a> {
     }
 
     /// List messages in a conversation.
-    pub async fn list_messages(&self, conversation_id: &LettaId) -> LettaResult<Vec<LettaMessageUnion>> {
+    pub async fn list_messages(
+        &self,
+        conversation_id: &LettaId,
+    ) -> LettaResult<Vec<LettaMessageUnion>> {
         self.client
             .get(&format!("v1/conversations/{}/messages", conversation_id))
             .await
