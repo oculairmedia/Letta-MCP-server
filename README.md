@@ -1,53 +1,69 @@
-# Letta MCP Server - Rust Implementation
+# Letta MCP Server
 
-[![Rust Tests](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-test.yml/badge.svg?branch=rust-implementation)](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-test.yml)
-[![Docker Build](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-docker-build.yml/badge.svg?branch=rust-implementation)](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-docker-build.yml)
+[![npm version](https://img.shields.io/npm/v/letta-mcp-server.svg)](https://www.npmjs.com/package/letta-mcp-server)
+[![Rust Tests](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-test.yml/badge.svg)](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-test.yml)
+[![Docker Build](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-docker-build.yml/badge.svg)](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-docker-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A high-performance Model Context Protocol (MCP) server for Letta AI, built with Rust and the TurboMCP framework. This implementation provides the same comprehensive toolset as the Node.js version with significant performance improvements and response size optimizations.
+A high-performance [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for [Letta AI](https://github.com/letta-ai/letta), built with Rust and the [TurboMCP](https://github.com/oculairmedia/turbomcp) framework.
 
 ## Features
 
 - **7 Consolidated Tools** covering 87 operations using the discriminator pattern
-- **High Performance** - Rust implementation with TurboMCP framework
+- **High Performance** - Rust implementation (~10-30MB memory, <500ms startup)
+- **Dual Transport** - stdio (for Claude Desktop, Cursor, etc.) and HTTP (for production)
 - **Response Size Optimization** - 68-96% reduction in response sizes for LLM context efficiency
-- **Multi-Architecture Docker** - Supports both amd64 and arm64
-- **Letta 0.15.1+ Compatible** - Full support for new ToolRule types
-- **MCP 2025-06-18 Compliant** - Streamable HTTP transport with SSE support
+- **Multi-Platform** - macOS, Linux, Windows (x64 and arm64)
+- **Letta 0.15.1+ Compatible** - Full support for current Letta API
+- **MCP 2025-11-25 Compliant** - Streamable HTTP transport with SSE support
 - **Type-Safe** - Compile-time validation with Rust's type system
 
 ## Quick Start
 
-### Docker (Recommended)
+### npm (Recommended)
 
 ```bash
-# Pull the latest image
+npm install -g letta-mcp-server
+```
+
+The correct binary for your platform is installed automatically.
+
+| Platform | Package |
+|----------|---------|
+| macOS Intel | `letta-mcp-darwin-x64` |
+| macOS Apple Silicon | `letta-mcp-darwin-arm64` |
+| Linux x64 | `letta-mcp-linux-x64` |
+| Linux arm64 | `letta-mcp-linux-arm64` |
+| Windows x64 | `letta-mcp-windows-x64` |
+
+### Docker
+
+```bash
 docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest
 
-# Run with environment variables
 docker run -d \
   -p 6507:6507 \
-  -e LETTA_BASE_URL=http://your-letta-instance:8289 \
+  -e LETTA_BASE_URL=http://your-letta-instance:8283 \
   -e LETTA_PASSWORD=your-password \
-  --name letta-mcp-rust \
+  -e TRANSPORT=http \
+  --name letta-mcp \
   ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest
 ```
 
 ### Docker Compose
 
-Create a `compose.yaml`:
-
 ```yaml
 services:
-  letta-mcp-rust:
+  letta-mcp:
     image: ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest
-    container_name: letta-mcp-rust
+    container_name: letta-mcp
     restart: unless-stopped
     ports:
       - '6507:6507'
     environment:
       LETTA_BASE_URL: ${LETTA_BASE_URL}
       LETTA_PASSWORD: ${LETTA_PASSWORD}
+      TRANSPORT: http
       PORT: 6507
       RUST_LOG: info
     env_file:
@@ -57,40 +73,18 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-  nginx:
-    image: nginx:alpine
-    container_name: letta-mcp-nginx
-    restart: unless-stopped
-    ports:
-      - '3001:3001'
-    volumes:
-      - ./rust/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      letta-mcp-rust:
-        condition: service_healthy
 ```
 
-Then run:
+## Environment Variables
 
-```bash
-docker compose up -d
-```
-
-### Environment Configuration
-
-Create a `.env` file:
-
-```bash
-# Required
-LETTA_BASE_URL=http://your-letta-instance:8289
-LETTA_PASSWORD=your-password
-
-# Optional
-PORT=6507
-RUST_LOG=info
-RUST_BACKTRACE=1
-```
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `LETTA_BASE_URL` | Yes | — | Letta API URL (e.g. `http://localhost:8283`) |
+| `LETTA_PASSWORD` | Yes | — | Letta API password |
+| `TRANSPORT` | No | `stdio` | Transport mode: `stdio` or `http` |
+| `PORT` | No | `6507` | HTTP port (when `TRANSPORT=http`) |
+| `RUST_LOG` | No | `info` | Log level: `debug`, `info`, `warn`, `error` |
+| `RUST_BACKTRACE` | No | `0` | Enable backtraces (`0` or `1`) |
 
 ## Available Tools
 
@@ -210,124 +204,70 @@ List operations return summary data by default. Use `get` operation with specifi
 }
 ```
 
-## API Endpoints
-
-### HTTP Transport (Default)
-
-- **Endpoint**: `http://localhost:6507/mcp`
-- **Methods**: GET, POST, DELETE
-- **Content-Type**: `application/json`
-- **Accept**: `application/json` or `text/event-stream` (for SSE)
-
-### Health Check
-
-Through nginx proxy:
-```bash
-curl http://localhost:3001/health
-# {"status":"ok","service":"letta-mcp-nginx"}
-```
-
-### Example: List Agents
-
-```bash
-curl -X POST http://localhost:3001/mcp \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "tools/call",
-    "params": {
-      "name": "letta_agent_advanced",
-      "arguments": {
-        "operation": "list"
-      }
-    },
-    "id": 1
-  }'
-```
-
-### Example: Get Agent Details
-
-```bash
-curl -X POST http://localhost:3001/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "tools/call",
-    "params": {
-      "name": "letta_agent_advanced",
-      "arguments": {
-        "operation": "get",
-        "agent_id": "agent-uuid-here"
-      }
-    },
-    "id": 2
-  }'
-```
-
-### Example: Send Message to Agent
-
-```bash
-curl -X POST http://localhost:3001/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "tools/call",
-    "params": {
-      "name": "letta_agent_advanced",
-      "arguments": {
-        "operation": "send_message",
-        "agent_id": "agent-uuid-here",
-        "messages": [
-          {"role": "user", "content": "Hello!"}
-        ]
-      }
-    },
-    "id": 3
-  }'
-```
-
 ## MCP Client Configuration
 
 ### Claude Desktop
 
-Add to your Claude Desktop MCP settings:
-
 ```json
 {
   "mcpServers": {
-    "letta-rust": {
-      "url": "http://localhost:3001/mcp",
-      "transport": "http"
+    "letta": {
+      "command": "letta-mcp",
+      "env": {
+        "LETTA_BASE_URL": "http://localhost:8283",
+        "LETTA_PASSWORD": "your-password"
+      }
     }
   }
 }
 ```
 
-### OpenCode
+### Cursor / Windsurf
 
-The server works directly with OpenCode's MCP integration. Configure in your MCP settings to point to `http://localhost:3001/mcp`.
+```json
+{
+  "mcpServers": {
+    "letta": {
+      "command": "letta-mcp",
+      "env": {
+        "LETTA_BASE_URL": "http://localhost:8283",
+        "LETTA_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
+### OpenCode (HTTP)
+
+```json
+{
+  "mcp": {
+    "letta-mcp": {
+      "type": "remote",
+      "url": "http://localhost:6507/mcp",
+      "enabled": true
+    }
+  }
+}
+```
 
 ## Building from Source
 
 ### Prerequisites
 
-- Rust 1.75+ (nightly recommended for latest features)
+- Rust 1.75+ (nightly recommended)
 - Docker (for containerized builds)
 
 ### Local Build
 
 ```bash
-# Clone the repository
 git clone https://github.com/oculairmedia/Letta-MCP-server.git
 cd Letta-MCP-server
-git checkout rust-implementation
 
-# Build
 cargo build --release
 
-# Run
-LETTA_BASE_URL=http://your-letta:8289 \
+LETTA_BASE_URL=http://your-letta:8283 \
 LETTA_PASSWORD=your-password \
 ./target/release/letta-server
 ```
@@ -335,15 +275,14 @@ LETTA_PASSWORD=your-password \
 ### Docker Build
 
 ```bash
-# Build image
-docker build -f Dockerfile.rust -t letta-mcp-rust .
+docker build -f Dockerfile.rust -t letta-mcp .
 
-# Run
 docker run -d \
   -p 6507:6507 \
-  -e LETTA_BASE_URL=http://your-letta:8289 \
+  -e LETTA_BASE_URL=http://your-letta:8283 \
   -e LETTA_PASSWORD=your-password \
-  letta-mcp-rust
+  -e TRANSPORT=http \
+  letta-mcp
 ```
 
 ## Architecture
@@ -368,30 +307,18 @@ letta-server/
 
 ### Key Dependencies
 
-- **TurboMCP** - MCP protocol implementation with streamable HTTP
-- **Letta SDK** - Official Letta API client (vendored with patches)
+- [TurboMCP](https://github.com/oculairmedia/turbomcp) - MCP protocol framework with streamable HTTP
+- [letta-rs](https://github.com/oculairmedia/letta-rs) - Rust Letta API client
 - **Tokio** - Async runtime
 - **Serde** - Serialization/deserialization
 - **Reqwest** - HTTP client
-
-## Comparison with Node.js Implementation
-
-| Feature | Node.js | Rust |
-|---------|---------|------|
-| **Performance** | Good | Excellent |
-| **Memory Usage** | ~50-100MB | ~10-30MB |
-| **Startup Time** | ~1-2s | ~100-500ms |
-| **Response Optimization** | Standard | 68-96% reduction |
-| **Type Safety** | Runtime (TypeScript) | Compile-time |
-| **Package Distribution** | npm | Docker |
-| **Letta Compatibility** | 0.14.x | 0.15.1+ |
 
 ## Troubleshooting
 
 ### Connection Refused
 
 1. Ensure the server is running: `docker ps | grep letta-mcp`
-2. Check logs: `docker logs letta-mcp-rust`
+2. Check logs: `docker logs letta-mcp`
 3. Verify port is accessible: `curl http://localhost:6507/mcp`
 
 ### Authentication Errors
@@ -402,17 +329,17 @@ letta-server/
 
 ### Tool Not Found
 
-1. List available tools: `curl -X POST http://localhost:3001/mcp -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'`
+1. List available tools via MCP: `tools/list`
 2. Verify you're using correct operation names (e.g., `list` not `list_agents`)
 
 ### Logs
 
 ```bash
 # View server logs
-docker logs -f letta-mcp-rust
+docker logs -f letta-mcp
 
 # Enable debug logging
-docker run -e RUST_LOG=debug ...
+RUST_LOG=debug letta-mcp
 ```
 
 ## Contributing
