@@ -1,10 +1,11 @@
-# Dependencies
-node_modules/
-
-# Build output
-build/
-dist/
-*.tsbuildinfo
+# Build artifacts
+target/
+rust/target/
+*.pdb
+**/*.rs.bk
+**/*.orig
+**/*.rlib
+**/deps/
 
 # Environment variables
 .env
@@ -13,11 +14,7 @@ dist/
 !.env.example
 
 # Logs
-logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # IDE/Editor files
 .idea/
@@ -26,39 +23,17 @@ yarn-error.log*
 *.swo
 .DS_Store
 
-# Coverage directory used by tools like istanbul
-coverage/
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Rust
-target/
-Cargo.lock
-rust/target/
-# rust/vendor/ - tracked for SDK patches
-*.pdb
-.git-rewrite/
-
-# Rust build artifacts
-**/*.rs.bk
-**/*.orig
-**/*.rlib
-**/deps/
-
-# Test scripts (local development only)
-rust/test_*.sh
-*_IMPLEMENTATION_SUMMARY.md
-
-# Editor/tool directories
+# Tool/editor directories
 .letta/
 .serena/
-
-# Backup and reject files
-*.backup
-*.rej
 .opencode/
 .vibesync-cache/
+
+# npm (for wrapper package only)
+node_modules/
+
+# Misc
+*.backup
+*.rej
+.git-rewrite/
+coverage/
