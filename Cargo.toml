@@ -16,7 +16,7 @@ turbomcp-transport = { git = "https://github.com/oculairmedia/turbomcp.git", bra
 
 [workspace.dependencies]
 # Core async runtime
-tokio = { version = "1.47", features = ["full"] }
+tokio = { version = "1.49", features = ["full"] }
 tokio-util = { version = "0.7", features = ["full"] }
 futures = "0.3"
 
@@ -33,9 +33,9 @@ letta = { path = "rust/vendor/letta" }
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-schemars = { version = "1.0", features = ["derive"] }
+schemars = { version = "1.2", features = ["derive"] }
 base64 = "0.22"
-bytes = "1.9"
+bytes = "1.11"
 
 # TLS - vendored OpenSSL for cross-compilation support
 openssl = { version = "0.10", features = ["vendored"] }
