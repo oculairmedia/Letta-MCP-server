@@ -32,7 +32,7 @@ pub struct LettaServer {
 #[turbomcp::server(
     name = "letta-mcp-server",
     version = "2.0.1",
-    description = "MCP server for Letta AI - comprehensive API coverage with 7 consolidated tools (97 operations)"
+    description = "MCP server for Letta AI - comprehensive API coverage with 7 consolidated tools (102 operations)"
 )]
 impl LettaServer {
     /// Create a new Letta MCP Server instance
