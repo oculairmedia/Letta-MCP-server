@@ -101,19 +101,31 @@ pub struct UpdateMcpServerRequestV2 {
 pub struct McpServerSchemaV2 {
     /// Server ID.
     pub id: LettaId,
-    /// Transport type string.
-    pub server_type: String,
-    /// Server name.
+    /// Transport type discriminator (e.g. `streamable_http`, `sse`, `stdio`).
+    pub mcp_server_type: McpServerTransportType,
+    /// Server display name.
     pub server_name: String,
     /// Optional URL when remote transport is used.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_url: Option<String>,
-    /// Optional stdio config payload.
+    /// Optional auth header name.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stdio_config: Option<serde_json::Value>,
-    /// Optional metadata payload.
-    #[serde(skip_serializing_if = "Option::is_none", rename = "metadata_")]
-    pub metadata: Option<serde_json::Value>,
+    pub auth_header: Option<String>,
+    /// Optional auth token.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_token: Option<String>,
+    /// Optional custom headers.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_headers: Option<std::collections::HashMap<String, String>>,
+    /// Optional stdio command (for stdio servers).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+    /// Optional stdio args (for stdio servers).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args: Option<Vec<String>>,
+    /// Optional environment variables (for stdio servers).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub env: Option<std::collections::HashMap<String, String>>,
 }
 
 /// Request body for MCP tool execution.

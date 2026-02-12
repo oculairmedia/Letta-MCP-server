@@ -472,7 +472,7 @@ async fn handle_list_servers(
             serde_json::json!({
                 "id": server.id,
                 "name": server.server_name,
-                "server_type": server.server_type,
+                "mcp_server_type": server.mcp_server_type,
                 "server_url": server.server_url,
             })
         })
