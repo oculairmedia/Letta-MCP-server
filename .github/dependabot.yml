@@ -3,61 +3,37 @@
 
 version: 2
 updates:
-  # Enable version updates for npm
-  - package-ecosystem: "npm"
+  # Rust (Cargo) dependencies
+  - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "04:00"
       timezone: "UTC"
-    # Update strategy
-    versioning-strategy: "increase"
-    # Security updates
     open-pull-requests-limit: 10
-    # Labels to apply to PRs
     labels:
       - "dependencies"
-      - "npm"
+      - "rust"
       - "automated"
-    # Reviewers for PRs
     reviewers:
       - "oculairmedia/engineering"
-    # Assignees for PRs
-    assignees:
-      - "octocat"
-    # Commit message prefix
     commit-message:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
-    # Group updates to reduce PR noise
     groups:
-      # Group all non-major updates together
       minor-and-patch:
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
-      # Group dev dependencies
-      dev-dependencies:
-        dependency-type: "development"
-    # Allow specific updates
-    allow:
-      # Keep all dependencies up to date
-      - dependency-type: "all"
-    # Ignore specific dependencies if needed
     ignore:
-      # Example: ignore major updates for critical dependencies
-      # - dependency-name: "@modelcontextprotocol/sdk"
-      #   versions: ["2.x", "3.x"]
-      # Ignore updates that would require Node.js version change
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-        # Only for dependencies that require newer Node.js
-    
-  # Enable version updates for GitHub Actions
+
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -65,25 +41,21 @@ updates:
       day: "monday"
       time: "04:00"
       timezone: "UTC"
-    # Labels to apply to PRs
     labels:
       - "dependencies"
       - "github-actions"
       - "automated"
-    # Reviewers for PRs
     reviewers:
       - "oculairmedia/devops"
-    # Commit message prefix
     commit-message:
       prefix: "ci"
       include: "scope"
-    # Group all action updates together
     groups:
       github-actions:
         patterns:
           - "*"
-  
-  # Enable security updates for Docker
+
+  # Docker base images
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -91,15 +63,26 @@ updates:
       day: "monday"
       time: "04:00"
       timezone: "UTC"
-    # Labels to apply to PRs
     labels:
       - "dependencies"
       - "docker"
       - "automated"
-    # Reviewers for PRs
     reviewers:
       - "oculairmedia/devops"
-    # Commit message prefix
     commit-message:
       prefix: "build"
+      include: "scope"
+
+  # npm wrapper package (platform binaries)
+  - package-ecosystem: "npm"
+    directory: "/npm/letta-mcp-server"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+      - "automated"
+    commit-message:
+      prefix: "chore"
       include: "scope"
