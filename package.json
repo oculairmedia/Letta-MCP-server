@@ -50,14 +50,14 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@letta-ai/letta-client": "^0.0.68664",
-    "@modelcontextprotocol/sdk": "^1.20.0",
-    "axios": "^1.10.0",
-    "cors": "^2.8.5",
+    "@letta-ai/letta-client": "^0.1.211",
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "axios": "^1.13.5",
+    "cors": "^2.8.6",
     "dotenv": "^16.6.1",
-    "express": "^4.21.2",
+    "express": "^4.22.1",
     "form-data": "^4.0.4",
-    "winston": "^3.17.0",
+    "winston": "^3.19.0",
     "zod": "^3.25.76",
     "zod-to-json-schema": "^3.24.6"
   },
