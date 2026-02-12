@@ -38,9 +38,11 @@ impl<'a> ConversationApi<'a> {
         Self { client }
     }
 
-    /// List conversations.
-    pub async fn list(&self) -> LettaResult<Vec<Conversation>> {
-        self.client.get("v1/conversations/").await
+    /// List conversations for an agent.
+    pub async fn list(&self, agent_id: &LettaId) -> LettaResult<Vec<Conversation>> {
+        self.client
+            .get(&format!("v1/conversations/?agent_id={}", agent_id))
+            .await
     }
 
     /// Create a conversation.

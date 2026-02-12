@@ -1287,11 +1287,18 @@ async fn handle_count(
 
 async fn handle_list_conversations(
     client: &LettaClient,
-    _request: AgentAdvancedRequest,
+    request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
+    let agent_id = request.agent_id.ok_or_else(|| {
+        McpError::invalid_request("agent_id is required for list_conversations".to_string())
+    })?;
+    let letta_agent_id: letta::types::LettaId = agent_id
+        .parse()
+        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+
     let conversations = client
         .conversations()
-        .list()
+        .list(&letta_agent_id)
         .await
         .map_err(|e| McpError::internal(format!("Failed to list conversations: {}", e)))?;
 
