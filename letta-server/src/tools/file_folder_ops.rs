@@ -11,6 +11,7 @@
 //! - open_file: Returns minimal confirmation (content retrieval via separate API)
 //! - All list operations include pagination metadata
 
+use crate::tools::response_utils::paginate;
 use crate::tools::validation_utils::{require_field, sdk_err};
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
@@ -19,11 +20,6 @@ use std::str::FromStr;
 use tracing::{error, info};
 use turbomcp::McpError;
 
-/// Constants for response size optimization
-const DEFAULT_FILE_LIMIT: usize = 25;
-const MAX_FILE_LIMIT: usize = 100;
-const DEFAULT_FOLDER_LIMIT: usize = 20;
-const MAX_FOLDER_LIMIT: usize = 50;
 const MAX_DESCRIPTION_LENGTH: usize = 100;
 
 /// Truncate a string to a maximum length with ellipsis
@@ -198,12 +194,7 @@ async fn handle_list_files(
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
 
-    // Apply pagination limits
-    let limit = request
-        .limit
-        .unwrap_or(DEFAULT_FILE_LIMIT)
-        .min(MAX_FILE_LIMIT);
-    let offset = request.offset.unwrap_or(0);
+    let (limit, offset) = paginate(request.limit, request.offset, 25, 100);
 
     // Use SDK to list agent files
     let result = client
@@ -433,12 +424,7 @@ async fn handle_list_folders(
     client: &LettaClient,
     request: FileFolderRequest,
 ) -> Result<FileFolderResponse, McpError> {
-    // Apply pagination limits
-    let limit = request
-        .limit
-        .unwrap_or(DEFAULT_FOLDER_LIMIT)
-        .min(MAX_FOLDER_LIMIT);
-    let offset = request.offset.unwrap_or(0);
+    let (limit, offset) = paginate(request.limit, request.offset, 20, 50);
 
     // Use SDK to list folders
     let result = client.folders().list(None).await.map_err(|e| {

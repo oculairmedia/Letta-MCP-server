@@ -2,8 +2,9 @@
 //!
 //! Consolidated tool for source management operations.
 
-use letta::LettaClient;
+use crate::tools::response_utils::paginate;
 use crate::tools::validation_utils::{require_field, sdk_err};
+use letta::LettaClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
@@ -193,11 +194,8 @@ async fn handle_list_sources(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    // Default limit: 20, max limit: 100
-    const DEFAULT_LIMIT: i32 = 20;
-    const MAX_LIMIT: i32 = 100;
-
-    let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+    let (page_limit, _) = paginate(request.limit.map(|l| l as usize), None, 20, 100);
+    let limit = page_limit as i32;
 
     let all_sources = client
         .sources()
@@ -235,8 +233,8 @@ async fn handle_list_sources(
         limit,
         hint: if total > returned {
             Some(format!(
-                "Showing {} of {} sources. Use limit parameter to see more (max {}).",
-                returned, total, MAX_LIMIT
+                "Showing {} of {} sources. Use limit parameter to see more (max 100).",
+                returned, total
             ))
         } else {
             None
@@ -471,11 +469,8 @@ async fn handle_list_files(
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
-    // Default limit: 25, max limit: 100
-    const DEFAULT_LIMIT: i32 = 25;
-    const MAX_LIMIT: i32 = 100;
-
-    let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+    let (page_limit, _) = paginate(request.limit.map(|l| l as usize), None, 25, 100);
+    let limit = page_limit as i32;
 
     // NEVER include content by default - override user request if they try
     let include_content = false;

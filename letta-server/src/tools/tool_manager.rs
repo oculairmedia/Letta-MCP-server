@@ -2,6 +2,7 @@
 //!
 //! Consolidated tool for tool management operations using discriminator pattern.
 
+use crate::tools::response_utils::paginate;
 use crate::tools::validation_utils::{require_field, sdk_err};
 use letta::types::tool::ListToolsParams;
 use letta::types::ListAgentsParams;
@@ -143,11 +144,14 @@ async fn handle_list_tools(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    const DEFAULT_LIMIT: u32 = 25;
-    const MAX_LIMIT: u32 = 100;
-
-    let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
-    let offset = request.offset.unwrap_or(0);
+    let (limit, offset) = paginate(
+        request.limit.map(|l| l as usize),
+        request.offset.map(|o| o as usize),
+        25,
+        100,
+    );
+    let limit = limit as u32;
+    let offset = offset as u32;
     let tag_filter = request.tags.clone();
     let name_filter = request.name.clone();
 
