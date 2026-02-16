@@ -98,11 +98,11 @@ impl LettaServer {
         end_date: Option<String>,
     ) -> McpResult<String> {
         // Parse operation from string
-        let op = serde_json::from_value(serde_json::Value::String(operation))
+        let op: memory_unified::MemoryOperation = serde_json::from_value(serde_json::Value::String(operation))
             .map_err(|e| McpError::invalid_request(format!("Invalid operation: {}", e)))?;
 
         // Parse source if provided
-        let source = source.and_then(|s| serde_json::from_value(serde_json::Value::String(s)).ok());
+        let source: Option<memory_unified::SearchSource> = source.and_then(|s| serde_json::from_value(serde_json::Value::String(s)).ok());
 
         // Parse dates if provided
         let start_date = start_date
@@ -135,7 +135,7 @@ impl LettaServer {
         };
 
         // Call handler
-        let response = memory_unified::handle_memory_unified(&self.client, request).await?;
+        let response: memory_unified::MemoryUnifiedResponse = memory_unified::handle_memory_unified(&self.client, request).await?;
 
         // Serialize to JSON string for MCP response
         serde_json::to_string(&response)
