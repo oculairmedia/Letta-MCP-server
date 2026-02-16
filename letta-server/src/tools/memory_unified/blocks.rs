@@ -1,9 +1,12 @@
+use crate::tools::memory_utils::{truncate_block_value, BlockSummary};
 use crate::tools::validation_utils::sdk_err;
 use letta::LettaClient;
 use std::str::FromStr;
 use turbomcp::McpError;
 
 use super::{MemoryUnifiedRequest, MemoryUnifiedResponse};
+
+const BLOCK_VALUE_TRUNCATE_LEN: usize = 500;
 
 pub(crate) async fn handle_get_block_by_label(
     client: &LettaClient,
@@ -15,6 +18,7 @@ pub(crate) async fn handle_get_block_by_label(
     let block_label = request.block_label.ok_or_else(|| {
         McpError::invalid_request("block_label is required for get_block_by_label".to_string())
     })?;
+    let verbose = request.verbose.unwrap_or(false);
 
     let letta_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -25,12 +29,17 @@ pub(crate) async fn handle_get_block_by_label(
         .await
         .map_err(|e| sdk_err("get block by label", e))?;
 
+    let mut block_value = serde_json::to_value(block)?;
+    if !verbose {
+        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
+    }
+
     Ok(MemoryUnifiedResponse {
         success: true,
         operation: "get_block_by_label".to_string(),
         message: format!("Block '{}' retrieved successfully", block_label),
         agent_id: Some(agent_id),
-        data: Some(serde_json::to_value(block)?),
+        data: Some(block_value),
         block_id: None,
         passage_id: None,
         archive_id: None,
@@ -50,6 +59,7 @@ pub(crate) async fn handle_list_blocks(
     let agent_id = request.agent_id.ok_or_else(|| {
         McpError::invalid_request("agent_id is required for list_blocks".to_string())
     })?;
+    let verbose = request.verbose.unwrap_or(false);
 
     let letta_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -62,12 +72,27 @@ pub(crate) async fn handle_list_blocks(
 
     let count = blocks.len();
 
+    let blocks_data = if verbose {
+        serde_json::to_value(&blocks)?
+    } else {
+        let blocks_value = serde_json::to_value(&blocks)?;
+        let summaries: Vec<BlockSummary> = blocks_value
+            .as_array()
+            .map(|arr| arr.iter().map(BlockSummary::from_block_value).collect())
+            .unwrap_or_default();
+        serde_json::to_value(&summaries)?
+    };
+
     Ok(MemoryUnifiedResponse {
         success: true,
         operation: "list_blocks".to_string(),
-        message: format!("Found {} blocks", count),
+        message: format!(
+            "Found {} blocks{}",
+            count,
+            if verbose { "" } else { " (compact, use verbose=true for full values)" }
+        ),
         agent_id: Some(agent_id),
-        blocks: Some(serde_json::to_value(&blocks)?),
+        blocks: Some(blocks_data),
         count: Some(count),
         archival: None,
         messages: None,
@@ -90,6 +115,7 @@ pub(crate) async fn handle_create_block(
     let value = request.value.ok_or_else(|| {
         McpError::invalid_request("value is required for create_block".to_string())
     })?;
+    let verbose = request.verbose.unwrap_or(false);
 
     let create_request = letta::types::memory::CreateBlockRequest {
         value,
@@ -109,13 +135,19 @@ pub(crate) async fn handle_create_block(
         .await
         .map_err(|e| sdk_err("create block", e))?;
 
+    let block_id = block.id.as_ref().map(|id| id.to_string());
+    let mut block_value = serde_json::to_value(block)?;
+    if !verbose {
+        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
+    }
+
     Ok(MemoryUnifiedResponse {
         success: true,
         operation: "create_block".to_string(),
         message: "Block created successfully".to_string(),
         agent_id: None,
-        block_id: block.id.as_ref().map(|id| id.to_string()),
-        data: Some(serde_json::to_value(block)?),
+        block_id,
+        data: Some(block_value),
         passage_id: None,
         archive_id: None,
         core_memory: None,
@@ -134,6 +166,7 @@ pub(crate) async fn handle_get_block(
     let block_id = request.block_id.ok_or_else(|| {
         McpError::invalid_request("block_id is required for get_block".to_string())
     })?;
+    let verbose = request.verbose.unwrap_or(false);
 
     let letta_id = letta::types::LettaId::from_str(&block_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid block_id: {}", e)))?;
@@ -144,13 +177,18 @@ pub(crate) async fn handle_get_block(
         .await
         .map_err(|e| sdk_err("get block", e))?;
 
+    let mut block_value = serde_json::to_value(block)?;
+    if !verbose {
+        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
+    }
+
     Ok(MemoryUnifiedResponse {
         success: true,
         operation: "get_block".to_string(),
         message: "Block retrieved successfully".to_string(),
         agent_id: None,
         block_id: Some(block_id),
-        data: Some(serde_json::to_value(block)?),
+        data: Some(block_value),
         passage_id: None,
         archive_id: None,
         core_memory: None,
@@ -169,6 +207,7 @@ pub(crate) async fn handle_update_block(
     let block_id = request.block_id.ok_or_else(|| {
         McpError::invalid_request("block_id is required for update_block".to_string())
     })?;
+    let verbose = request.verbose.unwrap_or(false);
 
     let letta_id = letta::types::LettaId::from_str(&block_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid block_id: {}", e)))?;
@@ -191,13 +230,18 @@ pub(crate) async fn handle_update_block(
         .await
         .map_err(|e| sdk_err("update block", e))?;
 
+    let mut block_value = serde_json::to_value(block)?;
+    if !verbose {
+        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
+    }
+
     Ok(MemoryUnifiedResponse {
         success: true,
         operation: "update_block".to_string(),
         message: "Block updated successfully".to_string(),
         agent_id: None,
         block_id: Some(block_id),
-        data: Some(serde_json::to_value(block)?),
+        data: Some(block_value),
         passage_id: None,
         archive_id: None,
         core_memory: None,
@@ -225,7 +269,7 @@ pub(crate) async fn handle_attach_block(
     let letta_block_id = letta::types::LettaId::from_str(&block_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid block_id: {}", e)))?;
 
-    let agent_state = client
+    let _agent_state = client
         .memory()
         .attach_memory_block(&letta_agent_id, &letta_block_id)
         .await
@@ -237,7 +281,10 @@ pub(crate) async fn handle_attach_block(
         message: "Block attached to agent successfully".to_string(),
         agent_id: Some(agent_id),
         block_id: Some(block_id),
-        data: Some(serde_json::to_value(agent_state)?),
+        data: Some(serde_json::json!({
+            "attached": true,
+            "hint": "Use get_core_memory to see updated blocks"
+        })),
         passage_id: None,
         archive_id: None,
         core_memory: None,
@@ -265,7 +312,7 @@ pub(crate) async fn handle_detach_block(
     let letta_block_id = letta::types::LettaId::from_str(&block_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid block_id: {}", e)))?;
 
-    let agent_state = client
+    let _agent_state = client
         .memory()
         .detach_memory_block(&letta_agent_id, &letta_block_id)
         .await
@@ -277,7 +324,10 @@ pub(crate) async fn handle_detach_block(
         message: "Block detached from agent successfully".to_string(),
         agent_id: Some(agent_id),
         block_id: Some(block_id),
-        data: Some(serde_json::to_value(agent_state)?),
+        data: Some(serde_json::json!({
+            "detached": true,
+            "hint": "Use get_core_memory to see updated blocks"
+        })),
         passage_id: None,
         archive_id: None,
         core_memory: None,

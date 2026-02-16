@@ -1,9 +1,12 @@
+use crate::tools::memory_utils::{truncate_passage_text, PassageSummary};
 use crate::tools::validation_utils::sdk_err;
 use letta::LettaClient;
 use std::str::FromStr;
 use turbomcp::McpError;
 
 use super::{MemoryUnifiedRequest, MemoryUnifiedResponse};
+
+const PASSAGE_TEXT_TRUNCATE_LEN: usize = 500;
 
 pub(crate) async fn handle_search_archival(
     client: &LettaClient,
@@ -15,6 +18,7 @@ pub(crate) async fn handle_search_archival(
     let query = request.query.ok_or_else(|| {
         McpError::invalid_request("query is required for search_archival".to_string())
     })?;
+    let verbose = request.verbose.unwrap_or(false);
 
     let letta_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -35,12 +39,23 @@ pub(crate) async fn handle_search_archival(
 
     let count = passages.len();
 
+    let passages_data = if verbose {
+        serde_json::to_value(&passages)?
+    } else {
+        let passages_value = serde_json::to_value(&passages)?;
+        let summaries: Vec<PassageSummary> = passages_value
+            .as_array()
+            .map(|arr| arr.iter().map(PassageSummary::from_passage_value).collect())
+            .unwrap_or_default();
+        serde_json::to_value(&summaries)?
+    };
+
     Ok(MemoryUnifiedResponse {
         success: true,
         operation: "search_archival".to_string(),
         message: format!("Found {} passages", count),
         agent_id: Some(agent_id),
-        passages: Some(serde_json::to_value(&passages)?),
+        passages: Some(passages_data),
         count: Some(count),
         archival: None,
         messages: None,
@@ -60,6 +75,7 @@ pub(crate) async fn handle_list_passages(
     let agent_id = request.agent_id.ok_or_else(|| {
         McpError::invalid_request("agent_id is required for list_passages".to_string())
     })?;
+    let verbose = request.verbose.unwrap_or(false);
 
     let letta_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -80,12 +96,27 @@ pub(crate) async fn handle_list_passages(
 
     let count = passages.len();
 
+    let passages_data = if verbose {
+        serde_json::to_value(&passages)?
+    } else {
+        let passages_value = serde_json::to_value(&passages)?;
+        let summaries: Vec<PassageSummary> = passages_value
+            .as_array()
+            .map(|arr| arr.iter().map(PassageSummary::from_passage_value).collect())
+            .unwrap_or_default();
+        serde_json::to_value(&summaries)?
+    };
+
     Ok(MemoryUnifiedResponse {
         success: true,
         operation: "list_passages".to_string(),
-        message: format!("Found {} passages", count),
+        message: format!(
+            "Found {} passages{}",
+            count,
+            if verbose { "" } else { " (compact, use verbose=true for full text)" }
+        ),
         agent_id: Some(agent_id),
-        passages: Some(serde_json::to_value(&passages)?),
+        passages: Some(passages_data),
         count: Some(count),
         archival: None,
         messages: None,
@@ -108,6 +139,7 @@ pub(crate) async fn handle_create_passage(
     let text = request.text.ok_or_else(|| {
         McpError::invalid_request("text is required for create_passage".to_string())
     })?;
+    let verbose = request.verbose.unwrap_or(false);
 
     let letta_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -120,12 +152,21 @@ pub(crate) async fn handle_create_passage(
         .await
         .map_err(|e| sdk_err("create passage", e))?;
 
+    let mut passages_value = serde_json::to_value(&passages)?;
+    if !verbose {
+        if let Some(arr) = passages_value.as_array_mut() {
+            for p in arr.iter_mut() {
+                truncate_passage_text(p, PASSAGE_TEXT_TRUNCATE_LEN);
+            }
+        }
+    }
+
     Ok(MemoryUnifiedResponse {
         success: true,
         operation: "create_passage".to_string(),
         message: "Passage created successfully".to_string(),
         agent_id: Some(agent_id),
-        passages: Some(serde_json::to_value(&passages)?),
+        passages: Some(passages_value),
         block_id: None,
         passage_id: None,
         archive_id: None,

@@ -116,7 +116,9 @@ async fn search_archival_memory(
             .unwrap_or_else(serde_json::Map::new);
         passage_obj.remove("embedding");
 
-        filtered_passages.push(Value::Object(passage_obj));
+        let mut passage_val = Value::Object(passage_obj);
+        crate::tools::memory_utils::truncate_passage_text(&mut passage_val, 500);
+        filtered_passages.push(passage_val);
     }
 
     let count = filtered_passages.len();

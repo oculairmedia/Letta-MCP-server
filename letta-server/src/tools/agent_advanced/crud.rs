@@ -243,16 +243,7 @@ pub(crate) async fn handle_get_agent(
         ));
     }
 
-    // Compact mode (default): truncate large fields, replace tools with IDs
-    let mut agent_value = serde_json::to_value(&agent)?;
-
-    if let Some(system) = agent_value.get("system").and_then(|s| s.as_str()) {
-        agent_value["system"] = serde_json::json!(truncate_text(system, 500));
-    }
-    if let Some(description) = agent_value.get("description").and_then(|d| d.as_str()) {
-        agent_value["description"] = serde_json::json!(truncate_text(description, 200));
-    }
-
+    // Compact mode: strip heavy fields, keep only what's useful
     let tool_ids: Vec<String> = agent
         .tools
         .iter()
@@ -266,13 +257,37 @@ pub(crate) async fn handle_get_agent(
         .collect();
     let tool_count = tool_ids.len();
 
-    agent_value["tool_ids"] = serde_json::json!(tool_ids);
-    agent_value["tool_count"] = serde_json::json!(tool_count);
-    agent_value.as_object_mut().unwrap().remove("tools");
+    let model = agent.llm_config.as_ref().map(|c| c.model.clone());
+    let embedding_model = agent.embedding_config.as_ref().and_then(|c| c.embedding_model.clone());
+
+    let memory_block_labels: Vec<String> = agent
+        .memory
+        .as_ref()
+        .map(|m| m.blocks.iter().map(|b| b.label.clone()).collect())
+        .unwrap_or_default();
+    let memory_block_count = memory_block_labels.len();
+
+    let compact = serde_json::json!({
+        "id": agent.id.to_string(),
+        "name": agent.name,
+        "agent_type": agent.agent_type,
+        "description": agent.description.as_ref().map(|d| truncate_text(d, 200)),
+        "system": agent.system.as_ref().map(|s| truncate_text(s, 300)),
+        "model": model,
+        "embedding_model": embedding_model,
+        "tool_count": tool_count,
+        "tool_ids": tool_ids,
+        "memory_block_count": memory_block_count,
+        "memory_block_labels": memory_block_labels,
+        "created_at": agent.created_at.map(|ts| ts.to_string()),
+        "updated_at": agent.updated_at.map(|ts| ts.to_string()),
+        "tags": agent.tags,
+        "hint": "Use verbose=true for full agent data, or get_core_memory for memory values",
+    });
 
     Ok(StandardResponse::success(
         "get",
-        agent_value,
+        compact,
         "Agent retrieved successfully (compact mode)",
     ))
 }
