@@ -2,6 +2,7 @@
 //!
 //! Consolidated tool for tool management operations using discriminator pattern.
 
+use crate::tools::validation_utils::sdk_err;
 use letta::types::tool::ListToolsParams;
 use letta::types::ListAgentsParams;
 use letta::LettaClient;
@@ -163,7 +164,7 @@ async fn handle_list_tools(
         .tools()
         .list(list_params)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list tools: {}", e)))?;
+        .map_err(|e| sdk_err("list tools", e))?;
 
     let filtered_tools: Vec<_> = if let Some(ref filter_tags) = tag_filter {
         tools
@@ -222,7 +223,7 @@ async fn handle_get_tool(
         .tools()
         .get(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get tool: {}", e)))?;
+        .map_err(|e| sdk_err("get tool", e))?;
 
     // LMS-50 optimization: Truncate source_code to 2000 chars
     const MAX_SOURCE_CODE_LENGTH: usize = 2000;
@@ -298,7 +299,7 @@ async fn handle_create_tool(
         .tools()
         .create(create_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to create tool: {}", e)))?;
+        .map_err(|e| sdk_err("create tool", e))?;
 
     Ok(ToolManagerResponse {
         success: true,
@@ -332,7 +333,7 @@ async fn handle_attach_tool(
         .memory()
         .attach_tool_to_agent(&letta_agent_id, &letta_tool_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to attach tool: {}", e)))?;
+        .map_err(|e| sdk_err("attach tool", e))?;
 
     let tool_count = agent_state.tools.len();
 
@@ -392,7 +393,7 @@ async fn handle_bulk_attach(
                 .agents()
                 .list(Some(list_params))
                 .await
-                .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+                .map_err(|e| sdk_err("list agents", e))?;
 
             if agents.is_empty() {
                 return Err(McpError::invalid_request(
@@ -422,7 +423,7 @@ async fn handle_bulk_attach(
             .agents()
             .list(Some(list_params))
             .await
-            .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+            .map_err(|e| sdk_err("list agents", e))?;
 
         if agents.is_empty() {
             return Err(McpError::invalid_request(
@@ -520,7 +521,7 @@ async fn handle_update_tool(
         .tools()
         .update(&letta_id, update_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to update tool: {}", e)))?;
+        .map_err(|e| sdk_err("update tool", e))?;
 
     Ok(ToolManagerResponse {
         success: true,
@@ -545,7 +546,7 @@ async fn handle_delete_tool(
         .tools()
         .delete(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to delete tool: {}", e)))?;
+        .map_err(|e| sdk_err("delete tool", e))?;
 
     Ok(ToolManagerResponse {
         success: true,
@@ -588,7 +589,7 @@ async fn handle_upsert_tool(
         .tools()
         .upsert(upsert_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to upsert tool: {}", e)))?;
+        .map_err(|e| sdk_err("upsert tool", e))?;
 
     Ok(ToolManagerResponse {
         success: true,
@@ -622,7 +623,7 @@ async fn handle_detach_tool(
         .memory()
         .detach_tool_from_agent(&letta_agent_id, &letta_tool_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to detach tool: {}", e)))?;
+        .map_err(|e| sdk_err("detach tool", e))?;
 
     let tool_count = agent_state.tools.len();
 
@@ -681,7 +682,7 @@ async fn handle_run_from_source(
         .tools()
         .run_from_source(run_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to run tool from source: {}", e)))?;
+        .map_err(|e| sdk_err("run tool from source", e))?;
 
     // LMS-50 optimization: Truncate output to 2000 chars
     const MAX_OUTPUT_LENGTH: usize = 2000;
@@ -720,7 +721,7 @@ async fn handle_add_base_tools(
         .tools()
         .upsert_base_tools()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to add base tools: {}", e)))?;
+        .map_err(|e| sdk_err("add base tools", e))?;
 
     // LMS-50 optimization: Return names only, not full definitions
     let tool_names: Vec<String> = tools.iter().map(|t| t.name.clone()).collect();

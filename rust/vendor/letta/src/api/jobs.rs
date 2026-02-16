@@ -233,12 +233,12 @@ impl<'a> StepApi<'a> {
 /// Convenience methods for job and step operations.
 impl LettaClient {
     /// Get the job API for this client.
-    pub fn jobs(&self) -> JobApi {
+    pub fn jobs(&self) -> JobApi<'_> {
         JobApi::new(self)
     }
 
     /// Get the step API for this client.
-    pub fn steps(&self) -> StepApi {
+    pub fn steps(&self) -> StepApi<'_> {
         StepApi::new(self)
     }
 }

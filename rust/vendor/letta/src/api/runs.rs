@@ -120,7 +120,7 @@ impl<'a> RunApi<'a> {
 /// Convenience methods for agent-specific run operations.
 impl LettaClient {
     /// Get the run API for this client.
-    pub fn runs(&self) -> RunApi {
+    pub fn runs(&self) -> RunApi<'_> {
         RunApi::new(self)
     }
 }

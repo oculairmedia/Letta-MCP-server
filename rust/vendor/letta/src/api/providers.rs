@@ -181,7 +181,7 @@ impl<'a> ProvidersApi<'a> {
 /// Convenience method for providers operations.
 impl LettaClient {
     /// Get the providers API for this client.
-    pub fn providers(&self) -> ProvidersApi {
+    pub fn providers(&self) -> ProvidersApi<'_> {
         ProvidersApi::new(self)
     }
 }

@@ -246,7 +246,7 @@ impl<'a> IdentitiesApi<'a> {
 /// Convenience method for identities operations.
 impl LettaClient {
     /// Get the identities API for this client.
-    pub fn identities(&self) -> IdentitiesApi {
+    pub fn identities(&self) -> IdentitiesApi<'_> {
         IdentitiesApi::new(self)
     }
 }

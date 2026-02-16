@@ -3,7 +3,7 @@
 //! Consolidated tool for job monitoring operations with response size optimizations.
 
 use letta::LettaClient;
-use crate::tools::validation_utils::require_field;
+use crate::tools::validation_utils::{require_field, sdk_err};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
@@ -120,7 +120,7 @@ async fn handle_list_jobs(
         .jobs()
         .list(None, Some(limit), None)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list jobs: {}", e)))?;
+        .map_err(|e| sdk_err("list jobs", e))?;
 
     // Convert to summaries (exclude metadata, callback details, etc.)
     let summaries: Vec<JobSummary> = jobs
@@ -169,7 +169,7 @@ async fn handle_get_job(
         .jobs()
         .get(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get job: {}", e)))?;
+        .map_err(|e| sdk_err("get job", e))?;
 
     // Truncate large fields
     let truncated_metadata = truncate_json_field(&job.metadata, MAX_METADATA_LENGTH);
@@ -232,7 +232,7 @@ async fn handle_cancel_job(
         .jobs()
         .get(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get job status: {}", e)))?;
+        .map_err(|e| sdk_err("get job status", e))?;
 
     let previous_status = job
         .status
@@ -243,7 +243,7 @@ async fn handle_cancel_job(
         .jobs()
         .delete(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to cancel job: {}", e)))?;
+        .map_err(|e| sdk_err("cancel job", e))?;
 
     // Minimal response
     let cancel_response = CancelResponse {
@@ -278,7 +278,7 @@ async fn handle_list_active_jobs(
         .jobs()
         .list_active(None, Some(limit))
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list active jobs: {}", e)))?;
+        .map_err(|e| sdk_err("list active jobs", e))?;
 
     // Convert to summaries
     let summaries: Vec<JobSummary> = jobs

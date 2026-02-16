@@ -3,6 +3,7 @@
 //! Consolidated tool for all advanced agent operations using discriminator pattern.
 //! This maintains backward compatibility with the Node.js implementation.
 
+use crate::tools::validation_utils::sdk_err;
 use letta::LettaClient;
 use letta_types::{Message, Pagination, StandardResponse};
 use serde::{Deserialize, Serialize};
@@ -365,7 +366,7 @@ async fn handle_list_agents(
         .agents()
         .list(Some(params))
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+        .map_err(|e| sdk_err("list agents", e))?;
 
     // Get total count for pagination metadata
     let total = client.agents().count().await.unwrap_or(agents.len() as u32);
@@ -444,7 +445,7 @@ async fn handle_search_agents(
         .agents()
         .list(Some(params))
         .await
-        .map_err(|e| McpError::internal(format!("Failed to search agents: {}", e)))?;
+        .map_err(|e| sdk_err("search agents", e))?;
 
     // Build search criteria for response message
     let mut criteria = Vec::new();
@@ -542,7 +543,7 @@ async fn handle_create_agent(
         .agents()
         .create(agent_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to create agent: {}", e)))?;
+        .map_err(|e| sdk_err("create agent", e))?;
 
     Ok(StandardResponse::success(
         "create",
@@ -568,7 +569,7 @@ async fn handle_get_agent(
         .agents()
         .get(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get agent: {}", e)))?;
+        .map_err(|e| sdk_err("get agent", e))?;
 
     // LMS-48: Optimize response - truncate system prompt, return tool IDs only
     let mut agent_value = serde_json::to_value(&agent)?;
@@ -640,7 +641,7 @@ async fn handle_delete_agent(
         .agents()
         .delete(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to delete agent: {}", e)))?;
+        .map_err(|e| sdk_err("delete agent", e))?;
 
     Ok(StandardResponse::success_no_data(
         "delete",
@@ -683,7 +684,7 @@ async fn handle_send_message(
         .messages()
         .create(&letta_id, messages_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to send message: {}", e)))?;
+        .map_err(|e| sdk_err("send message", e))?;
 
     // LMS-48: Truncate assistant response to 1000 chars
     let mut response_value = serde_json::to_value(&response)?;
@@ -730,7 +731,7 @@ async fn handle_list_tools(
         .memory()
         .list_agent_tools(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list agent tools: {}", e)))?;
+        .map_err(|e| sdk_err("list agent tools", e))?;
 
     // LMS-48: Default limit=25, return summary mode only
     let default_limit: usize = 25;
@@ -797,7 +798,7 @@ async fn handle_export_agent(
         .agents()
         .export_file(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to export agent: {}", e)))?;
+        .map_err(|e| sdk_err("export agent", e))?;
 
     Ok(StandardResponse::success(
         "export",
@@ -837,7 +838,7 @@ async fn handle_clone_agent(
         .agents()
         .get(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get source agent: {}", e)))?;
+        .map_err(|e| sdk_err("get source agent", e))?;
 
     // Create cloned agent with new name
     let clone_request = letta::types::CreateAgentRequest {
@@ -853,7 +854,7 @@ async fn handle_clone_agent(
         .agents()
         .create(clone_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to create cloned agent: {}", e)))?;
+        .map_err(|e| sdk_err("create cloned agent", e))?;
 
     Ok(StandardResponse::success(
         "clone",
@@ -882,7 +883,7 @@ async fn handle_get_config(
         .agents()
         .get(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get agent: {}", e)))?;
+        .map_err(|e| sdk_err("get agent", e))?;
 
     // Get agent tools (may fail if not accessible)
     let tools = client.memory().list_agent_tools(&letta_id).await.ok();
@@ -918,7 +919,7 @@ async fn handle_bulk_delete(
         .agents()
         .list(Some(list_params))
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+        .map_err(|e| sdk_err("list agents", e))?;
 
     // Filter agents based on criteria
     let mut to_delete: Vec<letta::types::LettaId> = Vec::new();
@@ -977,7 +978,7 @@ async fn handle_get_context(
         .agents()
         .get_context(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get context: {}", e)))?;
+        .map_err(|e| sdk_err("get context", e))?;
 
     Ok(StandardResponse::success(
         "context",
@@ -1002,7 +1003,7 @@ async fn handle_reset_messages(
         .agents()
         .reset_messages(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to reset messages: {}", e)))?;
+        .map_err(|e| sdk_err("reset messages", e))?;
 
     Ok(StandardResponse::success_no_data(
         "reset_messages",
@@ -1029,7 +1030,7 @@ async fn handle_summarize(
         .agents()
         .summarize_agent_conversation(&letta_id, max_message_length)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to summarize conversation: {}", e)))?;
+        .map_err(|e| sdk_err("summarize conversation", e))?;
 
     Ok(StandardResponse::success(
         "summarize",
@@ -1079,7 +1080,7 @@ async fn handle_async_message(
         .messages()
         .create_async(&letta_id, messages_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to create async message: {}", e)))?;
+        .map_err(|e| sdk_err("create async message", e))?;
 
     Ok(StandardResponse::success(
         "async_message",
@@ -1107,7 +1108,7 @@ async fn handle_cancel_message(
         .messages()
         .cancel(&letta_id, None)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to cancel message: {}", e)))?;
+        .map_err(|e| sdk_err("cancel message", e))?;
 
     Ok(StandardResponse::success_no_data(
         "cancel_message",
@@ -1145,7 +1146,7 @@ async fn handle_preview_payload(
         .messages()
         .preview(&letta_id, messages_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to preview payload: {}", e)))?;
+        .map_err(|e| sdk_err("preview payload", e))?;
 
     Ok(StandardResponse::success(
         "preview_payload",
@@ -1171,7 +1172,7 @@ async fn handle_search_messages(
         .messages()
         .search(search_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to search messages: {}", e)))?;
+        .map_err(|e| sdk_err("search messages", e))?;
 
     // LMS-48: Default limit=10, max=50, truncate message content to 200 chars
     let default_limit = 10;
@@ -1259,7 +1260,7 @@ async fn handle_get_message(
         .messages()
         .list(&letta_id, None)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list messages: {}", e)))?;
+        .map_err(|e| sdk_err("list messages", e))?;
 
     Ok(StandardResponse::success(
         "get_message",
@@ -1276,7 +1277,7 @@ async fn handle_count(
         .agents()
         .count()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to count agents: {}", e)))?;
+        .map_err(|e| sdk_err("count agents", e))?;
 
     Ok(StandardResponse::success(
         "count",
@@ -1300,7 +1301,7 @@ async fn handle_list_conversations(
         .conversations()
         .list(&letta_agent_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list conversations: {}", e)))?;
+        .map_err(|e| sdk_err("list conversations", e))?;
 
     Ok(StandardResponse::success(
         "list_conversations",
@@ -1328,7 +1329,7 @@ async fn handle_get_conversation(
         .conversations()
         .get(&letta_conversation_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get conversation: {}", e)))?;
+        .map_err(|e| sdk_err("get conversation", e))?;
 
     Ok(StandardResponse::success(
         "get_conversation",
@@ -1380,7 +1381,7 @@ async fn handle_send_conversation_message(
         .conversations()
         .send_message(&letta_conversation_id, message_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to send conversation message: {}", e)))?;
+        .map_err(|e| sdk_err("send conversation message", e))?;
 
     Ok(StandardResponse::success(
         "send_conversation_message",
@@ -1405,7 +1406,7 @@ async fn handle_cancel_conversation(
         .conversations()
         .cancel(&letta_conversation_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to cancel conversation: {}", e)))?;
+        .map_err(|e| sdk_err("cancel conversation", e))?;
 
     Ok(StandardResponse::success(
         "cancel_conversation",
@@ -1434,7 +1435,7 @@ async fn handle_compact_conversation(
         .conversations()
         .compact(&letta_conversation_id, compact_payload)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to compact conversation: {}", e)))?;
+        .map_err(|e| sdk_err("compact conversation", e))?;
 
     Ok(StandardResponse::success(
         "compact_conversation",

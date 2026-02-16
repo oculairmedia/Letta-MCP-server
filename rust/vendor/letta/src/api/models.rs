@@ -87,7 +87,7 @@ impl<'a> ModelsApi<'a> {
 /// Convenience method for models operations.
 impl LettaClient {
     /// Get the models API for this client.
-    pub fn models(&self) -> ModelsApi {
+    pub fn models(&self) -> ModelsApi<'_> {
         ModelsApi::new(self)
     }
 }

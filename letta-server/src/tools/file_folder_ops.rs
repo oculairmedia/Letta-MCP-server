@@ -11,6 +11,7 @@
 //! - open_file: Returns minimal confirmation (content retrieval via separate API)
 //! - All list operations include pagination metadata
 
+use crate::tools::validation_utils::sdk_err;
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -212,7 +213,7 @@ async fn handle_list_files(
         .files(letta_agent_id)
         .list()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list files: {}", e)))?;
+        .map_err(|e| sdk_err("list files", e))?;
 
     let total = result.files.len();
 
@@ -294,7 +295,7 @@ async fn handle_open_file(
         .files(letta_agent_id)
         .open(&letta_file_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to open file: {}", e)))?;
+        .map_err(|e| sdk_err("open file", e))?;
 
     // Note: The SDK open() method marks the file as open in the agent's context
     // It does NOT return file content. Content retrieval would require a separate API call.
@@ -355,7 +356,7 @@ async fn handle_close_file(
         .files(letta_agent_id)
         .close(&letta_file_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to close file: {}", e)))?;
+        .map_err(|e| sdk_err("close file", e))?;
 
     // Minimal response as per LMS-54 requirements
     Ok(FileFolderResponse {
@@ -405,7 +406,7 @@ async fn handle_close_all_files(
         .files(letta_agent_id)
         .close_all()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to close all files: {}", e)))?;
+        .map_err(|e| sdk_err("close all files", e))?;
 
     let count = closed.len();
 
@@ -538,7 +539,7 @@ async fn handle_attach_folder(
         .agent(letta_agent_id)
         .attach(&letta_folder_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to attach folder: {}", e)))?;
+        .map_err(|e| sdk_err("attach folder", e))?;
 
     // Minimal response - don't include full agent state (LMS-54)
     Ok(FileFolderResponse {
@@ -593,7 +594,7 @@ async fn handle_detach_folder(
         .agent(letta_agent_id)
         .detach(&letta_folder_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to detach folder: {}", e)))?;
+        .map_err(|e| sdk_err("detach folder", e))?;
 
     // Minimal response - don't include full agent state (LMS-54)
     Ok(FileFolderResponse {
@@ -642,7 +643,7 @@ async fn handle_list_agents_in_folder(
         .folders()
         .list_agents(&letta_folder_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list agents in folder: {}", e)))?;
+        .map_err(|e| sdk_err("list agents in folder", e))?;
 
     // Return IDs only - already optimized (LMS-54)
     let agents: Vec<AgentReference> = agent_ids

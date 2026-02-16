@@ -60,7 +60,7 @@ impl<'a> VoiceApi<'a> {
 /// Convenience method for voice operations.
 impl LettaClient {
     /// Get the voice API for this client.
-    pub fn voice(&self) -> VoiceApi {
+    pub fn voice(&self) -> VoiceApi<'_> {
         VoiceApi::new(self)
     }
 }

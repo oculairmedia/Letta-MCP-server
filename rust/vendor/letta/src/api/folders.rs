@@ -226,7 +226,7 @@ impl<'a> FolderApi<'a> {
     }
 
     /// Get agent-folder relationship sub-API for a specific agent.
-    pub fn agent(&self, agent_id: LettaId) -> AgentFolderApi {
+    pub fn agent(&self, agent_id: LettaId) -> AgentFolderApi<'_> {
         AgentFolderApi::new(self.client, agent_id)
     }
 }

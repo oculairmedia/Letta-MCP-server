@@ -8,7 +8,7 @@ use letta::{
     LettaClient,
 };
 use crate::tools::id_utils::parse_letta_id;
-use crate::tools::validation_utils::require_field;
+use crate::tools::validation_utils::{require_field, sdk_err};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -216,7 +216,7 @@ async fn handle_add_server(
         .tools()
         .add_mcp_server(server_config)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to add MCP server: {}", e)))?;
+        .map_err(|e| sdk_err("add MCP server", e))?;
 
     // Use json! macro instead of manual Map::insert - fewer allocations
     let summary = serde_json::json!({
@@ -246,7 +246,7 @@ async fn handle_update_server(
         .tools()
         .update_mcp_server(&server_name, update_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to update MCP server: {}", e)))?;
+        .map_err(|e| sdk_err("update MCP server", e))?;
 
     let summary = serde_json::json!({ "server_name": &server_name });
 
@@ -268,7 +268,7 @@ async fn handle_delete_server(
         .tools()
         .delete_mcp_server(&server_name)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to delete MCP server: {}", e)))?;
+        .map_err(|e| sdk_err("delete MCP server", e))?;
 
     Ok(
         McpOpsResponse::success("delete", "MCP server deleted successfully")
@@ -293,7 +293,7 @@ async fn handle_test_server(
         .tools()
         .test_mcp_server(test_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to test MCP server: {}", e)))?;
+        .map_err(|e| sdk_err("test MCP server", e))?;
     let connection_time_ms = start_time.elapsed().as_millis() as i64;
 
     // Extract tool names only from the result
@@ -332,7 +332,7 @@ async fn handle_connect_server(
         .mcp_servers()
         .connect(&letta_mcp_server_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to connect MCP server: {}", e)))?;
+        .map_err(|e| sdk_err("connect MCP server", e))?;
 
     Ok(McpOpsResponse {
         success: true,
@@ -355,7 +355,7 @@ async fn handle_resync_server(
         .mcp_servers()
         .refresh(&letta_mcp_server_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to refresh MCP server tools: {}", e)))?;
+        .map_err(|e| sdk_err("refresh MCP server tools", e))?;
 
     Ok(McpOpsResponse {
         success: true,
@@ -393,7 +393,7 @@ async fn handle_execute_tool(
         .mcp_servers()
         .run_tool(&letta_mcp_server_id, &letta_tool_id, exec_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to execute MCP tool: {}", e)))?;
+        .map_err(|e| sdk_err("execute MCP tool", e))?;
 
     let mut output = serde_json::to_value(&result)?;
     let mut truncated = false;
@@ -444,7 +444,7 @@ async fn handle_list_servers(
         .mcp_servers()
         .list()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list MCP servers: {}", e)))?;
+        .map_err(|e| sdk_err("list MCP servers", e))?;
 
     let all_servers: Vec<Value> = result
         .into_iter()
@@ -504,7 +504,7 @@ async fn handle_list_tools(
                 .mcp_servers()
                 .list_tools(&letta_mcp_server_id)
                 .await
-                .map_err(|e| McpError::internal(format!("Failed to list MCP tools: {}", e)))?;
+                .map_err(|e| sdk_err("list MCP tools", e))?;
 
             let mapped: Vec<Value> = tools
                 .into_iter()
@@ -535,7 +535,7 @@ async fn handle_list_tools(
                 .tools()
                 .list_mcp_tools_by_server(&server_name)
                 .await
-                .map_err(|e| McpError::internal(format!("Failed to list MCP tools: {}", e)))?;
+                .map_err(|e| sdk_err("list MCP tools", e))?;
 
             let mapped: Vec<Value> = if let Value::Array(arr) = serde_json::to_value(&result)? {
                 arr.into_iter()
@@ -622,7 +622,7 @@ async fn handle_register_tool(
         .tools()
         .add_mcp_tool(&server_name, &tool_name)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to register MCP tool: {}", e)))?;
+        .map_err(|e| sdk_err("register MCP tool", e))?;
 
     Ok(McpOpsResponse {
         success: true,
@@ -651,7 +651,7 @@ async fn handle_attach_mcp_server(
         .tools()
         .list_mcp_tools_by_server(&server_name)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list MCP tools: {}", e)))?;
+        .map_err(|e| sdk_err("list MCP tools", e))?;
 
     let total_discovered = mcp_tools.len();
     if total_discovered == 0 {

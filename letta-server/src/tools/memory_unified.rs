@@ -3,6 +3,7 @@
 //! Consolidated tool for all memory operations using discriminator pattern.
 //! Supports core memory, memory blocks, and archival/passage operations.
 
+use crate::tools::validation_utils::sdk_err;
 use chrono::{DateTime, Utc};
 use letta::types::{LettaMessageUnion, ListMessagesRequest};
 use letta::LettaClient;
@@ -233,7 +234,7 @@ async fn handle_get_core_memory(
         .memory()
         .get_core_memory(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get core memory: {}", e)))?;
+        .map_err(|e| sdk_err("get core memory", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -285,7 +286,7 @@ async fn handle_update_core_memory(
         .memory()
         .update_core_memory_block(&letta_id, &block_label, update_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to update core memory: {}", e)))?;
+        .map_err(|e| sdk_err("update core memory", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -327,7 +328,7 @@ async fn handle_get_block_by_label(
         .memory()
         .get_core_memory_block(&letta_id, &block_label)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get block by label: {}", e)))?;
+        .map_err(|e| sdk_err("get block by label", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -362,7 +363,7 @@ async fn handle_list_blocks(
         .memory()
         .list_core_memory_blocks(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list blocks: {}", e)))?;
+        .map_err(|e| sdk_err("list blocks", e))?;
 
     let count = blocks.len();
 
@@ -412,7 +413,7 @@ async fn handle_create_block(
         .blocks()
         .create(create_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to create block: {}", e)))?;
+        .map_err(|e| sdk_err("create block", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -447,7 +448,7 @@ async fn handle_get_block(
         .blocks()
         .get(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get block: {}", e)))?;
+        .map_err(|e| sdk_err("get block", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -494,7 +495,7 @@ async fn handle_update_block(
         .blocks()
         .update(&letta_id, update_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to update block: {}", e)))?;
+        .map_err(|e| sdk_err("update block", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -534,7 +535,7 @@ async fn handle_attach_block(
         .memory()
         .attach_memory_block(&letta_agent_id, &letta_block_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to attach block: {}", e)))?;
+        .map_err(|e| sdk_err("attach block", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -574,7 +575,7 @@ async fn handle_detach_block(
         .memory()
         .detach_memory_block(&letta_agent_id, &letta_block_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to detach block: {}", e)))?;
+        .map_err(|e| sdk_err("detach block", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -635,7 +636,7 @@ async fn handle_search_archival(
         .memory()
         .list_archival_memory(&letta_id, Some(params))
         .await
-        .map_err(|e| McpError::internal(format!("Failed to search archival: {}", e)))?;
+        .map_err(|e| sdk_err("search archival", e))?;
 
     let count = passages.len();
 
@@ -680,7 +681,7 @@ async fn handle_list_passages(
         .memory()
         .list_archival_memory(&letta_id, Some(params))
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list passages: {}", e)))?;
+        .map_err(|e| sdk_err("list passages", e))?;
 
     let count = passages.len();
 
@@ -722,7 +723,7 @@ async fn handle_create_passage(
         .memory()
         .create_archival_memory(&letta_id, create_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to create passage: {}", e)))?;
+        .map_err(|e| sdk_err("create passage", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -774,7 +775,7 @@ async fn handle_delete_passage(
         .memory()
         .delete_archival_memory(&letta_agent_id, &letta_passage_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to delete passage: {}", e)))?;
+        .map_err(|e| sdk_err("delete passage", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -802,7 +803,7 @@ async fn handle_list_archives(
         .archives()
         .list()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list archives: {}", e)))?;
+        .map_err(|e| sdk_err("list archives", e))?;
 
     let count = archives.len();
 
@@ -842,7 +843,7 @@ async fn handle_get_archive(
         .archives()
         .get(&letta_archive_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get archive: {}", e)))?;
+        .map_err(|e| sdk_err("get archive", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -881,7 +882,7 @@ async fn handle_create_archive(
         .archives()
         .create(create_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to create archive: {}", e)))?;
+        .map_err(|e| sdk_err("create archive", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -921,7 +922,7 @@ async fn handle_update_archive(
         .archives()
         .update(&letta_archive_id, update_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to update archive: {}", e)))?;
+        .map_err(|e| sdk_err("update archive", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -956,7 +957,7 @@ async fn handle_delete_archive(
         .archives()
         .delete(&letta_archive_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to delete archive: {}", e)))?;
+        .map_err(|e| sdk_err("delete archive", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -997,7 +998,7 @@ async fn handle_attach_archive(
         .agent_archives(letta_agent_id)
         .attach(&letta_archive_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to attach archive: {}", e)))?;
+        .map_err(|e| sdk_err("attach archive", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -1038,7 +1039,7 @@ async fn handle_detach_archive(
         .agent_archives(letta_agent_id)
         .detach(&letta_archive_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to detach archive: {}", e)))?;
+        .map_err(|e| sdk_err("detach archive", e))?;
 
     Ok(MemoryUnifiedResponse {
         success: true,
@@ -1075,7 +1076,7 @@ async fn handle_list_agents_using_archive(
         .archives()
         .list_agents(&letta_archive_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list agents using archive: {}", e)))?;
+        .map_err(|e| sdk_err("list agents using archive", e))?;
 
     let count = agents.len();
 
@@ -1181,7 +1182,7 @@ async fn search_archival_memory(
         .memory()
         .list_archival_memory(agent_id, Some(params))
         .await
-        .map_err(|e| McpError::internal(format!("Failed to search archival memory: {}", e)))?;
+        .map_err(|e| sdk_err("search archival memory", e))?;
 
     // Filter by date if provided and convert to JSON values
     let mut filtered_passages: Vec<Value> = Vec::new();
@@ -1252,7 +1253,7 @@ async fn search_messages(
             .messages()
             .list(agent_id, Some(params))
             .await
-            .map_err(|e| McpError::internal(format!("Failed to list messages: {}", e)))?;
+            .map_err(|e| sdk_err("list messages", e))?;
 
         if messages.is_empty() {
             has_more = false;

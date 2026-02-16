@@ -3,7 +3,7 @@
 //! Consolidated tool for source management operations.
 
 use letta::LettaClient;
-use crate::tools::validation_utils::require_field;
+use crate::tools::validation_utils::{require_field, sdk_err};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
@@ -203,7 +203,7 @@ async fn handle_list_sources(
         .sources()
         .list()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list sources: {}", e)))?;
+        .map_err(|e| sdk_err("list sources", e))?;
 
     let total = all_sources.len();
 
@@ -264,7 +264,7 @@ async fn handle_get_source(
         .sources()
         .get(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get source: {}", e)))?;
+        .map_err(|e| sdk_err("get source", e))?;
 
     Ok(
         SourceManagerResponse::success("get", "Source retrieved successfully")
@@ -293,7 +293,7 @@ async fn handle_create_source(
         .sources()
         .create(create_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to create source: {}", e)))?;
+        .map_err(|e| sdk_err("create source", e))?;
 
     Ok(
         SourceManagerResponse::success("create", "Source created successfully")
@@ -319,7 +319,7 @@ async fn handle_update_source(
         .sources()
         .update(&letta_id, update_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to update source: {}", e)))?;
+        .map_err(|e| sdk_err("update source", e))?;
 
     Ok(
         SourceManagerResponse::success("update", "Source updated successfully")
@@ -339,7 +339,7 @@ async fn handle_delete_source(
         .sources()
         .delete(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to delete source: {}", e)))?;
+        .map_err(|e| sdk_err("delete source", e))?;
 
     Ok(SourceManagerResponse::success(
         "delete",
@@ -364,7 +364,7 @@ async fn handle_attach_source(
         .agent_sources(letta_agent_id)
         .attach(&letta_source_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to attach source: {}", e)))?;
+        .map_err(|e| sdk_err("attach source", e))?;
 
     Ok(SourceManagerResponse {
         success: true,
@@ -393,7 +393,7 @@ async fn handle_detach_source(
         .agent_sources(letta_agent_id)
         .detach(&letta_source_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to detach source: {}", e)))?;
+        .map_err(|e| sdk_err("detach source", e))?;
 
     Ok(SourceManagerResponse {
         success: true,
@@ -413,7 +413,7 @@ async fn handle_count_sources(
         .sources()
         .count()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to count sources: {}", e)))?;
+        .map_err(|e| sdk_err("count sources", e))?;
 
     Ok(SourceManagerResponse {
         success: true,
@@ -441,7 +441,7 @@ async fn handle_list_attached(
         .agent_sources(letta_agent_id)
         .list()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list attached sources: {}", e)))?;
+        .map_err(|e| sdk_err("list attached sources", e))?;
 
     // Return lightweight summaries (id, name, file_count only)
     let summaries: Vec<serde_json::Value> = sources
@@ -492,7 +492,7 @@ async fn handle_list_files(
         .sources()
         .list_files(&letta_id, params)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list files: {}", e)))?;
+        .map_err(|e| sdk_err("list files", e))?;
 
     let total = files.len();
 
@@ -557,7 +557,7 @@ async fn handle_upload_file(
             request.content_type.clone(),
         )
         .await
-        .map_err(|e| McpError::internal(format!("Failed to upload file: {}", e)))?;
+        .map_err(|e| sdk_err("upload file", e))?;
 
     // Return minimal summary - don't echo back file content
     // FileUploadResponse can be either Job or FileMetadata
@@ -615,7 +615,7 @@ async fn handle_delete_file(
         .sources()
         .delete_file(&letta_source_id, &letta_file_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to delete file: {}", e)))?;
+        .map_err(|e| sdk_err("delete file", e))?;
 
     Ok(SourceManagerResponse {
         success: true,
@@ -643,7 +643,7 @@ async fn handle_list_agents_using(
         .agents()
         .list(Some(list_params))
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+        .map_err(|e| sdk_err("list agents", e))?;
 
     // Filter agents that have this source attached
     let mut agents_using = Vec::new();
@@ -654,7 +654,7 @@ async fn handle_list_agents_using(
             .agent_sources(agent.id.clone())
             .list()
             .await
-            .map_err(|e| McpError::internal(format!("Failed to check agent sources: {}", e)))?;
+            .map_err(|e| sdk_err("check agent sources", e))?;
 
         for source in sources {
             if let Some(sid) = &source.id {
