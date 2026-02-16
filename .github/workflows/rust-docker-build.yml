@@ -2,7 +2,7 @@ name: Rust Docker Build and Push
 
 on:
     push:
-        branches: [rust-implementation]
+        branches: [rust-implementation, 'fork/**']
         paths:
             - 'rust/**'
             - 'letta-server/**'
@@ -25,9 +25,8 @@ on:
     workflow_run:
         workflows: ['Rust Tests']
         types: [completed]
-        branches: [rust-implementation]
+        branches: [rust-implementation, 'fork/**']
     workflow_call:
-        # Allow this workflow to be called by other workflows
 
 jobs:
     build-rust:
