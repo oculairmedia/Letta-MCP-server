@@ -53,6 +53,9 @@ pub struct McpOpsRequest {
     pub request_heartbeat: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
+
+    #[serde(default)]
+    pub verbose: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Default)]

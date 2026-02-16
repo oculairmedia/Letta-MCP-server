@@ -179,6 +179,9 @@ pub struct AgentAdvancedRequest {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub conversation_id: Option<String>,
+
+    #[serde(default)]
+    pub verbose: Option<bool>,
 }
 
 /// Schema helper for Value fields - generates object type
@@ -539,15 +542,28 @@ async fn handle_create_agent(
         agent_request.tool_ids = Some(tool_ids);
     }
 
+    let verbose = request.verbose.unwrap_or(false);
+
     let agent = client
         .agents()
         .create(agent_request)
         .await
         .map_err(|e| sdk_err("create agent", e))?;
 
+    let data = if verbose {
+        serde_json::to_value(&agent)?
+    } else {
+        serde_json::json!({
+            "id": agent.id,
+            "name": agent.name,
+            "agent_type": agent.agent_type,
+            "tool_count": agent.tools.len(),
+        })
+    };
+
     Ok(StandardResponse::success(
         "create",
-        serde_json::to_value(agent)?,
+        data,
         "Agent created successfully",
     ))
 }
@@ -565,26 +581,33 @@ async fn handle_get_agent(
         .parse()
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
 
+    let verbose = request.verbose.unwrap_or(false);
+
     let agent = client
         .agents()
         .get(&letta_id)
         .await
         .map_err(|e| sdk_err("get agent", e))?;
 
-    // LMS-48: Optimize response - truncate system prompt, return tool IDs only
+    if verbose {
+        let agent_value = serde_json::to_value(&agent)?;
+        return Ok(StandardResponse::success(
+            "get",
+            agent_value,
+            "Agent retrieved successfully (verbose mode)",
+        ));
+    }
+
+    // Compact mode (default): truncate large fields, replace tools with IDs
     let mut agent_value = serde_json::to_value(&agent)?;
 
-    // Truncate system prompt to 500 chars
     if let Some(system) = agent_value.get("system").and_then(|s| s.as_str()) {
         agent_value["system"] = serde_json::json!(truncate_text(system, 500));
     }
-
-    // Truncate description to 200 chars
     if let Some(description) = agent_value.get("description").and_then(|d| d.as_str()) {
         agent_value["description"] = serde_json::json!(truncate_text(description, 200));
     }
 
-    // Replace full tool objects with tool_ids array and tool_count
     let tool_ids: Vec<String> = agent
         .tools
         .iter()
@@ -600,7 +623,6 @@ async fn handle_get_agent(
 
     agent_value["tool_ids"] = serde_json::json!(tool_ids);
     agent_value["tool_count"] = serde_json::json!(tool_count);
-    // Remove full tools array to save space
     agent_value.as_object_mut().unwrap().remove("tools");
 
     Ok(StandardResponse::success(
@@ -678,35 +700,34 @@ async fn handle_send_message(
         ..Default::default()
     };
 
-    // For streaming, we'd use client.messages().create_stream() instead
-    // For now, use non-streaming create
+    let verbose = request.verbose.unwrap_or(false);
+
     let response = client
         .messages()
         .create(&letta_id, messages_request)
         .await
         .map_err(|e| sdk_err("send message", e))?;
 
-    // LMS-48: Truncate assistant response to 1000 chars
     let mut response_value = serde_json::to_value(&response)?;
 
-    // Try to find and truncate assistant message content
-    if let Some(messages) = response_value
-        .get_mut("messages")
-        .and_then(|m| m.as_array_mut())
-    {
-        for msg in messages.iter_mut() {
-            if let Some(content) = msg.get("text").and_then(|t| t.as_str()) {
-                let original_length = content.len();
-                if original_length > 1000 {
-                    msg["text"] = serde_json::json!(truncate_text(content, 1000));
-                    msg["full_response_length"] = serde_json::json!(original_length);
+    if !verbose {
+        if let Some(messages) = response_value
+            .get_mut("messages")
+            .and_then(|m| m.as_array_mut())
+        {
+            for msg in messages.iter_mut() {
+                if let Some(content) = msg.get("text").and_then(|t| t.as_str()) {
+                    let original_length = content.len();
+                    if original_length > 1000 {
+                        msg["text"] = serde_json::json!(truncate_text(content, 1000));
+                        msg["full_response_length"] = serde_json::json!(original_length);
+                    }
                 }
             }
         }
+        response_value["hint"] =
+            serde_json::json!("Full response visible in agent's message history");
     }
-
-    // Add hint about full response
-    response_value["hint"] = serde_json::json!("Full response visible in agent's message history");
 
     Ok(StandardResponse::success(
         "send_message",

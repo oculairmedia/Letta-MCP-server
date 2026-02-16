@@ -28,6 +28,9 @@ pub struct JobMonitorRequest {
     pub limit: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
+
+    #[serde(default)]
+    pub verbose: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]

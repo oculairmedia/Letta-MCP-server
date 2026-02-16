@@ -55,6 +55,9 @@ pub struct SourceManagerRequest {
     pub include_content: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
+
+    #[serde(default)]
+    pub verbose: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Default)]

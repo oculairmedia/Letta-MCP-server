@@ -131,6 +131,7 @@ impl LettaServer {
             start_date,
             end_date,
             request_heartbeat: None,
+            verbose: None,
         };
 
         // Call handler
@@ -237,6 +238,7 @@ impl LettaServer {
             limit,
             include_content,
             request_heartbeat: None,
+            verbose: None,
         };
 
         // Call handler
@@ -280,6 +282,7 @@ impl LettaServer {
             job_id,
             limit,
             request_heartbeat: None,
+            verbose: None,
         };
 
         // Call handler
@@ -315,6 +318,7 @@ impl LettaServer {
             limit,
             offset,
             request_heartbeat: None,
+            verbose: None,
         };
 
         // Call handler
@@ -362,6 +366,7 @@ impl LettaServer {
             pagination,
             request_heartbeat: None,
             agent_id,
+            verbose: None,
         };
 
         // Call handler

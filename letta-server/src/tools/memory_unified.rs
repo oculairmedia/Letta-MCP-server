@@ -113,9 +113,11 @@ pub struct MemoryUnifiedRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_date: Option<DateTime<Utc>>,
 
-    // Ignored parameter
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
+
+    #[serde(default)]
+    pub verbose: Option<bool>,
 }
 
 /// Memory unified response

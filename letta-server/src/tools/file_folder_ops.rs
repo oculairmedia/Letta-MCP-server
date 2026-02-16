@@ -57,9 +57,11 @@ pub struct FileFolderRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offset: Option<usize>,
 
-    /// Ignored parameter (for MCP client compatibility)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
+
+    #[serde(default)]
+    pub verbose: Option<bool>,
 }
 
 /// File metadata (optimized for list operations - no content)
