@@ -11,7 +11,7 @@
 //! - open_file: Returns minimal confirmation (content retrieval via separate API)
 //! - All list operations include pagination metadata
 
-use crate::tools::validation_utils::sdk_err;
+use crate::tools::validation_utils::{require_field, sdk_err};
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -193,9 +193,7 @@ async fn handle_list_files(
     client: &LettaClient,
     request: FileFolderRequest,
 ) -> Result<FileFolderResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id is required".to_string()))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -277,12 +275,8 @@ async fn handle_open_file(
     client: &LettaClient,
     request: FileFolderRequest,
 ) -> Result<FileFolderResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id is required".to_string()))?;
-    let file_id = request
-        .file_id
-        .ok_or_else(|| McpError::invalid_request("file_id is required".to_string()))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required")?;
+    let file_id = require_field(request.file_id, "file_id is required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -338,12 +332,8 @@ async fn handle_close_file(
     client: &LettaClient,
     request: FileFolderRequest,
 ) -> Result<FileFolderResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id is required".to_string()))?;
-    let file_id = request
-        .file_id
-        .ok_or_else(|| McpError::invalid_request("file_id is required".to_string()))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required")?;
+    let file_id = require_field(request.file_id, "file_id is required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -393,9 +383,7 @@ async fn handle_close_all_files(
     client: &LettaClient,
     request: FileFolderRequest,
 ) -> Result<FileFolderResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id is required".to_string()))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -521,12 +509,8 @@ async fn handle_attach_folder(
     client: &LettaClient,
     request: FileFolderRequest,
 ) -> Result<FileFolderResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id is required".to_string()))?;
-    let folder_id = request
-        .folder_id
-        .ok_or_else(|| McpError::invalid_request("folder_id is required".to_string()))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required")?;
+    let folder_id = require_field(request.folder_id, "folder_id is required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -576,12 +560,8 @@ async fn handle_detach_folder(
     client: &LettaClient,
     request: FileFolderRequest,
 ) -> Result<FileFolderResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id is required".to_string()))?;
-    let folder_id = request
-        .folder_id
-        .ok_or_else(|| McpError::invalid_request("folder_id is required".to_string()))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required")?;
+    let folder_id = require_field(request.folder_id, "folder_id is required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -631,9 +611,7 @@ async fn handle_list_agents_in_folder(
     client: &LettaClient,
     request: FileFolderRequest,
 ) -> Result<FileFolderResponse, McpError> {
-    let folder_id = request
-        .folder_id
-        .ok_or_else(|| McpError::invalid_request("folder_id is required".to_string()))?;
+    let folder_id = require_field(request.folder_id, "folder_id is required")?;
 
     let letta_folder_id = letta::types::LettaId::from_str(&folder_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid folder_id: {}", e)))?;

@@ -429,9 +429,7 @@ async fn handle_list_attached(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id required"))?;
+    let agent_id = require_field(request.agent_id, "agent_id required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;

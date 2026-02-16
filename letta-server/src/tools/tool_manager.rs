@@ -2,7 +2,7 @@
 //!
 //! Consolidated tool for tool management operations using discriminator pattern.
 
-use crate::tools::validation_utils::sdk_err;
+use crate::tools::validation_utils::{require_field, sdk_err};
 use letta::types::tool::ListToolsParams;
 use letta::types::ListAgentsParams;
 use letta::LettaClient;
@@ -213,9 +213,7 @@ async fn handle_get_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let tool_id = request
-        .tool_id
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let tool_id = require_field(request.tool_id, "tool_id required")?;
     let letta_id = letta::types::LettaId::from_str(&tool_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
 
@@ -271,9 +269,7 @@ async fn handle_create_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let source_code = request
-        .source_code
-        .ok_or_else(|| McpError::invalid_request("source_code required".to_string()))?;
+    let source_code = require_field(request.source_code, "source_code required")?;
 
     // Parse source_type if provided
     let source_type = request
@@ -314,14 +310,8 @@ async fn handle_attach_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .clone()
-        .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
-    let tool_id = request
-        .tool_id
-        .clone()
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let agent_id = require_field(request.agent_id.clone(), "agent_id required")?;
+    let tool_id = require_field(request.tool_id.clone(), "tool_id required")?;
     let verbose = request.verbose.unwrap_or(false);
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
@@ -361,10 +351,7 @@ async fn handle_bulk_attach(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let tool_id = request
-        .tool_id
-        .clone()
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let tool_id = require_field(request.tool_id.clone(), "tool_id required")?;
     let verbose = request.verbose.unwrap_or(false);
 
     let letta_tool_id = letta::types::LettaId::from_str(&tool_id)
@@ -502,9 +489,7 @@ async fn handle_update_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let tool_id = request
-        .tool_id
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let tool_id = require_field(request.tool_id, "tool_id required")?;
     let letta_id = letta::types::LettaId::from_str(&tool_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
 
@@ -536,9 +521,7 @@ async fn handle_delete_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let tool_id = request
-        .tool_id
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let tool_id = require_field(request.tool_id, "tool_id required")?;
     let letta_id = letta::types::LettaId::from_str(&tool_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
 
@@ -561,9 +544,7 @@ async fn handle_upsert_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let source_code = request
-        .source_code
-        .ok_or_else(|| McpError::invalid_request("source_code required".to_string()))?;
+    let source_code = require_field(request.source_code, "source_code required")?;
 
     // Parse source_type if provided
     let source_type = request
@@ -604,14 +585,8 @@ async fn handle_detach_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .clone()
-        .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
-    let tool_id = request
-        .tool_id
-        .clone()
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let agent_id = require_field(request.agent_id.clone(), "agent_id required")?;
+    let tool_id = require_field(request.tool_id.clone(), "tool_id required")?;
     let verbose = request.verbose.unwrap_or(false);
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
@@ -651,12 +626,8 @@ async fn handle_run_from_source(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let source_code = request
-        .source_code
-        .ok_or_else(|| McpError::invalid_request("source_code required".to_string()))?;
-    let args = request
-        .args
-        .ok_or_else(|| McpError::invalid_request("args required (JSON object)".to_string()))?;
+    let source_code = require_field(request.source_code, "source_code required")?;
+    let args = require_field(request.args, "args required (JSON object)")?;
 
     // Parse source_type if provided
     let source_type = request
