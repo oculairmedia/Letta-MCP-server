@@ -359,6 +359,7 @@ fn test_file_folder_request_defaults() {
         limit: None,
         offset: None,
         request_heartbeat: None,
+        verbose: None,
     };
 
     assert_eq!(request.operation, "list_files");

@@ -4,13 +4,16 @@
 //! including request and response types, enums, and common data structures.
 
 pub mod agent;
+pub mod archive;
 pub mod batch;
 pub mod common;
+pub mod conversation;
 pub mod file;
 pub mod folder;
 pub mod groups;
 pub mod health;
 pub mod identity;
+pub mod mcp_server;
 pub mod memory;
 pub mod message;
 pub mod models;
@@ -26,13 +29,16 @@ pub mod voice;
 
 // Re-export commonly used types
 pub use agent::*;
+pub use archive::*;
 pub use batch::*;
 pub use common::*;
+pub use conversation::*;
 pub use file::*;
 pub use folder::*;
 pub use groups::*;
 pub use health::*;
 pub use identity::*;
+pub use mcp_server::*;
 pub use memory::*;
 pub use message::*;
 pub use models::*;

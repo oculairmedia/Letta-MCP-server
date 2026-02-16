@@ -171,7 +171,7 @@ impl<'a> AgentApi<'a> {
     /// # Arguments
     ///
     /// * `agent_id` - The ID of the agent
-    pub fn files(&self, agent_id: LettaId) -> crate::api::AgentFileApi {
+    pub fn files(&self, agent_id: LettaId) -> crate::api::AgentFileApi<'_> {
         crate::api::AgentFileApi::new(self.client, agent_id)
     }
 
@@ -182,7 +182,7 @@ impl<'a> AgentApi<'a> {
     /// # Arguments
     ///
     /// * `agent_id` - The ID of the agent
-    pub fn folders(&self, agent_id: LettaId) -> crate::api::AgentFolderApi {
+    pub fn folders(&self, agent_id: LettaId) -> crate::api::AgentFolderApi<'_> {
         crate::api::AgentFolderApi::new(self.client, agent_id)
     }
 

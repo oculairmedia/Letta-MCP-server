@@ -105,7 +105,7 @@ impl<'a> TagsApi<'a> {
 /// Convenience method for tags operations.
 impl LettaClient {
     /// Get the tags API for this client.
-    pub fn tags(&self) -> TagsApi {
+    pub fn tags(&self) -> TagsApi<'_> {
         TagsApi::new(self)
     }
 }

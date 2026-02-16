@@ -163,7 +163,7 @@ impl<'a> TemplateApi<'a> {
 /// Template-related agent sub-API operations.
 impl LettaClient {
     /// Get the template API for this client.
-    pub fn templates(&self) -> TemplateApi {
+    pub fn templates(&self) -> TemplateApi<'_> {
         TemplateApi::new(self)
     }
 

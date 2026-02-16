@@ -2,6 +2,8 @@
 //!
 //! Consolidated tool for source management operations.
 
+use crate::tools::response_utils::paginate;
+use crate::tools::validation_utils::{require_field, sdk_err};
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -53,6 +55,9 @@ pub struct SourceManagerRequest {
     pub include_content: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
+
+    #[serde(default)]
+    pub verbose: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -192,17 +197,14 @@ async fn handle_list_sources(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    // Default limit: 20, max limit: 100
-    const DEFAULT_LIMIT: i32 = 20;
-    const MAX_LIMIT: i32 = 100;
-
-    let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+    let (page_limit, _) = paginate(request.limit.map(|l| l as usize), None, 20, 100);
+    let limit = page_limit as i32;
 
     let all_sources = client
         .sources()
         .list()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list sources: {}", e)))?;
+        .map_err(|e| sdk_err("list sources", e))?;
 
     let total = all_sources.len();
 
@@ -234,8 +236,8 @@ async fn handle_list_sources(
         limit,
         hint: if total > returned {
             Some(format!(
-                "Showing {} of {} sources. Use limit parameter to see more (max {}).",
-                returned, total, MAX_LIMIT
+                "Showing {} of {} sources. Use limit parameter to see more (max 100).",
+                returned, total
             ))
         } else {
             None
@@ -255,9 +257,7 @@ async fn handle_get_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -265,7 +265,7 @@ async fn handle_get_source(
         .sources()
         .get(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get source: {}", e)))?;
+        .map_err(|e| sdk_err("get source", e))?;
 
     Ok(
         SourceManagerResponse::success("get", "Source retrieved successfully")
@@ -277,9 +277,7 @@ async fn handle_create_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let name = request
-        .name
-        .ok_or_else(|| McpError::invalid_request("name required"))?;
+    let name = require_field(request.name, "name required")?;
 
     let create_request = if let Some(desc) = request.description {
         letta::types::source::CreateSourceRequest::builder()
@@ -296,7 +294,7 @@ async fn handle_create_source(
         .sources()
         .create(create_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to create source: {}", e)))?;
+        .map_err(|e| sdk_err("create source", e))?;
 
     Ok(
         SourceManagerResponse::success("create", "Source created successfully")
@@ -308,9 +306,7 @@ async fn handle_update_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -324,7 +320,7 @@ async fn handle_update_source(
         .sources()
         .update(&letta_id, update_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to update source: {}", e)))?;
+        .map_err(|e| sdk_err("update source", e))?;
 
     Ok(
         SourceManagerResponse::success("update", "Source updated successfully")
@@ -336,9 +332,7 @@ async fn handle_delete_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -346,7 +340,7 @@ async fn handle_delete_source(
         .sources()
         .delete(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to delete source: {}", e)))?;
+        .map_err(|e| sdk_err("delete source", e))?;
 
     Ok(SourceManagerResponse::success(
         "delete",
@@ -358,12 +352,8 @@ async fn handle_attach_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id required"))?;
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let agent_id = require_field(request.agent_id, "agent_id required")?;
+    let source_id = require_field(request.source_id, "source_id required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -375,7 +365,7 @@ async fn handle_attach_source(
         .agent_sources(letta_agent_id)
         .attach(&letta_source_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to attach source: {}", e)))?;
+        .map_err(|e| sdk_err("attach source", e))?;
 
     Ok(SourceManagerResponse {
         success: true,
@@ -391,12 +381,8 @@ async fn handle_detach_source(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id required"))?;
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let agent_id = require_field(request.agent_id, "agent_id required")?;
+    let source_id = require_field(request.source_id, "source_id required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -408,7 +394,7 @@ async fn handle_detach_source(
         .agent_sources(letta_agent_id)
         .detach(&letta_source_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to detach source: {}", e)))?;
+        .map_err(|e| sdk_err("detach source", e))?;
 
     Ok(SourceManagerResponse {
         success: true,
@@ -428,7 +414,7 @@ async fn handle_count_sources(
         .sources()
         .count()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to count sources: {}", e)))?;
+        .map_err(|e| sdk_err("count sources", e))?;
 
     Ok(SourceManagerResponse {
         success: true,
@@ -444,9 +430,7 @@ async fn handle_list_attached(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .ok_or_else(|| McpError::invalid_request("agent_id required"))?;
+    let agent_id = require_field(request.agent_id, "agent_id required")?;
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
@@ -456,7 +440,7 @@ async fn handle_list_attached(
         .agent_sources(letta_agent_id)
         .list()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list attached sources: {}", e)))?;
+        .map_err(|e| sdk_err("list attached sources", e))?;
 
     // Return lightweight summaries (id, name, file_count only)
     let summaries: Vec<serde_json::Value> = sources
@@ -484,17 +468,12 @@ async fn handle_list_files(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
-    // Default limit: 25, max limit: 100
-    const DEFAULT_LIMIT: i32 = 25;
-    const MAX_LIMIT: i32 = 100;
-
-    let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+    let (page_limit, _) = paginate(request.limit.map(|l| l as usize), None, 25, 100);
+    let limit = page_limit as i32;
 
     // NEVER include content by default - override user request if they try
     let include_content = false;
@@ -509,7 +488,7 @@ async fn handle_list_files(
         .sources()
         .list_files(&letta_id, params)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list files: {}", e)))?;
+        .map_err(|e| sdk_err("list files", e))?;
 
     let total = files.len();
 
@@ -547,15 +526,12 @@ async fn handle_upload_file(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
-    let file_name = request
-        .file_name
-        .ok_or_else(|| McpError::invalid_request("file_name required"))?;
-    let file_data_b64 = request.file_data.ok_or_else(|| {
-        McpError::invalid_request("file_data required (base64 encoded)".to_string())
-    })?;
+    let source_id = require_field(request.source_id, "source_id required")?;
+    let file_name = require_field(request.file_name, "file_name required")?;
+    let file_data_b64 = require_field(
+        request.file_data,
+        "file_data required (base64 encoded)",
+    )?;
 
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
@@ -577,7 +553,7 @@ async fn handle_upload_file(
             request.content_type.clone(),
         )
         .await
-        .map_err(|e| McpError::internal(format!("Failed to upload file: {}", e)))?;
+        .map_err(|e| sdk_err("upload file", e))?;
 
     // Return minimal summary - don't echo back file content
     // FileUploadResponse can be either Job or FileMetadata
@@ -623,12 +599,8 @@ async fn handle_delete_file(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
-    let file_id = request
-        .file_id
-        .ok_or_else(|| McpError::invalid_request("file_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
+    let file_id = require_field(request.file_id, "file_id required")?;
 
     let letta_source_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
@@ -639,7 +611,7 @@ async fn handle_delete_file(
         .sources()
         .delete_file(&letta_source_id, &letta_file_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to delete file: {}", e)))?;
+        .map_err(|e| sdk_err("delete file", e))?;
 
     Ok(SourceManagerResponse {
         success: true,
@@ -655,9 +627,7 @@ async fn handle_list_agents_using(
     client: &LettaClient,
     request: SourceManagerRequest,
 ) -> Result<SourceManagerResponse, McpError> {
-    let source_id = request
-        .source_id
-        .ok_or_else(|| McpError::invalid_request("source_id required"))?;
+    let source_id = require_field(request.source_id, "source_id required")?;
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
@@ -669,7 +639,7 @@ async fn handle_list_agents_using(
         .agents()
         .list(Some(list_params))
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+        .map_err(|e| sdk_err("list agents", e))?;
 
     // Filter agents that have this source attached
     let mut agents_using = Vec::new();
@@ -680,7 +650,7 @@ async fn handle_list_agents_using(
             .agent_sources(agent.id.clone())
             .list()
             .await
-            .map_err(|e| McpError::internal(format!("Failed to check agent sources: {}", e)))?;
+            .map_err(|e| sdk_err("check agent sources", e))?;
 
         for source in sources {
             if let Some(sid) = &source.id {

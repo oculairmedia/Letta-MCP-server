@@ -5,8 +5,7 @@ members = [
 ]
 resolver = "2"
 
-# Patch turbomcp to use our fork with $defs support and consolidated package
-# This allows us to use version numbers in Cargo.toml while actually pulling from our fork
+# Patch turbomcp to use our fork (based on upstream v2.3.7) with $defs support and flatten-structs
 [patch.crates-io]
 turbomcp = { git = "https://github.com/oculairmedia/turbomcp.git", branch = "feature/flatten-structs" }
 turbomcp-macros = { git = "https://github.com/oculairmedia/turbomcp.git", branch = "feature/flatten-structs" }
@@ -20,7 +19,7 @@ tokio = { version = "1.47", features = ["full"] }
 tokio-util = { version = "0.7", features = ["full"] }
 futures = "0.3"
 
-# TurboMCP - patched to our fork via [patch.crates-io]
+# TurboMCP (fork: oculairmedia/turbomcp, branch: feature/flatten-structs, base: upstream v2.3.7)
 turbomcp = { version = "2.3", features = ["http"] }
 
 # HTTP client
@@ -61,3 +60,4 @@ strip = true
 [profile.dev]
 opt-level = 1
 debug = true
+incremental = true

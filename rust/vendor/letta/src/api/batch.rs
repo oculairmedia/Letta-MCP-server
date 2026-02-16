@@ -107,7 +107,7 @@ impl<'a> BatchApi<'a> {
 /// Convenience method for batch operations.
 impl LettaClient {
     /// Get the batch API for this client.
-    pub fn batch(&self) -> BatchApi {
+    pub fn batch(&self) -> BatchApi<'_> {
         BatchApi::new(self)
     }
 }

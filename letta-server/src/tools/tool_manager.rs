@@ -2,6 +2,8 @@
 //!
 //! Consolidated tool for tool management operations using discriminator pattern.
 
+use crate::tools::response_utils::paginate;
+use crate::tools::validation_utils::{require_field, sdk_err};
 use letta::types::tool::ListToolsParams;
 use letta::types::ListAgentsParams;
 use letta::LettaClient;
@@ -142,11 +144,14 @@ async fn handle_list_tools(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    const DEFAULT_LIMIT: u32 = 25;
-    const MAX_LIMIT: u32 = 100;
-
-    let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
-    let offset = request.offset.unwrap_or(0);
+    let (limit, offset) = paginate(
+        request.limit.map(|l| l as usize),
+        request.offset.map(|o| o as usize),
+        25,
+        100,
+    );
+    let limit = limit as u32;
+    let offset = offset as u32;
     let tag_filter = request.tags.clone();
     let name_filter = request.name.clone();
 
@@ -163,7 +168,7 @@ async fn handle_list_tools(
         .tools()
         .list(list_params)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to list tools: {}", e)))?;
+        .map_err(|e| sdk_err("list tools", e))?;
 
     let filtered_tools: Vec<_> = if let Some(ref filter_tags) = tag_filter {
         tools
@@ -212,9 +217,7 @@ async fn handle_get_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let tool_id = request
-        .tool_id
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let tool_id = require_field(request.tool_id, "tool_id required")?;
     let letta_id = letta::types::LettaId::from_str(&tool_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
 
@@ -222,7 +225,7 @@ async fn handle_get_tool(
         .tools()
         .get(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to get tool: {}", e)))?;
+        .map_err(|e| sdk_err("get tool", e))?;
 
     // LMS-50 optimization: Truncate source_code to 2000 chars
     const MAX_SOURCE_CODE_LENGTH: usize = 2000;
@@ -270,9 +273,7 @@ async fn handle_create_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let source_code = request
-        .source_code
-        .ok_or_else(|| McpError::invalid_request("source_code required".to_string()))?;
+    let source_code = require_field(request.source_code, "source_code required")?;
 
     // Parse source_type if provided
     let source_type = request
@@ -298,7 +299,7 @@ async fn handle_create_tool(
         .tools()
         .create(create_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to create tool: {}", e)))?;
+        .map_err(|e| sdk_err("create tool", e))?;
 
     Ok(ToolManagerResponse {
         success: true,
@@ -313,14 +314,8 @@ async fn handle_attach_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .clone()
-        .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
-    let tool_id = request
-        .tool_id
-        .clone()
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let agent_id = require_field(request.agent_id.clone(), "agent_id required")?;
+    let tool_id = require_field(request.tool_id.clone(), "tool_id required")?;
     let verbose = request.verbose.unwrap_or(false);
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
@@ -332,7 +327,7 @@ async fn handle_attach_tool(
         .memory()
         .attach_tool_to_agent(&letta_agent_id, &letta_tool_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to attach tool: {}", e)))?;
+        .map_err(|e| sdk_err("attach tool", e))?;
 
     let tool_count = agent_state.tools.len();
 
@@ -360,10 +355,7 @@ async fn handle_bulk_attach(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let tool_id = request
-        .tool_id
-        .clone()
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let tool_id = require_field(request.tool_id.clone(), "tool_id required")?;
     let verbose = request.verbose.unwrap_or(false);
 
     let letta_tool_id = letta::types::LettaId::from_str(&tool_id)
@@ -392,7 +384,7 @@ async fn handle_bulk_attach(
                 .agents()
                 .list(Some(list_params))
                 .await
-                .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+                .map_err(|e| sdk_err("list agents", e))?;
 
             if agents.is_empty() {
                 return Err(McpError::invalid_request(
@@ -422,7 +414,7 @@ async fn handle_bulk_attach(
             .agents()
             .list(Some(list_params))
             .await
-            .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+            .map_err(|e| sdk_err("list agents", e))?;
 
         if agents.is_empty() {
             return Err(McpError::invalid_request(
@@ -501,9 +493,7 @@ async fn handle_update_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let tool_id = request
-        .tool_id
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let tool_id = require_field(request.tool_id, "tool_id required")?;
     let letta_id = letta::types::LettaId::from_str(&tool_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
 
@@ -520,7 +510,7 @@ async fn handle_update_tool(
         .tools()
         .update(&letta_id, update_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to update tool: {}", e)))?;
+        .map_err(|e| sdk_err("update tool", e))?;
 
     Ok(ToolManagerResponse {
         success: true,
@@ -535,9 +525,7 @@ async fn handle_delete_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let tool_id = request
-        .tool_id
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let tool_id = require_field(request.tool_id, "tool_id required")?;
     let letta_id = letta::types::LettaId::from_str(&tool_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
 
@@ -545,7 +533,7 @@ async fn handle_delete_tool(
         .tools()
         .delete(&letta_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to delete tool: {}", e)))?;
+        .map_err(|e| sdk_err("delete tool", e))?;
 
     Ok(ToolManagerResponse {
         success: true,
@@ -560,9 +548,7 @@ async fn handle_upsert_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let source_code = request
-        .source_code
-        .ok_or_else(|| McpError::invalid_request("source_code required".to_string()))?;
+    let source_code = require_field(request.source_code, "source_code required")?;
 
     // Parse source_type if provided
     let source_type = request
@@ -588,7 +574,7 @@ async fn handle_upsert_tool(
         .tools()
         .upsert(upsert_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to upsert tool: {}", e)))?;
+        .map_err(|e| sdk_err("upsert tool", e))?;
 
     Ok(ToolManagerResponse {
         success: true,
@@ -603,14 +589,8 @@ async fn handle_detach_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let agent_id = request
-        .agent_id
-        .clone()
-        .ok_or_else(|| McpError::invalid_request("agent_id required".to_string()))?;
-    let tool_id = request
-        .tool_id
-        .clone()
-        .ok_or_else(|| McpError::invalid_request("tool_id required".to_string()))?;
+    let agent_id = require_field(request.agent_id.clone(), "agent_id required")?;
+    let tool_id = require_field(request.tool_id.clone(), "tool_id required")?;
     let verbose = request.verbose.unwrap_or(false);
 
     let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
@@ -622,7 +602,7 @@ async fn handle_detach_tool(
         .memory()
         .detach_tool_from_agent(&letta_agent_id, &letta_tool_id)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to detach tool: {}", e)))?;
+        .map_err(|e| sdk_err("detach tool", e))?;
 
     let tool_count = agent_state.tools.len();
 
@@ -650,12 +630,8 @@ async fn handle_run_from_source(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    let source_code = request
-        .source_code
-        .ok_or_else(|| McpError::invalid_request("source_code required".to_string()))?;
-    let args = request
-        .args
-        .ok_or_else(|| McpError::invalid_request("args required (JSON object)".to_string()))?;
+    let source_code = require_field(request.source_code, "source_code required")?;
+    let args = require_field(request.args, "args required (JSON object)")?;
 
     // Parse source_type if provided
     let source_type = request
@@ -681,7 +657,7 @@ async fn handle_run_from_source(
         .tools()
         .run_from_source(run_request)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to run tool from source: {}", e)))?;
+        .map_err(|e| sdk_err("run tool from source", e))?;
 
     // LMS-50 optimization: Truncate output to 2000 chars
     const MAX_OUTPUT_LENGTH: usize = 2000;
@@ -720,7 +696,7 @@ async fn handle_add_base_tools(
         .tools()
         .upsert_base_tools()
         .await
-        .map_err(|e| McpError::internal(format!("Failed to add base tools: {}", e)))?;
+        .map_err(|e| sdk_err("add base tools", e))?;
 
     // LMS-50 optimization: Return names only, not full definitions
     let tool_names: Vec<String> = tools.iter().map(|t| t.name.clone()).collect();

@@ -141,11 +141,27 @@ impl PaginationMeta {
     }
 }
 
-/// Apply pagination defaults and caps
+/// Apply pagination defaults and caps using the standard page size limits.
 pub fn apply_pagination_defaults(limit: Option<usize>, offset: Option<usize>) -> (usize, usize) {
-    let limit = limit
-        .map(|l| l.min(limits::MAX_PAGE_SIZE))
-        .unwrap_or(limits::DEFAULT_PAGE_SIZE);
+    paginate(
+        limit,
+        offset,
+        limits::DEFAULT_PAGE_SIZE,
+        limits::MAX_PAGE_SIZE,
+    )
+}
+
+/// Apply pagination with custom default and maximum limits.
+///
+/// Use this when a tool needs different pagination bounds than the global defaults
+/// (e.g., tool listings may want larger pages than agent listings).
+pub fn paginate(
+    limit: Option<usize>,
+    offset: Option<usize>,
+    default_limit: usize,
+    max_limit: usize,
+) -> (usize, usize) {
+    let limit = limit.map(|l| l.min(max_limit)).unwrap_or(default_limit);
     let offset = offset.unwrap_or(0);
     (limit, offset)
 }

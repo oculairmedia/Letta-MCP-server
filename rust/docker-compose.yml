@@ -5,19 +5,14 @@ services:
         restart: unless-stopped
         ports:
             - '6507:6507'
+        env_file:
+            - ../.env
         environment:
-            # Required - Letta API connection
-            LETTA_BASE_URL: ${LETTA_BASE_URL}
-            LETTA_PASSWORD: ${LETTA_PASSWORD}
-
-            # Optional - Internal server port (proxied by nginx)
+            LETTA_BASE_URL: http://192.168.50.90:8289
             PORT: 6507
-
-            # Optional - Rust logging
+            TRANSPORT: http
             RUST_LOG: ${RUST_LOG:-info}
             RUST_BACKTRACE: ${RUST_BACKTRACE:-0}
-        env_file:
-            - ../.env # Load from parent directory
         healthcheck:
             test: ['CMD-SHELL', 'timeout 1 bash -c "</dev/tcp/localhost/6507" || exit 1']
             interval: 30s
@@ -29,4 +24,5 @@ services:
 
 networks:
     letta-network:
-        driver: bridge
+        name: letta-mcp-server_letta-network
+        external: true

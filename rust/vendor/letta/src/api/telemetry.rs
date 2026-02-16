@@ -33,7 +33,7 @@ impl<'a> TelemetryApi<'a> {
 /// Convenience method for telemetry operations.
 impl LettaClient {
     /// Get the telemetry API for this client.
-    pub fn telemetry(&self) -> TelemetryApi {
+    pub fn telemetry(&self) -> TelemetryApi<'_> {
         TelemetryApi::new(self)
     }
 }

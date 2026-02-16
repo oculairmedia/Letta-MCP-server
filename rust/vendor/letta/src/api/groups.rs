@@ -294,7 +294,7 @@ impl<'a> GroupApi<'a> {
 /// Convenience methods for group operations.
 impl LettaClient {
     /// Get the group API for this client.
-    pub fn groups(&self) -> GroupApi {
+    pub fn groups(&self) -> GroupApi<'_> {
         GroupApi::new(self)
     }
 }

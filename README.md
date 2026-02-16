@@ -9,12 +9,12 @@ A high-performance [Model Context Protocol](https://modelcontextprotocol.io) (MC
 
 ## Features
 
-- **7 Consolidated Tools** covering 87 operations using the discriminator pattern
+- **7 Consolidated Tools** covering 102 operations using the discriminator pattern
 - **High Performance** - Rust implementation (~10-30MB memory, <500ms startup)
 - **Dual Transport** - stdio (for Claude Desktop, Cursor, etc.) and HTTP (for production)
 - **Response Size Optimization** - 68-96% reduction in response sizes for LLM context efficiency
 - **Multi-Platform** - macOS, Linux, Windows (x64 and arm64)
-- **Letta 0.15.1+ Compatible** - Full support for current Letta API
+- **Letta 0.16.x Compatible** - Full support for current Letta API including archives, conversations, and MCP servers v2
 - **MCP 2025-11-25 Compliant** - Streamable HTTP transport with SSE support
 - **Type-Safe** - Compile-time validation with Rust's type system
 
@@ -88,36 +88,40 @@ services:
 
 ## Available Tools
 
-The server provides **7 consolidated tools** with **87 operations**:
+The server provides **7 consolidated tools** with **102 operations**:
 
 | Tool | Operations | Description |
 |------|------------|-------------|
-| `letta_agent_advanced` | 22 | Agent lifecycle, messaging, context, export/import |
-| `letta_memory_unified` | 15 | Core memory, blocks, archival passages, search |
+| `letta_agent_advanced` | 27 | Agent lifecycle, messaging, conversations, context, export/import |
+| `letta_memory_unified` | 24 | Core memory, blocks, archival passages, archives, search |
 | `letta_tool_manager` | 13 | Tool CRUD, attach/detach, bulk operations |
 | `letta_source_manager` | 15 | Data sources, files, passages, attachments |
 | `letta_job_monitor` | 4 | Job tracking, cancellation, active monitoring |
 | `letta_file_folder_ops` | 8 | File sessions, folder management |
-| `letta_mcp_ops` | 10 | MCP server management, tool discovery |
+| `letta_mcp_ops` | 11 | MCP server lifecycle, tool discovery, v2 API support |
 
 ### Tool Operations
 
-#### letta_agent_advanced (22 operations)
+#### letta_agent_advanced (27 operations)
 
 ```
 list, create, get, update, delete, search, list_tools, send_message,
 export, import, clone, get_config, bulk_delete, context, reset_messages,
 summarize, stream, async_message, cancel_message, preview_payload,
-search_messages, get_message, count
+search_messages, get_message, count, list_conversations,
+get_conversation, send_conversation_message, cancel_conversation,
+compact_conversation
 ```
 
-#### letta_memory_unified (15 operations)
+#### letta_memory_unified (24 operations)
 
 ```
 get_core_memory, update_core_memory, get_block_by_label, list_blocks,
 create_block, get_block, update_block, attach_block, detach_block,
 list_agents_using_block, search_archival, list_passages, create_passage,
-update_passage, delete_passage
+update_passage, delete_passage, search_memory, list_archives,
+get_archive, create_archive, update_archive, delete_archive,
+attach_archive, detach_archive, list_agents_using_archive
 ```
 
 #### letta_tool_manager (13 operations)
@@ -148,11 +152,11 @@ list_files, open_file, close_file, close_all_files, list_folders,
 attach_folder, detach_folder, list_agents_in_folder
 ```
 
-#### letta_mcp_ops (10 operations)
+#### letta_mcp_ops (11 operations)
 
 ```
 add, update, delete, test, connect, resync, list_servers, list_tools,
-register_tool, execute
+register_tool, execute, attach_mcp_server
 ```
 
 ## Response Size Optimizations
@@ -294,13 +298,13 @@ letta-server/
 │   ├── lib.rs               # Library exports, server initialization
 │   └── tools/
 │       ├── mod.rs           # Tool registration
-│       ├── agent_advanced.rs    # Agent operations (22 ops)
-│       ├── memory_unified.rs    # Memory operations (15 ops)
+│       ├── agent_advanced.rs    # Agent + conversation operations (27 ops)
+│       ├── memory_unified.rs    # Memory + archive operations (24 ops)
 │       ├── tool_manager.rs      # Tool operations (13 ops)
 │       ├── source_manager.rs    # Source operations (15 ops)
 │       ├── job_monitor.rs       # Job operations (4 ops)
 │       ├── file_folder_ops.rs   # File operations (8 ops)
-│       └── mcp_ops.rs           # MCP operations (10 ops)
+│       └── mcp_ops.rs           # MCP server v2 operations (11 ops)
 ├── tests/                   # Integration tests
 └── Cargo.toml              # Dependencies
 ```

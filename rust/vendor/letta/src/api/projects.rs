@@ -57,7 +57,7 @@ impl<'a> ProjectApi<'a> {
 /// Convenience methods for project operations.
 impl LettaClient {
     /// Get the project API for this client.
-    pub fn projects(&self) -> ProjectApi {
+    pub fn projects(&self) -> ProjectApi<'_> {
         ProjectApi::new(self)
     }
 }

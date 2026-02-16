@@ -13,7 +13,7 @@ path = "src/main.rs"
 [dependencies]
 # Workspace dependencies
 tokio = { workspace = true }
-# TurboMCP - use crates.io versions which are patched to our fork via [patch.crates-io]
+# TurboMCP (patched via workspace [patch.crates-io] -> fork based on upstream v2.3.7)
 turbomcp = { version = "2.3", features = ["http"] }
 turbomcp-macros = "2.3"
 reqwest = { workspace = true }
@@ -30,7 +30,7 @@ base64 = { workspace = true }
 bytes = { workspace = true }
 openssl = { workspace = true, optional = true }
 
-# TurboMCP internal crates - versions patched via workspace [patch.crates-io]
+# TurboMCP internal crates (patched via workspace [patch.crates-io])
 turbomcp-protocol = "2.3"
 turbomcp-server = "2.3"
 turbomcp-transport = { version = "2.3", features = ["http"] }

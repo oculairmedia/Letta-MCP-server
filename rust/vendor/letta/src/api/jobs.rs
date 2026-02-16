@@ -2,7 +2,10 @@
 
 use crate::client::LettaClient;
 use crate::error::LettaResult;
-use crate::types::{Job, JobStatus, LettaId, Step, StepFeedback};
+use crate::types::{
+    Job, JobStatus, LettaId, LettaMessageUnion, ModifyFeedbackRequest, Step, StepFeedback,
+    StepMetrics, TelemetryTrace,
+};
 
 /// Job API operations.
 #[derive(Debug)]
@@ -174,17 +177,68 @@ impl<'a> StepApi<'a> {
             ))
             .await
     }
+
+    /// Modify feedback for a step.
+    pub async fn modify_feedback(
+        &self,
+        step_id: &LettaId,
+        request: ModifyFeedbackRequest,
+    ) -> LettaResult<Step> {
+        self.client
+            .patch(&format!("v1/steps/{}/feedback", step_id), &request)
+            .await
+    }
+
+    /// List messages for a step.
+    pub async fn list_messages(&self, step_id: &LettaId) -> LettaResult<Vec<LettaMessageUnion>> {
+        self.client
+            .get(&format!("v1/steps/{}/messages", step_id))
+            .await
+    }
+
+    /// Get metrics for a step.
+    pub async fn get_metrics(&self, step_id: &LettaId) -> LettaResult<StepMetrics> {
+        self.client
+            .get(&format!("v1/steps/{}/metrics", step_id))
+            .await
+    }
+
+    /// Get trace payload for a step.
+    pub async fn get_trace(&self, step_id: &LettaId) -> LettaResult<Option<TelemetryTrace>> {
+        self.client
+            .get(&format!("v1/steps/{}/trace", step_id))
+            .await
+    }
+
+    /// Step transaction patch endpoint.
+    pub async fn update_transaction_id(
+        &self,
+        step_id: &LettaId,
+        transaction_id: &str,
+    ) -> LettaResult<Step> {
+        self.client
+            .patch_no_body(&format!(
+                "v1/steps/{}/transaction/{}",
+                step_id, transaction_id
+            ))
+            .await
+    }
+
+    /// Get provider telemetry payload for a step.
+    pub async fn get_provider_trace(&self, step_id: &LettaId) -> LettaResult<TelemetryTrace> {
+        self.client.get(&format!("v1/telemetry/{}", step_id)).await
+    }
 }
 
 /// Convenience methods for job and step operations.
 impl LettaClient {
     /// Get the job API for this client.
-    pub fn jobs(&self) -> JobApi {
+    pub fn jobs(&self) -> JobApi<'_> {
         JobApi::new(self)
     }
 
     /// Get the step API for this client.
-    pub fn steps(&self) -> StepApi {
+    pub fn steps(&self) -> StepApi<'_> {
         StepApi::new(self)
     }
 }

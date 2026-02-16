@@ -139,7 +139,7 @@ impl<'a> SourceApi<'a> {
     }
 
     /// Get agent source sub-API for a specific agent.
-    pub fn agent_sources(&self, agent_id: LettaId) -> AgentSourceApi {
+    pub fn agent_sources(&self, agent_id: LettaId) -> AgentSourceApi<'_> {
         AgentSourceApi::new(self.client, agent_id)
     }
 
