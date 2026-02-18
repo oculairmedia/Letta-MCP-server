@@ -193,34 +193,58 @@ pub(crate) async fn handle_bulk_delete(
         McpError::invalid_request("filters are required for bulk_delete operation".to_string())
     })?;
 
-    let list_params = letta::types::ListAgentsParams {
-        limit: Some(50),
-        ..Default::default()
-    };
-    let agents = client
-        .agents()
-        .list(Some(list_params))
-        .await
-        .map_err(|e| sdk_err("list agents", e))?;
+    let has_name_filter = filters.agent_name_filter.is_some();
+    let has_id_filter = filters.agent_ids.is_some();
 
+    if !has_name_filter && !has_id_filter {
+        return Err(McpError::invalid_request(
+            "At least one filter (agent_name_filter or agent_ids) is required".to_string(),
+        ));
+    }
+
+    let mut all_agents = Vec::new();
+    let page_size = 50u32;
+    let mut offset = 0u32;
+    loop {
+        let list_params = letta::types::ListAgentsParams {
+            limit: Some(page_size),
+            ..Default::default()
+        };
+        let page = client
+            .agents()
+            .list(Some(list_params))
+            .await
+            .map_err(|e| sdk_err("list agents", e))?;
+
+        let page_len = page.len() as u32;
+        all_agents.extend(page);
+
+        if page_len < page_size {
+            break;
+        }
+        offset += page_len;
+        // Safety cap to prevent infinite loops
+        if offset > 10_000 {
+            break;
+        }
+    }
+
+    let total_scanned = all_agents.len();
     let mut to_delete: Vec<letta::types::LettaId> = Vec::new();
 
-    for agent in agents {
-        let mut should_delete = false;
+    for agent in all_agents {
+        // AND logic: all provided filters must match
+        let name_matches = match &filters.agent_name_filter {
+            Some(name_filter) => agent.name.contains(name_filter),
+            None => true,
+        };
 
-        if let Some(ref name_filter) = filters.agent_name_filter {
-            if agent.name.contains(name_filter) {
-                should_delete = true;
-            }
-        }
+        let id_matches = match &filters.agent_ids {
+            Some(ids) => ids.contains(&agent.id.to_string()),
+            None => true,
+        };
 
-        if let Some(ref ids) = filters.agent_ids {
-            if ids.contains(&agent.id.to_string()) {
-                should_delete = true;
-            }
-        }
-
-        if should_delete {
+        if name_matches && id_matches {
             to_delete.push(agent.id);
         }
     }
@@ -235,8 +259,11 @@ pub(crate) async fn handle_bulk_delete(
     Ok(StandardResponse::success(
         "bulk_delete",
         serde_json::json!({
+            "total_scanned": total_scanned,
+            "matched": to_delete.len(),
             "deleted_count": deleted_count,
-            "failed_count": to_delete.len() - deleted_count
+            "failed_count": to_delete.len() - deleted_count,
+            "filter_logic": "AND (all provided filters must match)"
         }),
         format!("Deleted {} agents", deleted_count),
     ))

@@ -25,7 +25,7 @@ pub(crate) async fn handle_search_archival(
 
     let params = letta::types::memory::ArchivalMemoryQueryParams {
         search: Some(query),
-        limit: request.limit.map(|l| l as u32),
+        limit: request.limit.and_then(|l| u32::try_from(l).ok()),
         before: None,
         after: None,
         ascending: None,
@@ -82,7 +82,7 @@ pub(crate) async fn handle_list_passages(
 
     let params = letta::types::memory::ArchivalMemoryQueryParams {
         search: None,
-        limit: request.limit.map(|l| l as u32),
+        limit: request.limit.and_then(|l| u32::try_from(l).ok()),
         before: None,
         after: None,
         ascending: None,

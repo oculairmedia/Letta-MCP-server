@@ -18,8 +18,6 @@ pub enum McpServerTransportType {
 /// SSE transport configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateSseMcpServerConfig {
-    /// Transport type marker.
-    pub mcp_server_type: McpServerTransportType,
     /// Endpoint URL.
     pub server_url: String,
     /// Optional auth header name.
@@ -36,8 +34,6 @@ pub struct CreateSseMcpServerConfig {
 /// Streamable HTTP transport configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateStreamableHttpMcpServerConfig {
-    /// Transport type marker.
-    pub mcp_server_type: McpServerTransportType,
     /// Endpoint URL.
     pub server_url: String,
     /// Optional auth header name.
@@ -54,8 +50,6 @@ pub struct CreateStreamableHttpMcpServerConfig {
 /// Stdio transport configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateStdioMcpServerConfig {
-    /// Transport type marker.
-    pub mcp_server_type: McpServerTransportType,
     /// Command to execute.
     pub command: String,
     /// Command arguments.
@@ -66,8 +60,10 @@ pub struct CreateStdioMcpServerConfig {
 }
 
 /// Union transport configuration for create/update requests.
+/// Uses internally tagged deserialization on `mcp_server_type` to correctly
+/// discriminate between SSE and StreamableHttp (which share identical fields).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(tag = "mcp_server_type", rename_all = "snake_case")]
 pub enum McpServerConfigV2 {
     /// SSE transport config.
     Sse(CreateSseMcpServerConfig),

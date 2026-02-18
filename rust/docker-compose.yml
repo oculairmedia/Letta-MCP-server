@@ -8,7 +8,7 @@ services:
         env_file:
             - ../.env
         environment:
-            LETTA_BASE_URL: http://192.168.50.90:8289
+            LETTA_BASE_URL: ${LETTA_BASE_URL:-http://localhost:8283}
             PORT: 6507
             TRANSPORT: http
             RUST_LOG: ${RUST_LOG:-info}

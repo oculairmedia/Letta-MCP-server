@@ -55,18 +55,8 @@ pub enum AgentOperation {
     CompactConversation,
 }
 
-/// Truncate text with indicator showing how many chars were truncated
 pub(crate) fn truncate_text(text: &str, max_chars: usize) -> String {
-    if text.len() <= max_chars {
-        text.to_string()
-    } else {
-        let remaining = text.len() - max_chars;
-        format!(
-            "{}...[truncated, {} more chars]",
-            &text[..max_chars],
-            remaining
-        )
-    }
+    crate::tools::response_utils::truncate_with_indicator(text, max_chars)
 }
 
 /// Bulk delete filters

@@ -185,7 +185,7 @@ async fn search_messages(
 
             if content.to_lowercase().contains(&query_lower) {
                 let truncated_content = if content.len() > 500 {
-                    format!("{}...", &content[..500])
+                    crate::tools::response_utils::truncate_preview(&content, 500)
                 } else {
                     content
                 };

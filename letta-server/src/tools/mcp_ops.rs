@@ -164,12 +164,11 @@ pub async fn handle_mcp_ops(
     }
 }
 
-/// Truncate a string to max_length characters, adding "..." if truncated
 fn truncate_string(s: &str, max_length: usize) -> (String, bool) {
     if s.len() <= max_length {
         (s.to_string(), false)
     } else {
-        let truncated = format!("{}...", &s[..max_length.saturating_sub(3)]);
+        let truncated = crate::tools::response_utils::truncate_preview(s, max_length.saturating_sub(3));
         (truncated, true)
     }
 }
@@ -407,7 +406,7 @@ async fn handle_execute_tool(
             let len = serialized.len();
             output_length = Some(len);
             if len > MAX_OUTPUT_LENGTH {
-                let preview = &serialized[..MAX_OUTPUT_LENGTH];
+                let preview = crate::tools::response_utils::truncate_silent(&serialized, MAX_OUTPUT_LENGTH);
                 *func_return = serde_json::json!({
                     "truncated": true,
                     "original_length": len,

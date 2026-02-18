@@ -17,6 +17,11 @@ pub(crate) async fn handle_list_archives(
 
     let count = archives.len();
 
+    let archive_values: Vec<serde_json::Value> = archives
+        .iter()
+        .map(|a| serde_json::to_value(a))
+        .collect::<Result<Vec<_>, _>>()?;
+
     Ok(MemoryUnifiedResponse {
         success: true,
         operation: "list_archives".to_string(),
@@ -31,7 +36,7 @@ pub(crate) async fn handle_list_archives(
         core_memory: None,
         count: Some(count),
         archival: Some(ArchivalSearchResult {
-            passages: vec![serde_json::to_value(&archives)?],
+            passages: archive_values,
             count,
         }),
         messages: None,
