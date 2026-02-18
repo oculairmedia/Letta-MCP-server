@@ -1,6 +1,6 @@
 services:
     letta-mcp-rust:
-        image: ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest
+        image: ghcr.io/oculairmedia/letta-mcp-server-rust:fork-sdk-upgrade-wip
         container_name: letta-mcp-rust
         restart: unless-stopped
         ports:
