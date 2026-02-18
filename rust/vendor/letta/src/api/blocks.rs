@@ -2,7 +2,9 @@
 
 use crate::client::LettaClient;
 use crate::error::LettaResult;
-use crate::types::{Block, CreateBlockRequest, LettaId, ListBlocksParams, UpdateBlockRequest};
+use crate::types::{
+    AgentState, Block, CreateBlockRequest, LettaId, ListBlocksParams, UpdateBlockRequest,
+};
 
 /// Memory blocks API operations.
 #[derive(Debug)]
@@ -99,6 +101,33 @@ impl<'a> BlocksApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn count(&self) -> LettaResult<u32> {
         self.client.get("v1/blocks/count").await
+    }
+
+    /// List agents that use a specific memory block.
+    ///
+    /// # Arguments
+    ///
+    /// * `block_id` - The ID of the block
+    /// * `limit` - Optional maximum number of agents to return (default 50)
+    ///
+    /// # Errors
+    ///
+    /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
+    pub async fn list_agents(
+        &self,
+        block_id: &LettaId,
+        limit: Option<u32>,
+    ) -> LettaResult<Vec<AgentState>> {
+        let mut query: Vec<(&str, String)> = Vec::new();
+        if let Some(l) = limit {
+            query.push(("limit", l.to_string()));
+        }
+        self.client
+            .get_with_query(
+                &format!("v1/blocks/{}/agents", block_id),
+                &query,
+            )
+            .await
     }
 }
 

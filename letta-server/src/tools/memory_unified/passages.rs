@@ -183,8 +183,10 @@ pub(crate) async fn handle_update_passage(
     _client: &LettaClient,
     _request: MemoryUnifiedRequest,
 ) -> Result<MemoryUnifiedResponse, McpError> {
-    Err(McpError::internal(
-        "update_passage not yet implemented - SDK requires embedding data not available from client".to_string(),
+    Err(McpError::invalid_request(
+        "The Letta API does not provide a PATCH endpoint for passages. \
+         To modify a passage, delete it with delete_passage and recreate it with create_passage."
+            .to_string(),
     ))
 }
 

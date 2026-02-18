@@ -340,10 +340,60 @@ pub(crate) async fn handle_detach_block(
 }
 
 pub(crate) async fn handle_list_agents_using_block(
-    _client: &LettaClient,
-    _request: MemoryUnifiedRequest,
+    client: &LettaClient,
+    request: MemoryUnifiedRequest,
 ) -> Result<MemoryUnifiedResponse, McpError> {
-    Err(McpError::internal(
-        "list_agents_using_block not yet implemented - requires custom query".to_string(),
-    ))
+    let block_id = request.block_id.ok_or_else(|| {
+        McpError::invalid_request("block_id is required for list_agents_using_block".to_string())
+    })?;
+
+    let letta_block_id = letta::types::LettaId::from_str(&block_id)
+        .map_err(|e| McpError::invalid_request(format!("Invalid block_id: {}", e)))?;
+
+    let limit = request
+        .limit
+        .and_then(|l| u32::try_from(l).ok());
+
+    let agents = client
+        .blocks()
+        .list_agents(&letta_block_id, limit)
+        .await
+        .map_err(|e| sdk_err("list agents using block", e))?;
+
+    let count = agents.len();
+    let verbose = request.verbose.unwrap_or(false);
+
+    let agents_data = if verbose {
+        serde_json::to_value(&agents)?
+    } else {
+        let summaries: Vec<serde_json::Value> = agents
+            .iter()
+            .map(|agent| {
+                serde_json::json!({
+                    "id": agent.id.to_string(),
+                    "name": agent.name,
+                    "description": agent.description,
+                    "model": agent.llm_config.as_ref().map(|c| &c.model),
+                })
+            })
+            .collect();
+        serde_json::to_value(&summaries)?
+    };
+
+    Ok(MemoryUnifiedResponse {
+        success: true,
+        operation: "list_agents_using_block".to_string(),
+        message: format!("Found {} agents using block {}", count, block_id),
+        block_id: Some(block_id),
+        data: Some(agents_data),
+        count: Some(count),
+        agent_id: None,
+        passage_id: None,
+        archive_id: None,
+        core_memory: None,
+        blocks: None,
+        passages: None,
+        archival: None,
+        messages: None,
+    })
 }

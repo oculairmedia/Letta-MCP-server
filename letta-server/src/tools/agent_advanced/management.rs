@@ -95,11 +95,43 @@ pub(crate) async fn handle_export_agent(
 }
 
 pub(crate) async fn handle_import_agent(
-    _client: &LettaClient,
-    _request: AgentAdvancedRequest,
+    client: &LettaClient,
+    request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    Err(McpError::internal(
-        "Import operation not yet implemented - requires file upload support".to_string(),
+    let export_data = request.export_data.ok_or_else(|| {
+        McpError::invalid_request(
+            "export_data is required for import operation (JSON from agent export)".to_string(),
+        )
+    })?;
+
+    let json_bytes = serde_json::to_vec(&export_data)
+        .map_err(|e| McpError::invalid_request(format!("Failed to serialize export_data: {}", e)))?;
+
+    let tmp_dir = tempfile::tempdir()
+        .map_err(|e| McpError::internal(format!("Failed to create temp directory: {}", e)))?;
+    let tmp_path = tmp_dir.path().join("agent_import.json");
+
+    tokio::fs::write(&tmp_path, &json_bytes)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to write temp file: {}", e)))?;
+
+    let import_request = letta::types::ImportAgentRequest::default();
+
+    let agent = client
+        .agents()
+        .import_file(&tmp_path, import_request)
+        .await
+        .map_err(|e| sdk_err("import agent", e))?;
+
+    Ok(StandardResponse::success(
+        "import",
+        serde_json::json!({
+            "id": agent.id.to_string(),
+            "name": agent.name,
+            "agent_type": agent.agent_type,
+            "description": agent.description,
+        }),
+        "Agent imported successfully",
     ))
 }
 

@@ -293,13 +293,81 @@ pub(crate) async fn handle_get_agent(
 }
 
 pub(crate) async fn handle_update_agent(
-    _client: &LettaClient,
-    _request: AgentAdvancedRequest,
+    client: &LettaClient,
+    request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    Err(McpError::internal(
-        "Agent update operation not yet implemented in SDK v0.1.2. \
-         Please use specific update operations (memory, tools, etc.)"
-            .to_string(),
+    let agent_id = request.agent_id.ok_or_else(|| {
+        McpError::invalid_request("agent_id is required for update operation".to_string())
+    })?;
+
+    let letta_id: letta::types::LettaId = agent_id
+        .parse()
+        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+
+    let mut update_request = letta::types::UpdateAgentRequest::default();
+
+    // Two modes: flat fields (name, system, etc.) or update_data object.
+    // Flat fields override update_data when both are provided.
+    if let Some(update_data) = request.update_data {
+        let parsed: letta::types::UpdateAgentRequest =
+            serde_json::from_value(update_data).map_err(|e| {
+                McpError::invalid_request(format!("Invalid update_data: {}", e))
+            })?;
+        update_request = parsed;
+    }
+    if let Some(name) = request.name {
+        update_request.name = Some(name);
+    }
+    if let Some(description) = request.description {
+        update_request.description = Some(description);
+    }
+    if let Some(system) = request.system {
+        update_request.system = Some(system);
+    }
+    if let Some(tags) = request.tags {
+        update_request.tags = Some(tags);
+    }
+    if let Some(llm_config_value) = request.llm_config {
+        let llm_config: letta::types::LLMConfig =
+            serde_json::from_value(llm_config_value).map_err(|e| {
+                McpError::invalid_request(format!("Invalid llm_config: {}", e))
+            })?;
+        update_request.llm_config = Some(llm_config);
+    }
+    if let Some(embedding_config_value) = request.embedding_config {
+        let embedding_config: letta::types::EmbeddingConfig =
+            serde_json::from_value(embedding_config_value).map_err(|e| {
+                McpError::invalid_request(format!("Invalid embedding_config: {}", e))
+            })?;
+        update_request.embedding_config = Some(embedding_config);
+    }
+
+    let verbose = request.verbose.unwrap_or(false);
+
+    let agent = client
+        .agents()
+        .update(&letta_id, update_request)
+        .await
+        .map_err(|e| sdk_err("update agent", e))?;
+
+    let data = if verbose {
+        serde_json::to_value(&agent)?
+    } else {
+        serde_json::json!({
+            "id": agent.id.to_string(),
+            "name": agent.name,
+            "agent_type": agent.agent_type,
+            "description": agent.description,
+            "model": agent.llm_config.as_ref().map(|c| &c.model),
+            "tags": agent.tags,
+            "updated_at": agent.updated_at.map(|ts| ts.to_string()),
+        })
+    };
+
+    Ok(StandardResponse::success(
+        "update",
+        data,
+        format!("Agent {} updated successfully", letta_id),
     ))
 }
 
