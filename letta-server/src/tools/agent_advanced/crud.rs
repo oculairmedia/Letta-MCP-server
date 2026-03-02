@@ -3,7 +3,7 @@ use letta::LettaClient;
 use letta_types::StandardResponse;
 use turbomcp::McpError;
 
-use super::{truncate_text, AgentAdvancedRequest};
+use super::{AgentAdvancedRequest, AgentSummary, truncate_text};
 use crate::tools::response_utils::paginate;
 
 pub(crate) async fn handle_list_agents(
@@ -31,21 +31,9 @@ pub(crate) async fn handle_list_agents(
 
     let total = client.agents().count().await.unwrap_or(agents.len() as u32);
 
-    let agent_summaries: Vec<serde_json::Value> = agents
+    let agent_summaries: Vec<AgentSummary> = agents
         .iter()
-        .map(|agent| {
-            let model = agent.llm_config.as_ref().map(|config| config.model.clone());
-            let description = agent.description.as_ref().map(|d| truncate_text(d, 100));
-
-            serde_json::json!({
-                "id": agent.id.to_string(),
-                "name": agent.name,
-                "description": description,
-                "model": model,
-                "created_at": agent.created_at.map(|ts| ts.to_string()),
-                "tool_count": agent.tools.len(),
-            })
-        })
+        .map(AgentSummary::from_agent)
         .collect();
 
     let returned = agent_summaries.len() as u32;
@@ -109,21 +97,9 @@ pub(crate) async fn handle_search_agents(
     }
     let criteria_str = criteria.join(", ");
 
-    let agent_summaries: Vec<serde_json::Value> = agents
+    let agent_summaries: Vec<AgentSummary> = agents
         .iter()
-        .map(|agent| {
-            let model = agent.llm_config.as_ref().map(|config| config.model.clone());
-            let description = agent.description.as_ref().map(|d| truncate_text(d, 100));
-
-            serde_json::json!({
-                "id": agent.id.to_string(),
-                "name": agent.name,
-                "description": description,
-                "model": model,
-                "created_at": agent.created_at.map(|ts| ts.to_string()),
-                "tool_count": agent.tools.len(),
-            })
-        })
+        .map(AgentSummary::from_agent)
         .collect();
 
     let count = agent_summaries.len();

@@ -59,6 +59,33 @@ pub(crate) fn truncate_text(text: &str, max_chars: usize) -> String {
     crate::tools::response_utils::truncate_with_indicator(text, max_chars)
 }
 
+/// Agent summary for list operations (consistent with ToolSummary, JobSummary, SourceSummary)
+#[derive(Debug, Serialize)]
+pub(crate) struct AgentSummary {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    pub tool_count: usize,
+}
+
+impl AgentSummary {
+    pub fn from_agent(agent: &letta::types::AgentState) -> Self {
+        Self {
+            id: agent.id.to_string(),
+            name: agent.name.clone(),
+            description: agent.description.as_ref().map(|d| truncate_text(d, 100)),
+            model: agent.llm_config.as_ref().map(|c| c.model.clone()),
+            created_at: agent.created_at.map(|ts| ts.to_string()),
+            tool_count: agent.tools.len(),
+        }
+    }
+}
+
 /// Bulk delete filters
 #[derive(Debug, Deserialize, schemars::JsonSchema, FlattenTool)]
 pub struct BulkDeleteFilters {
