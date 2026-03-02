@@ -7,6 +7,7 @@ use letta::LettaClient;
 use letta_types::{Message, Pagination, StandardResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashSet;
 use turbomcp::McpError;
 use turbomcp_macros::FlattenTool;
 
@@ -163,6 +164,10 @@ pub struct AgentAdvancedRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub conversation_id: Option<String>,
 
+    /// Message ID (for get_message operation; if omitted, lists recent messages with limit)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_id: Option<String>,
+
     /// Simple text message (for send_conversation_message; alternative to messages array)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -285,8 +290,17 @@ async fn handle_list_agents(
         .await
         .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
 
-    // Get total count for pagination metadata
-    let total = client.agents().count().await.unwrap_or(agents.len() as u32);
+    // Optimization: only call count() if we got a full page (more pages likely exist).
+    // If returned < limit, we already know the total = offset + returned.
+    let effective_limit = pagination.limit.unwrap_or(15) as u32;
+    let returned_count = agents.len() as u32;
+    let total = if returned_count < effective_limit {
+        // No more pages — total is exactly what we've seen so far
+        offset as u32 + returned_count
+    } else {
+        // Full page returned — there may be more, so fetch the count
+        client.agents().count().await.unwrap_or(offset as u32 + returned_count)
+    };
 
     // LMS-48: Create optimized agent summaries
     // Exclude: system, tools (full objects), memory, llm_config (full), embedding_config
@@ -828,51 +842,114 @@ async fn handle_bulk_delete(
         McpError::invalid_request("filters are required for bulk_delete operation".to_string())
     })?;
 
-    // List all agents
-    let agents = client
-        .agents()
-        .list(None)
-        .await
-        .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+    // Pre-compute agent_ids as HashSet for O(1) lookup instead of O(n) Vec::contains
+    let id_filter: Option<HashSet<String>> = filters
+        .agent_ids
+        .map(|ids| ids.into_iter().collect());
 
-    // Filter agents based on criteria
+    // Paginated fetch: collect matching agents without loading entire list at once
     let mut to_delete: Vec<letta::types::LettaId> = Vec::new();
+    let mut cursor: Option<String> = None;
+    let page_size = 50u32;
 
-    for agent in agents {
-        let mut should_delete = false;
+    loop {
+        let params = letta::types::ListAgentsParams {
+            limit: Some(page_size),
+            after: cursor.clone(),
+            ..Default::default()
+        };
 
-        if let Some(ref name_filter) = filters.agent_name_filter {
-            if agent.name.contains(name_filter) {
-                should_delete = true;
+        let agents = client
+            .agents()
+            .list(Some(params))
+            .await
+            .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+
+        let page_len = agents.len();
+
+        for agent in &agents {
+            let mut should_delete = false;
+
+            if let Some(ref name_filter) = filters.agent_name_filter {
+                if agent.name.contains(name_filter) {
+                    should_delete = true;
+                }
+            }
+
+            if let Some(ref ids) = id_filter {
+                if ids.contains(&agent.id.to_string()) {
+                    should_delete = true;
+                }
+            }
+
+            if should_delete {
+                to_delete.push(agent.id.clone());
             }
         }
 
-        if let Some(ref ids) = filters.agent_ids {
-            if ids.contains(&agent.id.to_string()) {
-                should_delete = true;
+        // If we got fewer than page_size, we've reached the end
+        if (page_len as u32) < page_size {
+            break;
+        }
+
+        // Use last agent's ID as cursor for next page
+        cursor = agents.last().map(|a| a.id.to_string());
+    }
+
+    if to_delete.is_empty() {
+        return Ok(StandardResponse::success(
+            "bulk_delete",
+            serde_json::json!({
+                "deleted_count": 0,
+                "failed_count": 0,
+                "errors": []
+            }),
+            "No agents matched the filter criteria",
+        ));
+    }
+
+    // Delete concurrently using futures::join_all for O(1) wall-clock per batch
+    let delete_futures: Vec<_> = to_delete
+        .iter()
+        .map(|agent_id| {
+            let client = client.clone();
+            let agent_id = agent_id.clone();
+            async move {
+                match client.agents().delete(&agent_id).await {
+                    Ok(_) => Ok(agent_id),
+                    Err(e) => Err((agent_id, e.to_string())),
+                }
+            }
+        })
+        .collect();
+
+    let results = futures::future::join_all(delete_futures).await;
+
+    let mut deleted_count = 0u32;
+    let mut errors: Vec<serde_json::Value> = Vec::new();
+
+    for result in results {
+        match result {
+            Ok(_) => deleted_count += 1,
+            Err((agent_id, err_msg)) => {
+                errors.push(serde_json::json!({
+                    "agent_id": agent_id.to_string(),
+                    "error": err_msg
+                }));
             }
         }
-
-        if should_delete {
-            to_delete.push(agent.id);
-        }
     }
 
-    // Delete each agent
-    let mut deleted_count = 0;
-    for agent_id in &to_delete {
-        if client.agents().delete(agent_id).await.is_ok() {
-            deleted_count += 1;
-        }
-    }
+    let failed_count = errors.len() as u32;
 
     Ok(StandardResponse::success(
         "bulk_delete",
         serde_json::json!({
             "deleted_count": deleted_count,
-            "failed_count": to_delete.len() - deleted_count
+            "failed_count": failed_count,
+            "errors": errors
         }),
-        format!("Deleted {} agents", deleted_count),
+        format!("Deleted {} agents ({} failed)", deleted_count, failed_count),
     ))
 }
 
@@ -1168,18 +1245,86 @@ async fn handle_get_message(
         .parse()
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
 
-    // List all messages and find the one we want
-    // Note: SDK doesn't have a direct get_message endpoint, so we list and filter
+    // If message_id is provided, use SDK's list with targeted params then filter client-side
+    if let Some(message_id) = request.message_id {
+        let msg_id: letta::types::LettaId = message_id
+            .parse()
+            .map_err(|e| McpError::invalid_request(format!("Invalid message_id format: {}", e)))?;
+
+        // Use the message_id as a cursor: fetch a small window around it
+        let params = letta::types::ListMessagesRequest {
+            before: Some(msg_id.to_string()),
+            limit: Some(2), // Fetch the message and its predecessor
+            ..Default::default()
+        };
+
+        let messages = client
+            .messages()
+            .list(&letta_id, Some(params))
+            .await
+            .map_err(|e| McpError::internal(format!("Failed to list messages: {}", e)))?;
+
+        // Filter to the exact message
+        let target = msg_id.to_string();
+        let found: Vec<_> = messages
+            .into_iter()
+            .filter(|m| {
+                let id_str = match m {
+                    letta::types::LettaMessageUnion::SystemMessage(msg) => msg.id.to_string(),
+                    letta::types::LettaMessageUnion::UserMessage(msg) => msg.id.to_string(),
+                    letta::types::LettaMessageUnion::AssistantMessage(msg) => msg.id.to_string(),
+                    letta::types::LettaMessageUnion::ReasoningMessage(msg) => msg.id.to_string(),
+                    letta::types::LettaMessageUnion::HiddenReasoningMessage(msg) => msg.id.to_string(),
+                    letta::types::LettaMessageUnion::ToolCallMessage(msg) => msg.id.to_string(),
+                    letta::types::LettaMessageUnion::ToolReturnMessage(msg) => msg.id.to_string(),
+                };
+                id_str == target
+            })
+            .collect();
+
+        if found.is_empty() {
+            return Err(McpError::invalid_request(format!(
+                "Message {} not found for agent {}",
+                target, letta_id
+            )));
+        }
+
+        return Ok(StandardResponse::success(
+            "get_message",
+            serde_json::to_value(&found[0])?,
+            "Message retrieved successfully",
+        ));
+    }
+
+    // No message_id: list recent messages with a capped limit (default 20, max 100)
+    let default_limit = 20i32;
+    let max_limit = 100i32;
+    let limit = request
+        .pagination
+        .and_then(|p| p.limit)
+        .map(|l| (l as i32).min(max_limit))
+        .unwrap_or(default_limit);
+
+    let params = letta::types::ListMessagesRequest {
+        limit: Some(limit),
+        ..Default::default()
+    };
+
     let messages = client
         .messages()
-        .list(&letta_id, None)
+        .list(&letta_id, Some(params))
         .await
         .map_err(|e| McpError::internal(format!("Failed to list messages: {}", e)))?;
+
+    let count = messages.len();
 
     Ok(StandardResponse::success(
         "get_message",
         serde_json::to_value(&messages)?,
-        format!("Retrieved {} messages (filter client-side)", messages.len()),
+        format!(
+            "Retrieved {} messages (limit={}). Use message_id for a specific message.",
+            count, limit
+        ),
     ))
 }
 

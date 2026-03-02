@@ -90,6 +90,7 @@ impl LettaServer {
         update_data: Option<Value>,
         conversation_id: Option<String>,
         message: Option<String>,
+        message_id: Option<String>,
     ) -> McpResult<String> {
         // Parse operation from string with helpful error listing valid operations
         let op: agent_advanced::AgentOperation =
@@ -126,6 +127,7 @@ impl LettaServer {
             update_data,
             conversation_id,
             message,
+            message_id,
         };
 
         // Call handler
