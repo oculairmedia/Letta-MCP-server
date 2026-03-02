@@ -11,6 +11,7 @@ on:
             - 'Cargo.lock'
             - 'Dockerfile.rust'
             - 'docker-compose.rust.yml'
+            - '.cargo/**'
             - '.github/workflows/rust-docker-build.yml'
     pull_request:
         branches: [rust-implementation]
@@ -28,33 +29,38 @@ on:
         branches: [rust-implementation, 'fork/**']
     workflow_call:
 
+env:
+    IMAGE: ghcr.io/oculairmedia/letta-mcp-server-rust
+
 jobs:
-    build-rust:
+    # =========================================================================
+    # Build each platform natively in parallel
+    # =========================================================================
+    build:
         # Only build if tests passed or this is a direct push
         if: >
             github.event_name == 'push' ||
             github.event_name == 'pull_request' ||
             (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
-        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - platform: linux/amd64
+                      runner: ubuntu-latest
+                    - platform: linux/arm64
+                      runner: ubuntu-24.04-arm
+        runs-on: ${{ matrix.runner }}
         permissions:
             contents: read
             packages: write
-            security-events: write
 
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
 
-            - name: Set up QEMU
-              uses: docker/setup-qemu-action@v3
-              with:
-                  platforms: linux/amd64,linux/arm64
-
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
-              with:
-                  driver-opts: |
-                      image=moby/buildkit:latest
 
             - name: Login to GitHub Container Registry
               if: github.event_name != 'pull_request'
@@ -64,66 +70,112 @@ jobs:
                   username: ${{ github.actor }}
                   password: ${{ secrets.GITHUB_TOKEN }}
 
+            - name: Build and push by digest
+              id: build
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  file: ./Dockerfile.rust
+                  platforms: ${{ matrix.platform }}
+                  outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+                  cache-from: type=gha,scope=rust-${{ matrix.platform }}
+                  cache-to: type=gha,mode=max,scope=rust-${{ matrix.platform }}
+                  build-args: |
+                      VERSION=${{ github.ref_name }}
+                      COMMIT_SHA=${{ github.sha }}
+                      BUILD_DATE=${{ github.event.head_commit.timestamp }}
+
+            - name: Export digest
+              if: github.event_name != 'pull_request'
+              run: |
+                  mkdir -p /tmp/digests
+                  digest="${{ steps.build.outputs.digest }}"
+                  touch "/tmp/digests/${digest#sha256:}"
+
+            - name: Upload digest
+              if: github.event_name != 'pull_request'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: digests-${{ strategy.job-index }}
+                  path: /tmp/digests/*
+                  if-no-files-found: error
+                  retention-days: 1
+
+    # =========================================================================
+    # Merge platform digests into multi-arch manifest
+    # =========================================================================
+    merge:
+        if: github.event_name != 'pull_request'
+        runs-on: ubuntu-latest
+        needs: build
+        permissions:
+            contents: read
+            packages: write
+            security-events: write
+
+        steps:
+            - name: Download digests
+              uses: actions/download-artifact@v4
+              with:
+                  path: /tmp/digests
+                  pattern: digests-*
+                  merge-multiple: true
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
             - name: Docker metadata
               id: meta
               uses: docker/metadata-action@v5
               with:
-                  images: ghcr.io/oculairmedia/letta-mcp-server-rust
+                  images: ${{ env.IMAGE }}
                   tags: |
                       type=ref,event=branch
-                      type=ref,event=pr
                       type=sha,prefix=rust-
                       type=raw,value=rust-latest
                       type=raw,value=rust-{{branch}}-{{sha}}
                   flavor: |
                       latest=false
 
-            - name: Build and push Rust image
-              uses: docker/build-push-action@v6
+            - name: Login to GitHub Container Registry
+              uses: docker/login-action@v3
               with:
-                  context: .
-                  file: ./Dockerfile.rust
-                  platforms: linux/amd64,linux/arm64
-                  push: ${{ github.event_name != 'pull_request' }}
-                  tags: ${{ steps.meta.outputs.tags }}
-                  labels: ${{ steps.meta.outputs.labels }}
-                  cache-from: type=gha,scope=rust
-                  cache-to: type=gha,mode=max,scope=rust
-                  build-args: |
-                      VERSION=${{ github.ref_name }}
-                      COMMIT_SHA=${{ github.sha }}
-                      BUILD_DATE=${{ github.event.head_commit.timestamp }}
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Run Trivy vulnerability scanner on Rust image
-              if: github.event_name != 'pull_request'
+            - name: Create manifest list and push
+              working-directory: /tmp/digests
+              run: |
+                  docker buildx imagetools create \
+                    $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+                    $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+
+            - name: Inspect image
+              run: |
+                  docker buildx imagetools inspect ${{ env.IMAGE }}:${{ steps.meta.outputs.version }}
+
+            - name: Run Trivy vulnerability scanner
               uses: aquasecurity/trivy-action@master
               with:
-                  image-ref: ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest
+                  image-ref: ${{ env.IMAGE }}:rust-latest
                   format: 'sarif'
                   output: 'trivy-results-rust.sarif'
                   severity: 'CRITICAL,HIGH'
               continue-on-error: true
 
             - name: Upload Trivy scan results to GitHub Security
-              if: github.event_name != 'pull_request'
               uses: github/codeql-action/upload-sarif@v3
               with:
                   sarif_file: 'trivy-results-rust.sarif'
                   category: 'rust-image'
               continue-on-error: true
 
-            - name: Image digest
-              if: github.event_name != 'pull_request'
-              run: |
-                  echo "Rust image digest:"
-                  echo "${{ steps.meta.outputs.tags }}"
-
             - name: Post build info
-              if: github.event_name != 'pull_request'
               run: |
                   echo "✅ Rust Docker image built and pushed successfully!"
                   echo "Images pushed:"
                   echo "${{ steps.meta.outputs.tags }}"
                   echo ""
                   echo "Pull the image with:"
-                  echo "docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest"
+                  echo "docker pull ${{ env.IMAGE }}:rust-latest"
