@@ -197,7 +197,7 @@ async fn handle_list_sources(
     let summaries: Vec<SourceSummary> = sources_to_return
         .into_iter()
         .map(|source| {
-            let description = source.description.map(|d| truncate_with_suffix(&d, 100));
+            let description = source.description.map(|d| truncate_with_suffix(&d, 100).into_owned());
 
             SourceSummary {
                 id: source.id.map(|id| id.to_string()).unwrap_or_default(),
@@ -435,9 +435,13 @@ async fn handle_list_attached(
         .await
         .map_err(|e| McpError::internal(format!("Failed to list attached sources: {}", e)))?;
 
+    // Cap results client-side (SDK doesn't support limit for agent_sources)
+    let max_results: usize = request.limit.map(|l| l as usize).unwrap_or(50).min(100);
+
     // Return lightweight summaries (id, name, file_count only)
     let summaries: Vec<serde_json::Value> = sources
         .into_iter()
+        .take(max_results)
         .map(|source| {
             serde_json::json!({
                 "id": source.id.map(|id| id.to_string()).unwrap_or_default(),
@@ -634,42 +638,69 @@ async fn handle_list_agents_using(
     let letta_id = letta::types::LettaId::from_str(&source_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
 
-    // Get all agents and filter by those using this source
-    let agents = client
-        .agents()
-        .list(None)
-        .await
-        .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
+    // Paginated fetch of agents instead of unbounded .list(None)
+    let mut all_agents = Vec::new();
+    let mut cursor: Option<String> = None;
+    let page_size = 50u32;
 
-    // Filter agents that have this source attached
-    let mut agents_using = Vec::new();
-    for agent in agents {
-        // Check if this agent has the source attached
-        let sources = client
-            .sources()
-            .agent_sources(agent.id.clone())
-            .list()
+    loop {
+        let params = letta::types::ListAgentsParams {
+            limit: Some(page_size),
+            after: cursor.clone(),
+            ..Default::default()
+        };
+        let page = client
+            .agents()
+            .list(Some(params))
             .await
-            .map_err(|e| McpError::internal(format!("Failed to check agent sources: {}", e)))?;
+            .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
 
-        for source in sources {
-            if let Some(sid) = &source.id {
-                if sid == &letta_id {
-                    agents_using.push(agent.clone());
-                    break;
-                }
-            }
+        let page_len = page.len();
+        all_agents.extend(page);
+
+        if (page_len as u32) < page_size {
+            break;
         }
+        cursor = all_agents.last().map(|a| a.id.to_string());
     }
 
-    // Return only IDs and names - not full agent objects!
-    let agent_refs: Vec<AgentReference> = agents_using
-        .into_iter()
-        .map(|agent| AgentReference {
-            id: agent.id.to_string(),
-            name: agent.name,
+    // Concurrent source checks instead of sequential N+1 loop
+    let check_futures: Vec<_> = all_agents
+        .iter()
+        .map(|agent| {
+            let client = client.clone();
+            let agent_id = agent.id.clone();
+            let target_source_id = letta_id.clone();
+            let agent_name = agent.name.clone();
+            async move {
+                let sources = client
+                    .sources()
+                    .agent_sources(agent_id.clone())
+                    .list()
+                    .await
+                    .unwrap_or_default();
+
+                let has_source = sources.iter().any(|s| {
+                    s.id.as_ref().map_or(false, |sid| sid == &target_source_id)
+                });
+
+                if has_source {
+                    Some((agent_id.to_string(), agent_name))
+                } else {
+                    None
+                }
+            }
         })
         .collect();
+
+    let results = futures::future::join_all(check_futures).await;
+
+    let agent_refs: Vec<AgentReference> = results
+        .into_iter()
+        .flatten()
+        .map(|(id, name)| AgentReference { id, name })
+        .collect();
+
 
     let agent_count = agent_refs.len();
 

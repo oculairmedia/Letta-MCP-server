@@ -140,15 +140,23 @@ async fn handle_list_tools(
     let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
     let offset = request.offset.unwrap_or(0);
 
+    // Use SDK server-side limit to avoid fetching all tools into memory.
+    // We request offset + limit so we can skip client-side, since SDK uses cursor pagination.
+    let fetch_count = (offset + limit) as u32;
+    let params = letta::types::ListToolsParams {
+        limit: Some(fetch_count),
+        ..Default::default()
+    };
+
     let tools = client
         .tools()
-        .list(None)
+        .list(Some(params))
         .await
         .map_err(|e| McpError::internal(format!("Failed to list tools: {}", e)))?;
 
     let total = tools.len();
 
-    // Apply pagination
+    // Apply client-side offset (SDK uses cursor, not offset)
     let paginated_tools: Vec<_> = tools
         .iter()
         .skip(offset as usize)
@@ -203,7 +211,7 @@ async fn handle_get_tool(
         source_code_length = Some(code.len());
         let (truncated, was_truncated) = truncate_with_flag(code, MAX_SOURCE_CODE_LENGTH);
         if was_truncated {
-            tool.source_code = Some(truncated);
+            tool.source_code = Some(truncated.into_owned());
             source_code_truncated = true;
             hint = Some("Full source available via direct API call if needed".to_string());
         }
@@ -322,40 +330,55 @@ async fn handle_bulk_attach(
     let letta_tool_id = letta::types::LettaId::from_str(&tool_id)
         .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
 
-    let mut results = Vec::new();
-    let mut errors = Vec::new();
+    // Validate all agent IDs upfront, separate valid from invalid
+    let mut valid_agents: Vec<(String, letta::types::LettaId)> = Vec::new();
+    let mut errors: Vec<serde_json::Value> = Vec::new();
 
-    for agent_id in agent_ids {
-        match letta::types::LettaId::from_str(&agent_id) {
-            Ok(letta_agent_id) => {
+    for agent_id in &agent_ids {
+        match letta::types::LettaId::from_str(agent_id) {
+            Ok(letta_agent_id) => valid_agents.push((agent_id.clone(), letta_agent_id)),
+            Err(e) => errors.push(serde_json::json!({
+                "agent_id": agent_id,
+                "success": false,
+                "error": format!("Invalid agent_id: {}", e)
+            })),
+        }
+    }
+
+    // Concurrent attach instead of sequential loop
+    let attach_futures: Vec<_> = valid_agents
+        .into_iter()
+        .map(|(agent_id_str, letta_agent_id)| {
+            let client = client.clone();
+            let tool_id = letta_tool_id.clone();
+            async move {
                 match client
                     .memory()
-                    .attach_tool_to_agent(&letta_agent_id, &letta_tool_id)
+                    .attach_tool_to_agent(&letta_agent_id, &tool_id)
                     .await
                 {
-                    Ok(agent_state) => {
-                        results.push(serde_json::json!({
-                            "agent_id": agent_id,
-                            "success": true,
-                            "data": agent_state
-                        }));
-                    }
-                    Err(e) => {
-                        errors.push(serde_json::json!({
-                            "agent_id": agent_id,
-                            "success": false,
-                            "error": e.to_string()
-                        }));
-                    }
+                    Ok(agent_state) => Ok(serde_json::json!({
+                        "agent_id": agent_id_str,
+                        "success": true,
+                        "data": agent_state
+                    })),
+                    Err(e) => Err(serde_json::json!({
+                        "agent_id": agent_id_str,
+                        "success": false,
+                        "error": e.to_string()
+                    })),
                 }
             }
-            Err(e) => {
-                errors.push(serde_json::json!({
-                    "agent_id": agent_id,
-                    "success": false,
-                    "error": format!("Invalid agent_id: {}", e)
-                }));
-            }
+        })
+        .collect();
+
+    let attach_results = futures::future::join_all(attach_futures).await;
+
+    let mut results: Vec<serde_json::Value> = Vec::new();
+    for result in attach_results {
+        match result {
+            Ok(v) => results.push(v),
+            Err(v) => errors.push(v),
         }
     }
 
@@ -620,7 +643,7 @@ fn count_json_properties(schema: &Option<Value>) -> Option<u32> {
 
 /// Convert Tool to ToolSummary for list operation
 fn tool_to_summary(tool: &letta::types::tool::Tool) -> ToolSummary {
-    let description = tool.description.as_ref().map(|d| truncate_with_suffix(d, 100));
+    let description = tool.description.as_ref().map(|d| truncate_with_suffix(d, 100).into_owned());
 
     let source_lines = tool.source_code.as_ref().map(|code| count_lines(code));
     let args_count = count_json_properties(&tool.args_json_schema);
