@@ -15,8 +15,7 @@ turbomcp-transport = { git = "https://github.com/oculairmedia/turbomcp.git", bra
 
 [workspace.dependencies]
 # Core async runtime
-tokio = { version = "1.47", features = ["full"] }
-tokio-util = { version = "0.7", features = ["full"] }
+tokio = { version = "1.47", features = ["macros", "rt-multi-thread", "io-util", "sync", "time", "fs"] }
 futures = "0.3"
 
 # TurboMCP (fork: oculairmedia/turbomcp, branch: feature/flatten-structs, base: upstream v2.3.7)
@@ -55,7 +54,7 @@ tempfile = "3.15"
 
 [profile.release]
 opt-level = 3
-lto = "fat"
+lto = "thin"
 codegen-units = 1
 panic = "abort"
 strip = true
