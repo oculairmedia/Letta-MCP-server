@@ -4,27 +4,22 @@ use letta_types::StandardResponse;
 use turbomcp::McpError;
 
 use super::{truncate_text, AgentAdvancedRequest};
+use crate::tools::response_utils::paginate;
 
 pub(crate) async fn handle_list_agents(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let mut pagination = request.pagination.unwrap_or_default();
-
-    if pagination.limit.is_none() || pagination.limit == Some(50) {
-        pagination.limit = Some(15);
-    }
-
-    if let Some(limit) = pagination.limit {
-        if limit > 50 {
-            pagination.limit = Some(50);
-        }
-    }
-
-    let offset = pagination.offset.unwrap_or(0);
+    let pagination = request.pagination.unwrap_or_default();
+    let (limit, offset) = paginate(
+        pagination.limit.map(|l| l as usize),
+        pagination.offset.map(|o| o as usize),
+        15,  // agent lists default smaller
+        50,
+    );
 
     let params = letta::types::ListAgentsParams {
-        limit: pagination.limit.map(|l| l as u32),
+        limit: Some(limit as u32),
         ..Default::default()
     };
 
