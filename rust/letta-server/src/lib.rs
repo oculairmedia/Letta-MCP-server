@@ -67,13 +67,68 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "Advanced agent operations hub - Supports 22 operations including CRUD (list, create, get, update, delete), tools (list_tools), messaging (send_message), management (export, import, clone, get_config, bulk_delete), advanced (context, reset_messages, summarize, stream), async (async_message, cancel_message), and utility (preview_payload, search_messages, get_message, count) operations."
+        description = "Advanced agent operations hub - Supports 28 operations including CRUD (list, create, get, update, delete, search), tools (list_tools), messaging (send_message), management (export, import, clone, get_config, bulk_delete), advanced (context, reset_messages, summarize, stream), async (async_message, cancel_message), conversation lifecycle (list_conversations, get_conversation, send_conversation_message, cancel_conversation, compact_conversation), and utility (preview_payload, search_messages, get_message, count) operations."
     )]
     async fn letta_agent_advanced(
         &self,
-        request: agent_advanced::AgentAdvancedRequest,
+        operation: String,
+        agent_id: Option<String>,
+        name: Option<String>,
+        description: Option<String>,
+        system: Option<String>,
+        llm_config: Option<Value>,
+        embedding_config: Option<Value>,
+        tool_ids: Option<Value>,
+        pagination: Option<Value>,
+        messages: Option<Value>,
+        stream: Option<bool>,
+        filters: Option<Value>,
+        query: Option<String>,
+        tags: Option<Vec<String>>,
+        search_filters: Option<Value>,
+        export_data: Option<Value>,
+        update_data: Option<Value>,
+        conversation_id: Option<String>,
+        message: Option<String>,
     ) -> McpResult<String> {
-        // Call handler directly - TurboMCP will auto-detect flattening and use schemars schema
+        // Parse operation from string with helpful error listing valid operations
+        let op: agent_advanced::AgentOperation =
+            serde_json::from_value(serde_json::Value::String(operation)).map_err(|e| {
+                McpError::invalid_request(format!(
+                    "Invalid operation: {}. Valid operations: list, create, get, update, delete, \
+                     search, list_tools, send_message, export, import, clone, get_config, \
+                     bulk_delete, context, reset_messages, summarize, stream, async_message, \
+                     cancel_message, preview_payload, search_messages, get_message, count, \
+                     list_conversations, get_conversation, send_conversation_message, \
+                     cancel_conversation, compact_conversation",
+                    e
+                ))
+            })?;
+
+        // Create request from individual parameters
+        let request = agent_advanced::AgentAdvancedRequest {
+            operation: op,
+            agent_id,
+            name,
+            description,
+            system,
+            llm_config,
+            embedding_config,
+            tool_ids,
+            pagination: pagination.and_then(|v| serde_json::from_value(v).ok()),
+            messages: messages.and_then(|v| serde_json::from_value(v).ok()),
+            stream,
+            filters: filters.and_then(|v| serde_json::from_value(v).ok()),
+            query,
+            tags,
+            search_filters: search_filters.and_then(|v| serde_json::from_value(v).ok()),
+            export_data,
+            update_data,
+            conversation_id,
+            message,
+        };
+
+        // Call handler
         agent_advanced::handle_agent_advanced(&self.client, request).await
     }
 

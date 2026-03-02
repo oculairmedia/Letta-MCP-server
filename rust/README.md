@@ -20,7 +20,7 @@ letta-server/
 │   ├── lib.rs               # Server initialization, tool registration
 │   └── tools/
 │       ├── mod.rs            # Tool registration
-│       ├── agent_advanced.rs # Agent operations (22 ops)
+│       ├── agent_advanced.rs # Agent operations (28 ops)
 │       ├── memory_unified.rs # Memory operations (15 ops)
 │       ├── tool_manager.rs   # Tool operations (13 ops)
 │       ├── source_manager.rs # Source operations (15 ops)
