@@ -1,29 +1,23 @@
-use crate::tools::validation_utils::sdk_err;
+use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use chrono::{DateTime, Utc};
 use letta::types::{LettaMessageUnion, ListMessagesRequest};
 use letta::LettaClient;
 use serde_json::Value;
-use std::str::FromStr;
 use turbomcp::McpError;
 
 use super::{
-    ArchivalSearchResult, MemoryUnifiedRequest, MemoryUnifiedResponse, MessageMatch,
+    ArchivalSearchResult, MemoryUnifiedRequest, MessageMatch,
     MessageSearchResult, SearchSource,
 };
+use crate::tools::response_utils::ToolResponse;
 
 pub(crate) async fn handle_search_memory(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for search_memory".to_string())
-    })?;
-    let query = request.query.ok_or_else(|| {
-        McpError::invalid_request("query is required for search_memory".to_string())
-    })?;
-
-    let letta_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+) -> Result<ToolResponse, McpError> {
+    let agent_id = require_field(request.agent_id, "agent_id is required for search_memory")?;
+    let query = require_field(request.query, "query is required for search_memory")?;
+    let letta_id = require_id(Some(agent_id.clone()), "agent_id")?;
 
     let source = request.source.unwrap_or_default();
     let limit = request.limit.unwrap_or(50) as usize;
@@ -47,25 +41,16 @@ pub(crate) async fn handle_search_memory(
     let archival_count = archival_result.as_ref().map(|r| r.count).unwrap_or(0);
     let messages_count = messages_result.as_ref().map(|r| r.count).unwrap_or(0);
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "search_memory".to_string(),
-        message: format!(
+    Ok(ToolResponse::success("search_memory", format!(
             "Found {} archival passages and {} messages",
             archival_count, messages_count
-        ),
-        agent_id: Some(agent_id),
-        archival: archival_result,
-        messages: messages_result,
-        count: Some(archival_count + messages_count),
-        block_id: None,
-        passage_id: None,
-        archive_id: None,
-        core_memory: None,
-        data: None,
-        blocks: None,
-        passages: None,
-    })
+        ))
+        .with_count(archival_count + messages_count)
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "archival": archival_result,
+            "messages": messages_result,
+        })))
 }
 
 async fn search_archival_memory(

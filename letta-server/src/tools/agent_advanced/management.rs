@@ -1,4 +1,4 @@
-use crate::tools::validation_utils::sdk_err;
+use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use letta_types::StandardResponse;
 use turbomcp::McpError;
@@ -9,13 +9,11 @@ pub(crate) async fn handle_list_tools(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for list_tools operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for list_tools operation",
+    )?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let tools = client
         .memory()
@@ -73,13 +71,8 @@ pub(crate) async fn handle_export_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for export operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required for export operation")?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let export_json = client
         .agents()
@@ -98,22 +91,20 @@ pub(crate) async fn handle_import_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let export_data = request.export_data.ok_or_else(|| {
-        McpError::invalid_request(
-            "export_data is required for import operation (JSON from agent export)".to_string(),
-        )
-    })?;
+    let export_data = require_field(
+        request.export_data,
+        "export_data is required for import operation (JSON from agent export)",
+    )?;
 
     let json_bytes = serde_json::to_vec(&export_data)
         .map_err(|e| McpError::invalid_request(format!("Failed to serialize export_data: {}", e)))?;
 
-    let tmp_dir = tempfile::tempdir()
-        .map_err(|e| McpError::internal(format!("Failed to create temp directory: {}", e)))?;
+    let tmp_dir = tempfile::tempdir().map_err(|e| sdk_err("create temp directory", e))?;
     let tmp_path = tmp_dir.path().join("agent_import.json");
 
     tokio::fs::write(&tmp_path, &json_bytes)
         .await
-        .map_err(|e| McpError::internal(format!("Failed to write temp file: {}", e)))?;
+        .map_err(|e| sdk_err("write temp file", e))?;
 
     let import_request = letta::types::ImportAgentRequest::default();
 
@@ -139,16 +130,9 @@ pub(crate) async fn handle_clone_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for clone operation".to_string())
-    })?;
-    let new_name = request.name.ok_or_else(|| {
-        McpError::invalid_request("name is required for clone operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required for clone operation")?;
+    let new_name = require_field(request.name, "name is required for clone operation")?;
+    let letta_id = require_id(Some(agent_id.clone()), "agent_id")?;
 
     let source_agent = client
         .agents()
@@ -186,13 +170,8 @@ pub(crate) async fn handle_get_config(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for get_config operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required for get_config operation")?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let agent = client
         .agents()
@@ -221,9 +200,10 @@ pub(crate) async fn handle_bulk_delete(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let filters = request.filters.ok_or_else(|| {
-        McpError::invalid_request("filters are required for bulk_delete operation".to_string())
-    })?;
+    let filters = require_field(
+        request.filters,
+        "filters are required for bulk_delete operation",
+    )?;
 
     let has_name_filter = filters.agent_name_filter.is_some();
     let has_id_filter = filters.agent_ids.is_some();
@@ -305,13 +285,8 @@ pub(crate) async fn handle_get_context(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for context operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required for context operation")?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let context = client
         .agents()
@@ -330,13 +305,11 @@ pub(crate) async fn handle_reset_messages(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for reset_messages operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for reset_messages operation",
+    )?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     client
         .agents()
@@ -354,13 +327,8 @@ pub(crate) async fn handle_summarize(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for summarize operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required for summarize operation")?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let max_message_length = 10u32;
 

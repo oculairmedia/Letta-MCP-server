@@ -2,14 +2,13 @@
 //!
 //! Consolidated tool for tool management operations using discriminator pattern.
 
-use crate::tools::response_utils::paginate;
-use crate::tools::validation_utils::{require_field, sdk_err};
+use crate::tools::response_utils::{paginate, ToolResponse};
+use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::types::tool::ListToolsParams;
 use letta::types::ListAgentsParams;
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::str::FromStr;
 use tracing::info;
 use turbomcp::McpError;
 
@@ -78,16 +77,6 @@ pub struct ToolManagerRequest {
     pub verbose: Option<bool>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct ToolManagerResponse {
-    pub success: bool,
-    pub operation: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub count: Option<usize>,
-}
 
 /// Tool summary for list operation (LMS-50 optimization)
 /// Excludes source_code, json_schema, and args_json_schema to reduce response size
@@ -114,7 +103,7 @@ pub struct ToolSummary {
 pub async fn handle_tool_manager(
     client: &LettaClient,
     request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let operation_str = format!("{:?}", request.operation).to_lowercase();
     info!(operation = %operation_str, "Executing tool operation");
 
@@ -143,7 +132,7 @@ pub async fn handle_tool_manager(
 async fn handle_list_tools(
     client: &LettaClient,
     request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let (limit, offset) = paginate(
         request.limit.map(|l| l as usize),
         request.offset.map(|o| o as usize),
@@ -197,29 +186,24 @@ async fn handle_list_tools(
 
     let returned = summaries.len();
 
-    Ok(ToolManagerResponse {
-        success: true,
-        operation: "list".to_string(),
-        message: format!("Returned {} of {} tools", returned, total),
-        data: Some(serde_json::json!({
+    Ok(ToolResponse::success("list", format!("Returned {} of {} tools", returned, total))
+        .with_json_data(serde_json::json!({
             "total": total,
             "returned": returned,
             "offset": offset,
             "limit": limit,
             "tools": summaries,
             "hints": vec!["Use 'get' with tool_id for full source code and schema"]
-        })),
-        count: Some(returned),
-    })
+        }))
+        .with_count(returned))
 }
 
 async fn handle_get_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let tool_id = require_field(request.tool_id, "tool_id required")?;
-    let letta_id = letta::types::LettaId::from_str(&tool_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
+    let letta_id = require_id(Some(tool_id), "tool_id")?;
 
     let mut tool = client
         .tools()
@@ -260,19 +244,14 @@ async fn handle_get_tool(
         }
     }
 
-    Ok(ToolManagerResponse {
-        success: true,
-        operation: "get".to_string(),
-        message: "Tool retrieved successfully".to_string(),
-        data: Some(tool_json),
-        count: None,
-    })
+    Ok(ToolResponse::success("get", "Tool retrieved successfully")
+        .with_json_data(tool_json))
 }
 
 async fn handle_create_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let source_code = require_field(request.source_code, "source_code required")?;
 
     // Parse source_type if provided
@@ -301,27 +280,20 @@ async fn handle_create_tool(
         .await
         .map_err(|e| sdk_err("create tool", e))?;
 
-    Ok(ToolManagerResponse {
-        success: true,
-        operation: "create".to_string(),
-        message: "Tool created successfully".to_string(),
-        data: Some(serde_json::to_value(tool)?),
-        count: None,
-    })
+    Ok(ToolResponse::success("create", "Tool created successfully")
+        .with_json_data(serde_json::to_value(tool)?))
 }
 
 async fn handle_attach_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id.clone(), "agent_id required")?;
     let tool_id = require_field(request.tool_id.clone(), "tool_id required")?;
     let verbose = request.verbose.unwrap_or(false);
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
-    let letta_tool_id = letta::types::LettaId::from_str(&tool_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
+    let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
+    let letta_tool_id = require_id(Some(tool_id.clone()), "tool_id")?;
 
     let agent_state = client
         .memory()
@@ -339,27 +311,24 @@ async fn handle_attach_tool(
         ))
     };
 
-    Ok(ToolManagerResponse {
-        success: true,
-        operation: "attach".to_string(),
-        message: format!(
-            "Tool attached successfully. Agent now has {} tools.",
-            tool_count
-        ),
-        data,
-        count: None,
-    })
+    let mut resp = ToolResponse::success("attach", format!(
+        "Tool attached successfully. Agent now has {} tools.",
+        tool_count
+    ));
+    if let Some(d) = data {
+        resp = resp.with_json_data(d);
+    }
+    Ok(resp)
 }
 
 async fn handle_bulk_attach(
     client: &LettaClient,
     request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let tool_id = require_field(request.tool_id.clone(), "tool_id required")?;
     let verbose = request.verbose.unwrap_or(false);
 
-    let letta_tool_id = letta::types::LettaId::from_str(&tool_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
+    let letta_tool_id = require_id(Some(tool_id.clone()), "tool_id")?;
 
     let agent_ids = if let Some(ids) = request.agent_ids {
         if !ids.is_empty() {
@@ -429,7 +398,7 @@ async fn handle_bulk_attach(
     let mut errors = Vec::new();
 
     for agent_id in agent_ids {
-        match letta::types::LettaId::from_str(&agent_id) {
+        match require_id(Some(agent_id.clone()), "agent_id") {
             Ok(letta_agent_id) => {
                 match client
                     .memory()
@@ -466,36 +435,36 @@ async fn handle_bulk_attach(
                 errors.push(serde_json::json!({
                     "agent_id": agent_id,
                     "success": false,
-                    "error": format!("Invalid agent_id: {}", e)
+                    "error": e.to_string()
                 }));
             }
         }
     }
 
-    Ok(ToolManagerResponse {
-        success: errors.is_empty(),
-        operation: "bulk_attach".to_string(),
-        message: format!(
-            "Attached to {} agents, {} errors",
-            results.len(),
-            errors.len()
-        ),
-        data: Some(serde_json::json!({
+    let resp = if errors.is_empty() {
+        ToolResponse::success("bulk_attach", format!(
+            "Attached to {} agents, {} errors", results.len(), errors.len()
+        ))
+    } else {
+        ToolResponse::error("bulk_attach", format!(
+            "Attached to {} agents, {} errors", results.len(), errors.len()
+        ))
+    };
+    Ok(resp
+        .with_json_data(serde_json::json!({
             "tool_id": tool_id,
             "results": results,
             "errors": errors
-        })),
-        count: Some(results.len()),
-    })
+        }))
+        .with_count(results.len()))
 }
 
 async fn handle_update_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let tool_id = require_field(request.tool_id, "tool_id required")?;
-    let letta_id = letta::types::LettaId::from_str(&tool_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
+    let letta_id = require_id(Some(tool_id), "tool_id")?;
 
     let update_request = letta::types::tool::UpdateToolRequest {
         description: request.description,
@@ -512,22 +481,16 @@ async fn handle_update_tool(
         .await
         .map_err(|e| sdk_err("update tool", e))?;
 
-    Ok(ToolManagerResponse {
-        success: true,
-        operation: "update".to_string(),
-        message: "Tool updated successfully".to_string(),
-        data: Some(serde_json::to_value(tool)?),
-        count: None,
-    })
+    Ok(ToolResponse::success("update", "Tool updated successfully")
+        .with_json_data(serde_json::to_value(tool)?))
 }
 
 async fn handle_delete_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let tool_id = require_field(request.tool_id, "tool_id required")?;
-    let letta_id = letta::types::LettaId::from_str(&tool_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
+    let letta_id = require_id(Some(tool_id), "tool_id")?;
 
     client
         .tools()
@@ -535,19 +498,13 @@ async fn handle_delete_tool(
         .await
         .map_err(|e| sdk_err("delete tool", e))?;
 
-    Ok(ToolManagerResponse {
-        success: true,
-        operation: "delete".to_string(),
-        message: "Tool deleted successfully".to_string(),
-        data: None,
-        count: None,
-    })
+    Ok(ToolResponse::success("delete", "Tool deleted successfully"))
 }
 
 async fn handle_upsert_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let source_code = require_field(request.source_code, "source_code required")?;
 
     // Parse source_type if provided
@@ -576,27 +533,20 @@ async fn handle_upsert_tool(
         .await
         .map_err(|e| sdk_err("upsert tool", e))?;
 
-    Ok(ToolManagerResponse {
-        success: true,
-        operation: "upsert".to_string(),
-        message: "Tool upserted successfully".to_string(),
-        data: Some(serde_json::to_value(tool)?),
-        count: None,
-    })
+    Ok(ToolResponse::success("upsert", "Tool upserted successfully")
+        .with_json_data(serde_json::to_value(tool)?))
 }
 
 async fn handle_detach_tool(
     client: &LettaClient,
     request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id.clone(), "agent_id required")?;
     let tool_id = require_field(request.tool_id.clone(), "tool_id required")?;
     let verbose = request.verbose.unwrap_or(false);
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
-    let letta_tool_id = letta::types::LettaId::from_str(&tool_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid tool_id: {}", e)))?;
+    let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
+    let letta_tool_id = require_id(Some(tool_id.clone()), "tool_id")?;
 
     let agent_state = client
         .memory()
@@ -614,22 +564,20 @@ async fn handle_detach_tool(
         ))
     };
 
-    Ok(ToolManagerResponse {
-        success: true,
-        operation: "detach".to_string(),
-        message: format!(
-            "Tool detached successfully. Agent now has {} tools.",
-            tool_count
-        ),
-        data,
-        count: None,
-    })
+    let mut resp = ToolResponse::success("detach", format!(
+        "Tool detached successfully. Agent now has {} tools.",
+        tool_count
+    ));
+    if let Some(d) = data {
+        resp = resp.with_json_data(d);
+    }
+    Ok(resp)
 }
 
 async fn handle_run_from_source(
     client: &LettaClient,
     request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let source_code = require_field(request.source_code, "source_code required")?;
     let args = require_field(request.args, "args required (JSON object)")?;
 
@@ -679,19 +627,14 @@ async fn handle_run_from_source(
         }
     }
 
-    Ok(ToolManagerResponse {
-        success: true,
-        operation: "run_from_source".to_string(),
-        message: "Tool executed successfully".to_string(),
-        data: Some(response_json),
-        count: None,
-    })
+    Ok(ToolResponse::success("run_from_source", "Tool executed successfully")
+        .with_json_data(response_json))
 }
 
 async fn handle_add_base_tools(
     client: &LettaClient,
     _request: ToolManagerRequest,
-) -> Result<ToolManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let tools = client
         .tools()
         .upsert_base_tools()
@@ -701,17 +644,13 @@ async fn handle_add_base_tools(
     // LMS-50 optimization: Return names only, not full definitions
     let tool_names: Vec<String> = tools.iter().map(|t| t.name.clone()).collect();
 
-    Ok(ToolManagerResponse {
-        success: true,
-        operation: "add_base_tools".to_string(),
-        message: format!("Added {} base tools", tools.len()),
-        data: Some(serde_json::json!({
+    Ok(ToolResponse::success("add_base_tools", format!("Added {} base tools", tools.len()))
+        .with_json_data(serde_json::json!({
             "tools_added": tools.len(),
             "tool_names": tool_names,
             "hint": "Use 'list' operation to see tool details"
-        })),
-        count: Some(tools.len()),
-    })
+        }))
+        .with_count(tools.len()))
 }
 
 // ========================================

@@ -1,27 +1,21 @@
 use crate::tools::memory_utils::{truncate_passage_text, PassageSummary};
-use crate::tools::validation_utils::sdk_err;
+use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
-use std::str::FromStr;
 use turbomcp::McpError;
 
-use super::{MemoryUnifiedRequest, MemoryUnifiedResponse};
+use super::{MemoryUnifiedRequest};
+use crate::tools::response_utils::ToolResponse;
 
 const PASSAGE_TEXT_TRUNCATE_LEN: usize = 500;
 
 pub(crate) async fn handle_search_archival(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for search_archival".to_string())
-    })?;
-    let query = request.query.ok_or_else(|| {
-        McpError::invalid_request("query is required for search_archival".to_string())
-    })?;
+) -> Result<ToolResponse, McpError> {
+    let agent_id = require_field(request.agent_id, "agent_id is required for search_archival")?;
+    let query = require_field(request.query, "query is required for search_archival")?;
     let verbose = request.verbose.unwrap_or(false);
-
-    let letta_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+    let letta_id = require_id(Some(agent_id.clone()), "agent_id")?;
 
     let params = letta::types::memory::ArchivalMemoryQueryParams {
         search: Some(query),
@@ -50,35 +44,21 @@ pub(crate) async fn handle_search_archival(
         serde_json::to_value(&summaries)?
     };
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "search_archival".to_string(),
-        message: format!("Found {} passages", count),
-        agent_id: Some(agent_id),
-        passages: Some(passages_data),
-        count: Some(count),
-        archival: None,
-        messages: None,
-        block_id: None,
-        passage_id: None,
-        archive_id: None,
-        core_memory: None,
-        data: None,
-        blocks: None,
-    })
+    Ok(ToolResponse::success("search_archival", format!("Found {} passages", count))
+        .with_count(count)
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "passages": passages_data,
+        })))
 }
 
 pub(crate) async fn handle_list_passages(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for list_passages".to_string())
-    })?;
+) -> Result<ToolResponse, McpError> {
+    let agent_id = require_field(request.agent_id, "agent_id is required for list_passages")?;
     let verbose = request.verbose.unwrap_or(false);
-
-    let letta_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+    let letta_id = require_id(Some(agent_id.clone()), "agent_id")?;
 
     let params = letta::types::memory::ArchivalMemoryQueryParams {
         search: None,
@@ -107,42 +87,26 @@ pub(crate) async fn handle_list_passages(
         serde_json::to_value(&summaries)?
     };
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "list_passages".to_string(),
-        message: format!(
+    Ok(ToolResponse::success("list_passages", format!(
             "Found {} passages{}",
             count,
             if verbose { "" } else { " (compact, use verbose=true for full text)" }
-        ),
-        agent_id: Some(agent_id),
-        passages: Some(passages_data),
-        count: Some(count),
-        archival: None,
-        messages: None,
-        block_id: None,
-        passage_id: None,
-        archive_id: None,
-        core_memory: None,
-        data: None,
-        blocks: None,
-    })
+        ))
+        .with_count(count)
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "passages": passages_data,
+        })))
 }
 
 pub(crate) async fn handle_create_passage(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for create_passage".to_string())
-    })?;
-    let text = request.text.ok_or_else(|| {
-        McpError::invalid_request("text is required for create_passage".to_string())
-    })?;
+) -> Result<ToolResponse, McpError> {
+    let agent_id = require_field(request.agent_id, "agent_id is required for create_passage")?;
+    let text = require_field(request.text, "text is required for create_passage")?;
     let verbose = request.verbose.unwrap_or(false);
-
-    let letta_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+    let letta_id = require_id(Some(agent_id.clone()), "agent_id")?;
 
     let create_request = letta::types::memory::CreateArchivalMemoryRequest { text };
 
@@ -161,28 +125,17 @@ pub(crate) async fn handle_create_passage(
         }
     }
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "create_passage".to_string(),
-        message: "Passage created successfully".to_string(),
-        agent_id: Some(agent_id),
-        passages: Some(passages_value),
-        block_id: None,
-        passage_id: None,
-        archive_id: None,
-        core_memory: None,
-        data: None,
-        blocks: None,
-        count: None,
-        archival: None,
-        messages: None,
-    })
+    Ok(ToolResponse::success("create_passage", "Passage created successfully")
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "passages": passages_value,
+        })))
 }
 
 pub(crate) async fn handle_update_passage(
     _client: &LettaClient,
     _request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     Err(McpError::invalid_request(
         "The Letta API does not provide a PATCH endpoint for passages. \
          To modify a passage, delete it with delete_passage and recreate it with create_passage."
@@ -193,18 +146,11 @@ pub(crate) async fn handle_update_passage(
 pub(crate) async fn handle_delete_passage(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for delete_passage".to_string())
-    })?;
-    let passage_id = request.passage_id.ok_or_else(|| {
-        McpError::invalid_request("passage_id is required for delete_passage".to_string())
-    })?;
-
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
-    let letta_passage_id = letta::types::LettaId::from_str(&passage_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid passage_id: {}", e)))?;
+) -> Result<ToolResponse, McpError> {
+    let agent_id = require_field(request.agent_id, "agent_id is required for delete_passage")?;
+    let passage_id = require_field(request.passage_id, "passage_id is required for delete_passage")?;
+    let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
+    let letta_passage_id = require_id(Some(passage_id.clone()), "passage_id")?;
 
     client
         .memory()
@@ -212,20 +158,9 @@ pub(crate) async fn handle_delete_passage(
         .await
         .map_err(|e| sdk_err("delete passage", e))?;
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "delete_passage".to_string(),
-        message: "Passage deleted successfully".to_string(),
-        agent_id: Some(agent_id),
-        passage_id: Some(passage_id),
-        archive_id: None,
-        block_id: None,
-        core_memory: None,
-        data: None,
-        blocks: None,
-        passages: None,
-        count: None,
-        archival: None,
-        messages: None,
-    })
+    Ok(ToolResponse::success("delete_passage", "Passage deleted successfully")
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "passage_id": passage_id,
+        })))
 }

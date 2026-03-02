@@ -2,12 +2,10 @@
 //!
 //! Consolidated tool for source management operations.
 
-use crate::tools::response_utils::paginate;
-use crate::tools::validation_utils::{require_field, sdk_err};
+use crate::tools::response_utils::{paginate, ToolResponse};
+use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::str::FromStr;
 use tracing::info;
 use turbomcp::McpError;
 
@@ -60,45 +58,6 @@ pub struct SourceManagerRequest {
     pub verbose: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Default)]
-pub struct SourceManagerResponse {
-    pub success: bool,
-    pub operation: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub count: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pagination: Option<PaginationMetadata>,
-}
-
-impl SourceManagerResponse {
-    /// Create a success response
-    fn success(operation: &str, message: &str) -> Self {
-        Self {
-            success: true,
-            operation: operation.into(),
-            message: message.into(),
-            ..Default::default()
-        }
-    }
-
-    fn with_data(mut self, data: Value) -> Self {
-        self.data = Some(data);
-        self
-    }
-
-    fn with_count(mut self, count: usize) -> Self {
-        self.count = Some(count);
-        self
-    }
-
-    fn with_pagination(mut self, pagination: PaginationMetadata) -> Self {
-        self.pagination = Some(pagination);
-        self
-    }
-}
 
 /// Pagination metadata for list operations
 #[derive(Debug, Serialize)]
@@ -172,7 +131,7 @@ fn truncate_string(s: &str, max_len: usize) -> String {
 pub async fn handle_source_manager(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let operation_str = format!("{:?}", request.operation).to_lowercase();
     info!(operation = %operation_str, "Executing source operation");
 
@@ -196,7 +155,7 @@ pub async fn handle_source_manager(
 async fn handle_list_sources(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let (page_limit, _) = paginate(request.limit.map(|l| l as usize), None, 20, 100);
     let limit = page_limit as i32;
 
@@ -244,22 +203,21 @@ async fn handle_list_sources(
         },
     };
 
-    Ok(SourceManagerResponse::success(
+    Ok(ToolResponse::success(
         "list",
         &format!("Found {} sources, returning {}", total, returned),
     )
-    .with_data(serde_json::to_value(&summaries)?)
+    .with_json_data(serde_json::to_value(&summaries)?)
     .with_count(total)
-    .with_pagination(pagination))
+    .with_extra(serde_json::to_value(&pagination).unwrap()))
 }
 
 async fn handle_get_source(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let source_id = require_field(request.source_id, "source_id required")?;
-    let letta_id = letta::types::LettaId::from_str(&source_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
+    let letta_id = require_id(Some(source_id.clone()), "source_id")?;
 
     let source = client
         .sources()
@@ -268,15 +226,15 @@ async fn handle_get_source(
         .map_err(|e| sdk_err("get source", e))?;
 
     Ok(
-        SourceManagerResponse::success("get", "Source retrieved successfully")
-            .with_data(serde_json::to_value(source)?),
+        ToolResponse::success("get", "Source retrieved successfully")
+            .with_json_data(serde_json::to_value(source)?),
     )
 }
 
 async fn handle_create_source(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let name = require_field(request.name, "name required")?;
 
     let create_request = if let Some(desc) = request.description {
@@ -297,18 +255,17 @@ async fn handle_create_source(
         .map_err(|e| sdk_err("create source", e))?;
 
     Ok(
-        SourceManagerResponse::success("create", "Source created successfully")
-            .with_data(serde_json::to_value(source)?),
+        ToolResponse::success("create", "Source created successfully")
+            .with_json_data(serde_json::to_value(source)?),
     )
 }
 
 async fn handle_update_source(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let source_id = require_field(request.source_id, "source_id required")?;
-    let letta_id = letta::types::LettaId::from_str(&source_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
+    let letta_id = require_id(Some(source_id.clone()), "source_id")?;
 
     let update_request = letta::types::source::UpdateSourceRequest {
         name: request.name,
@@ -323,18 +280,17 @@ async fn handle_update_source(
         .map_err(|e| sdk_err("update source", e))?;
 
     Ok(
-        SourceManagerResponse::success("update", "Source updated successfully")
-            .with_data(serde_json::to_value(source)?),
+        ToolResponse::success("update", "Source updated successfully")
+            .with_json_data(serde_json::to_value(source)?),
     )
 }
 
 async fn handle_delete_source(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let source_id = require_field(request.source_id, "source_id required")?;
-    let letta_id = letta::types::LettaId::from_str(&source_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
+    let letta_id = require_id(Some(source_id.clone()), "source_id")?;
 
     client
         .sources()
@@ -342,7 +298,7 @@ async fn handle_delete_source(
         .await
         .map_err(|e| sdk_err("delete source", e))?;
 
-    Ok(SourceManagerResponse::success(
+    Ok(ToolResponse::success(
         "delete",
         "Source deleted successfully",
     ))
@@ -351,14 +307,12 @@ async fn handle_delete_source(
 async fn handle_attach_source(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id, "agent_id required")?;
     let source_id = require_field(request.source_id, "source_id required")?;
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
-    let letta_source_id = letta::types::LettaId::from_str(&source_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
+    let letta_agent_id = require_id(Some(agent_id), "agent_id")?;
+    let letta_source_id = require_id(Some(source_id.clone()), "source_id")?;
 
     let agent_state = client
         .sources()
@@ -367,27 +321,19 @@ async fn handle_attach_source(
         .await
         .map_err(|e| sdk_err("attach source", e))?;
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "attach".into(),
-        message: "Source attached successfully".into(),
-        data: Some(serde_json::to_value(agent_state)?),
-        count: None,
-        pagination: None,
-    })
+    Ok(ToolResponse::success("attach", "Source attached successfully")
+        .with_json_data(serde_json::to_value(agent_state)?))
 }
 
 async fn handle_detach_source(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id, "agent_id required")?;
     let source_id = require_field(request.source_id, "source_id required")?;
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
-    let letta_source_id = letta::types::LettaId::from_str(&source_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
+    let letta_agent_id = require_id(Some(agent_id), "agent_id")?;
+    let letta_source_id = require_id(Some(source_id.clone()), "source_id")?;
 
     let agent_state = client
         .sources()
@@ -396,44 +342,32 @@ async fn handle_detach_source(
         .await
         .map_err(|e| sdk_err("detach source", e))?;
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "detach".into(),
-        message: "Source detached successfully".into(),
-        data: Some(serde_json::to_value(agent_state)?),
-        count: None,
-        pagination: None,
-    })
+    Ok(ToolResponse::success("detach", "Source detached successfully")
+        .with_json_data(serde_json::to_value(agent_state)?))
 }
 
 async fn handle_count_sources(
     client: &LettaClient,
     _request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let count = client
         .sources()
         .count()
         .await
         .map_err(|e| sdk_err("count sources", e))?;
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "count".into(),
-        message: format!("Total sources: {}", count),
-        data: Some(serde_json::json!({"count": count})),
-        count: Some(count as usize),
-        pagination: None,
-    })
+    Ok(ToolResponse::success("count", format!("Total sources: {}", count))
+        .with_json_data(serde_json::json!({"count": count}))
+        .with_count(count as usize))
 }
 
 async fn handle_list_attached(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id, "agent_id required")?;
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+    let letta_agent_id = require_id(Some(agent_id), "agent_id")?;
 
     let sources = client
         .sources()
@@ -454,23 +388,17 @@ async fn handle_list_attached(
         })
         .collect();
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "list_attached".into(),
-        message: format!("Found {} attached sources", summaries.len()),
-        data: Some(serde_json::to_value(&summaries)?),
-        count: Some(summaries.len()),
-        pagination: None,
-    })
+    Ok(ToolResponse::success("list_attached", format!("Found {} attached sources", summaries.len()))
+        .with_json_data(serde_json::to_value(&summaries)?)
+        .with_count(summaries.len()))
 }
 
 async fn handle_list_files(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let source_id = require_field(request.source_id, "source_id required")?;
-    let letta_id = letta::types::LettaId::from_str(&source_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
+    let letta_id = require_id(Some(source_id.clone()), "source_id")?;
 
     let (page_limit, _) = paginate(request.limit.map(|l| l as usize), None, 25, 100);
     let limit = page_limit as i32;
@@ -512,20 +440,16 @@ async fn handle_list_files(
         hint: Some(format!("File content is NEVER included in list operations. Use individual file retrieval to get content. Showing {} files (limit: {}).", summaries.len(), limit)),
     };
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "list_files".into(),
-        message: format!("Found {} files (content not included)", total),
-        data: Some(serde_json::to_value(&summaries)?),
-        count: Some(total),
-        pagination: Some(pagination),
-    })
+    Ok(ToolResponse::success("list_files", format!("Found {} files (content not included)", total))
+        .with_json_data(serde_json::to_value(&summaries)?)
+        .with_count(total)
+        .with_extra(serde_json::to_value(&pagination).unwrap()))
 }
 
 async fn handle_upload_file(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let source_id = require_field(request.source_id, "source_id required")?;
     let file_name = require_field(request.file_name, "file_name required")?;
     let file_data_b64 = require_field(
@@ -533,8 +457,7 @@ async fn handle_upload_file(
         "file_data required (base64 encoded)",
     )?;
 
-    let letta_id = letta::types::LettaId::from_str(&source_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
+    let letta_id = require_id(Some(source_id.clone()), "source_id")?;
 
     // Decode base64 file data
     use base64::{engine::general_purpose, Engine as _};
@@ -581,31 +504,23 @@ async fn handle_upload_file(
         content_type: actual_content_type,
     };
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "upload".into(),
-        message: format!(
-            "File '{}' uploaded successfully ({} bytes)",
-            file_name,
-            actual_size.unwrap_or(file_size as i64)
-        ),
-        data: Some(serde_json::to_value(&upload_summary)?),
-        count: None,
-        pagination: None,
-    })
+    Ok(ToolResponse::success("upload", format!(
+        "File '{}' uploaded successfully ({} bytes)",
+        file_name,
+        actual_size.unwrap_or(file_size as i64)
+    ))
+    .with_json_data(serde_json::to_value(&upload_summary)?))
 }
 
 async fn handle_delete_file(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let source_id = require_field(request.source_id, "source_id required")?;
     let file_id = require_field(request.file_id, "file_id required")?;
 
-    let letta_source_id = letta::types::LettaId::from_str(&source_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
-    let letta_file_id = letta::types::LettaId::from_str(&file_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid file_id: {}", e)))?;
+    let letta_source_id = require_id(Some(source_id.clone()), "source_id")?;
+    let letta_file_id = require_id(Some(file_id), "file_id")?;
 
     client
         .sources()
@@ -613,23 +528,15 @@ async fn handle_delete_file(
         .await
         .map_err(|e| sdk_err("delete file", e))?;
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "delete_files".into(),
-        message: "File deleted successfully".into(),
-        data: None,
-        count: None,
-        pagination: None,
-    })
+    Ok(ToolResponse::success("delete_files", "File deleted successfully"))
 }
 
 async fn handle_list_agents_using(
     client: &LettaClient,
     request: SourceManagerRequest,
-) -> Result<SourceManagerResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let source_id = require_field(request.source_id, "source_id required")?;
-    let letta_id = letta::types::LettaId::from_str(&source_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid source_id: {}", e)))?;
+    let letta_id = require_id(Some(source_id.clone()), "source_id")?;
 
     let list_params = letta::types::ListAgentsParams {
         limit: Some(50),
@@ -673,16 +580,11 @@ async fn handle_list_agents_using(
 
     let agent_count = agent_refs.len();
 
-    Ok(SourceManagerResponse {
-        success: true,
-        operation: "list_agents_using".into(),
-        message: format!("Found {} agents using this source", agent_count),
-        data: Some(serde_json::json!({
+    Ok(ToolResponse::success("list_agents_using", format!("Found {} agents using this source", agent_count))
+        .with_json_data(serde_json::json!({
             "source_id": source_id,
             "agent_count": agent_count,
             "agents": agent_refs,
-        })),
-        count: Some(agent_count),
-        pagination: None,
-    })
+        }))
+        .with_count(agent_count))
 }

@@ -5,6 +5,7 @@
 //! maintaining useful information.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 // ===================================================
 // Response Size Limits (configurable defaults)
@@ -191,6 +192,94 @@ pub trait Summarize {
 
     /// Create a summary representation suitable for list responses
     fn summarize(&self) -> Self::Summary;
+}
+
+// ===================================================
+// Unified Tool Response
+// ===================================================
+
+/// Unified response struct for all tool handlers.
+///
+/// Replaces per-tool response structs (ToolManagerResponse, JobMonitorResponse,
+/// SourceManagerResponse, McpOpsResponse, MemoryUnifiedResponse, FileFolderResponse)
+/// with a single generic struct + builder pattern.
+///
+/// Core fields (success/operation/message) are always present.
+/// Optional fields are skipped when None to keep JSON compact.
+/// The `extra` field with `#[serde(flatten)]` allows tool-specific
+/// fields to appear at the top level of the JSON output.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ToolResponse {
+    pub success: bool,
+    pub operation: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pagination: Option<PaginationMeta>,
+    /// Additional tool-specific fields, flattened into the response.
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub extra: Option<Value>,
+}
+
+impl ToolResponse {
+    /// Create a success response.
+    pub fn success(operation: &str, message: impl Into<String>) -> Self {
+        Self {
+            success: true,
+            operation: operation.to_string(),
+            message: message.into(),
+            data: None,
+            count: None,
+            pagination: None,
+            extra: None,
+        }
+    }
+
+    /// Create an error response.
+    pub fn error(operation: &str, message: impl Into<String>) -> Self {
+        Self {
+            success: false,
+            operation: operation.to_string(),
+            message: message.into(),
+            data: None,
+            count: None,
+            pagination: None,
+            extra: None,
+        }
+    }
+
+    /// Attach serializable data (converts via serde_json::to_value).
+    pub fn with_data(mut self, data: impl Serialize) -> Result<Self, serde_json::Error> {
+        self.data = Some(serde_json::to_value(data)?);
+        Ok(self)
+    }
+
+    /// Attach a pre-built JSON Value as data.
+    pub fn with_json_data(mut self, data: Value) -> Self {
+        self.data = Some(data);
+        self
+    }
+
+    /// Set the count field.
+    pub fn with_count(mut self, count: usize) -> Self {
+        self.count = Some(count);
+        self
+    }
+
+    /// Attach pagination metadata.
+    pub fn with_pagination(mut self, pagination: PaginationMeta) -> Self {
+        self.pagination = Some(pagination);
+        self
+    }
+
+    /// Attach extra fields that will be flattened into the top-level JSON.
+    pub fn with_extra(mut self, extra: Value) -> Self {
+        self.extra = Some(extra);
+        self
+    }
 }
 
 // ===================================================

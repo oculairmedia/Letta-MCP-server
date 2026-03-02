@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
 use turbomcp::McpError;
+use crate::tools::response_utils::ToolResponse;
 
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -100,37 +101,6 @@ pub struct MemoryUnifiedRequest {
     pub verbose: Option<bool>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct MemoryUnifiedResponse {
-    pub success: bool,
-    pub operation: String,
-    pub message: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub block_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub passage_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub archive_id: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub blocks: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub passages: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub core_memory: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub count: Option<usize>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub archival: Option<ArchivalSearchResult>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub messages: Option<MessageSearchResult>,
-}
 
 #[derive(Debug, Serialize)]
 pub struct ArchivalSearchResult {
@@ -155,7 +125,7 @@ pub struct MessageMatch {
 pub async fn handle_memory_unified(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let operation_str = format!("{:?}", request.operation).to_lowercase();
     info!(operation = %operation_str, "Executing memory operation");
 

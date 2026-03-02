@@ -1,4 +1,4 @@
-use crate::tools::validation_utils::sdk_err;
+use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use letta_types::StandardResponse;
 use turbomcp::McpError;
@@ -155,9 +155,7 @@ pub(crate) async fn handle_create_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let name = request.name.ok_or_else(|| {
-        McpError::invalid_request("name is required for create operation".to_string())
-    })?;
+    let name = require_field(request.name, "name is required for create operation")?;
 
     let mut agent_request = letta::types::CreateAgentRequest {
         name: Some(name),
@@ -218,13 +216,8 @@ pub(crate) async fn handle_get_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for get operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required for get operation")?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let verbose = request.verbose.unwrap_or(false);
 
@@ -296,13 +289,8 @@ pub(crate) async fn handle_update_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for update operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required for update operation")?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let mut update_request = letta::types::UpdateAgentRequest::default();
 
@@ -375,13 +363,8 @@ pub(crate) async fn handle_delete_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for delete operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required for delete operation")?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     client
         .agents()

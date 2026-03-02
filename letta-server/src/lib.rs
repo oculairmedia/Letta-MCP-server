@@ -135,7 +135,7 @@ impl LettaServer {
         };
 
         // Call handler
-        let response: memory_unified::MemoryUnifiedResponse = memory_unified::handle_memory_unified(&self.client, request).await?;
+        let response = memory_unified::handle_memory_unified(&self.client, request).await?;
 
         // Serialize to JSON string for MCP response
         serde_json::to_string(&response)
