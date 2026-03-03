@@ -23,13 +23,16 @@ pub(crate) async fn handle_list_agents(
         ..Default::default()
     };
 
-    let agents = client
-        .agents()
-        .list(Some(params))
-        .await
-        .map_err(|e| sdk_err("list agents", e))?;
+    // Fan-out: list + count in parallel
+    let agents_api = client.agents();
+    let count_api = client.agents();
+    let (agents_result, count_result) = tokio::join!(
+        agents_api.list(Some(params)),
+        count_api.count()
+    );
 
-    let total = client.agents().count().await.unwrap_or(agents.len() as u32);
+    let agents = agents_result.map_err(|e| sdk_err("list agents", e))?;
+    let total = count_result.unwrap_or(agents.len() as u32);
 
     let agent_summaries: Vec<AgentSummary> = agents
         .iter()

@@ -24,19 +24,24 @@ pub(crate) async fn handle_search_memory(
     let start_date = request.start_date;
     let end_date = request.end_date;
 
-    let mut archival_result: Option<ArchivalSearchResult> = None;
-    let mut messages_result: Option<MessageSearchResult> = None;
-
-    if matches!(source, SearchSource::Archival | SearchSource::Both) {
-        archival_result = Some(
-            search_archival_memory(client, &letta_id, &query, limit, start_date, end_date).await?,
-        );
-    }
-
-    if matches!(source, SearchSource::Messages | SearchSource::Both) {
-        messages_result =
-            Some(search_messages(client, &letta_id, &query, limit, start_date, end_date).await?);
-    }
+    let (archival_result, messages_result) = match source {
+        SearchSource::Both => {
+            // Fan-out: archival + messages search in parallel
+            let (arch, msgs) = tokio::join!(
+                search_archival_memory(client, &letta_id, &query, limit, start_date, end_date),
+                search_messages(client, &letta_id, &query, limit, start_date, end_date)
+            );
+            (Some(arch?), Some(msgs?))
+        }
+        SearchSource::Archival => {
+            let arch = search_archival_memory(client, &letta_id, &query, limit, start_date, end_date).await?;
+            (Some(arch), None)
+        }
+        SearchSource::Messages => {
+            let msgs = search_messages(client, &letta_id, &query, limit, start_date, end_date).await?;
+            (None, Some(msgs))
+        }
+    };
 
     let archival_count = archival_result.as_ref().map(|r| r.count).unwrap_or(0);
     let messages_count = messages_result.as_ref().map(|r| r.count).unwrap_or(0);

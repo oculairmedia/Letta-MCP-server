@@ -1,4 +1,5 @@
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
+use futures::stream::{self, StreamExt};
 use letta::LettaClient;
 use letta_types::StandardResponse;
 use turbomcp::McpError;
@@ -173,13 +174,16 @@ pub(crate) async fn handle_get_config(
     let agent_id = require_field(request.agent_id, "agent_id is required for get_config operation")?;
     let letta_id = require_id(Some(agent_id), "agent_id")?;
 
-    let agent = client
-        .agents()
-        .get(&letta_id)
-        .await
-        .map_err(|e| sdk_err("get agent", e))?;
+    // Fan-out: get agent + list tools in parallel
+    let agents_api = client.agents();
+    let memory_api = client.memory();
+    let (agent_result, tools_result) = tokio::join!(
+        agents_api.get(&letta_id),
+        memory_api.list_agent_tools(&letta_id)
+    );
 
-    let tools = client.memory().list_agent_tools(&letta_id).await.ok();
+    let agent = agent_result.map_err(|e| sdk_err("get agent", e))?;
+    let tools = tools_result.ok();
 
     Ok(StandardResponse::success(
         "get_config",
@@ -261,20 +265,24 @@ pub(crate) async fn handle_bulk_delete(
         }
     }
 
-    let mut deleted_count = 0;
-    for agent_id in &to_delete {
-        if client.agents().delete(agent_id).await.is_ok() {
-            deleted_count += 1;
-        }
-    }
+    // Concurrent deletes with bounded concurrency
+    let matched = to_delete.len();
+    let results: Vec<bool> = stream::iter(to_delete)
+        .map(|agent_id| async move {
+            client.agents().delete(&agent_id).await.is_ok()
+        })
+        .buffer_unordered(10)
+        .collect()
+        .await;
+    let deleted_count = results.iter().filter(|&&ok| ok).count();
 
     Ok(StandardResponse::success(
         "bulk_delete",
         serde_json::json!({
             "total_scanned": total_scanned,
-            "matched": to_delete.len(),
+            "matched": matched,
             "deleted_count": deleted_count,
-            "failed_count": to_delete.len() - deleted_count,
+            "failed_count": matched - deleted_count,
             "filter_logic": "AND (all provided filters must match)"
         }),
         format!("Deleted {} agents", deleted_count),

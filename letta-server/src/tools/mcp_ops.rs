@@ -13,6 +13,7 @@ use crate::tools::response_utils::ToolResponse;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
+use futures::stream::{self, StreamExt};
 use turbomcp::McpError;
 
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
@@ -599,64 +600,47 @@ async fn handle_attach_mcp_server(
         .with_extra(serde_json::json!({ "server_name": server_name })));
     }
 
-    let mut tools_results = Vec::new();
-    let mut registered_count = 0u32;
-    let mut attached_count = 0u32;
-    let mut failed_count = 0u32;
-
-    for mcp_tool in &mcp_tools {
-        let tool_name = &mcp_tool.name;
-
-        match client.tools().add_mcp_tool(&server_name, tool_name).await {
-            Ok(registered_tool) => {
-                registered_count += 1;
-                let tool_id = registered_tool.id.as_ref().map(|id| id.to_string());
-
-                if let Some(ref tid) = registered_tool.id {
-                    match client
-                        .memory()
-                        .attach_tool_to_agent(&letta_agent_id, tid)
-                        .await
-                    {
-                        Ok(_) => {
-                            attached_count += 1;
-                            tools_results.push(serde_json::json!({
-                                "name": tool_name,
-                                "tool_id": tool_id,
-                                "status": "attached"
-                            }));
-                        }
-                        Err(e) => {
-                            failed_count += 1;
-                            tools_results.push(serde_json::json!({
-                                "name": tool_name,
-                                "tool_id": tool_id,
-                                "status": "register_ok_attach_failed",
-                                "error": e.to_string()
-                            }));
+    // Concurrent register+attach: each tool is independent
+    let tool_names: Vec<String> = mcp_tools.iter().map(|t| t.name.clone()).collect();
+    let tools_results: Vec<serde_json::Value> = stream::iter(tool_names)
+        .map(|tool_name| {
+            let sn = &server_name;
+            let aid = &letta_agent_id;
+            async move {
+                match client.tools().add_mcp_tool(sn, &tool_name).await {
+                    Ok(registered_tool) => {
+                        let tool_id = registered_tool.id.as_ref().map(|id| id.to_string());
+                        if let Some(ref tid) = registered_tool.id {
+                            match client.memory().attach_tool_to_agent(aid, tid).await {
+                                Ok(_) => serde_json::json!({
+                                    "name": tool_name, "tool_id": tool_id, "status": "attached"
+                                }),
+                                Err(e) => serde_json::json!({
+                                    "name": tool_name, "tool_id": tool_id,
+                                    "status": "register_ok_attach_failed", "error": e.to_string()
+                                }),
+                            }
+                        } else {
+                            serde_json::json!({
+                                "name": tool_name, "tool_id": null,
+                                "status": "registered_no_id", "error": "Registered tool has no ID"
+                            })
                         }
                     }
-                } else {
-                    failed_count += 1;
-                    tools_results.push(serde_json::json!({
-                        "name": tool_name,
-                        "tool_id": null,
-                        "status": "registered_no_id",
-                        "error": "Registered tool has no ID"
-                    }));
+                    Err(e) => serde_json::json!({
+                        "name": tool_name, "tool_id": null,
+                        "status": "register_failed", "error": e.to_string()
+                    }),
                 }
             }
-            Err(e) => {
-                failed_count += 1;
-                tools_results.push(serde_json::json!({
-                    "name": tool_name,
-                    "tool_id": null,
-                    "status": "register_failed",
-                    "error": e.to_string()
-                }));
-            }
-        }
-    }
+        })
+        .buffer_unordered(10)  // up to 10 concurrent register+attach ops
+        .collect()
+        .await;
+
+    let registered_count = tools_results.iter().filter(|r| r["status"] != "register_failed").count();
+    let attached_count = tools_results.iter().filter(|r| r["status"] == "attached").count();
+    let failed_count = total_discovered - attached_count;
 
     let message = format!(
         "Attached {} of {} tools from '{}' to agent",
