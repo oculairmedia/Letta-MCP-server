@@ -10,7 +10,7 @@
 // Allow unexpected_cfgs from turbomcp macro expansion
 #![allow(unexpected_cfgs)]
 
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::sync::Arc;
 use turbomcp::prelude::*;
 
@@ -70,18 +70,18 @@ impl LettaServer {
         #[description("Agent name (for create/update operations)")] name: Option<String>,
         #[description("Agent description (for create/update operations)")] description: Option<String>,
         #[description("System prompt (for create/update operations)")] system: Option<String>,
-        #[description("LLM configuration object (for create/update operations)")] llm_config: Option<Value>,
-        #[description("Embedding model configuration object (for create/update operations)")] embedding_config: Option<Value>,
-        #[description("Tool IDs to attach (for create/update operations)")] tool_ids: Option<Value>,
-        #[description("Pagination config {limit, offset} for list operations")] pagination: Option<Value>,
-        #[description("Messages array for send_message, stream, async_message operations")] messages: Option<Value>,
+        #[description("LLM configuration object (for create/update operations)")] llm_config: Option<Map<String, Value>>,
+        #[description("Embedding model configuration object (for create/update operations)")] embedding_config: Option<Map<String, Value>>,
+        #[description("Tool IDs to attach (for create/update operations)")] tool_ids: Option<Vec<Value>>,
+        #[description("Pagination config {limit, offset} for list operations")] pagination: Option<Map<String, Value>>,
+        #[description("Messages array for send_message, stream, async_message operations")] messages: Option<Vec<Value>>,
         #[description("Enable streaming response (for stream operation)")] stream: Option<bool>,
-        #[description("Bulk delete filters {agent_name_filter, agent_tag_filter, agent_ids}")] filters: Option<Value>,
+        #[description("Bulk delete filters {agent_name_filter, agent_tag_filter, agent_ids}")] filters: Option<Map<String, Value>>,
         #[description("Search query string (for search operation)")] query: Option<String>,
         #[description("Tags array for filtering or setting on agents")] tags: Option<Vec<String>>,
-        #[description("Search filters {start_date, end_date, role} for search_messages")] search_filters: Option<Value>,
-        #[description("Full agent export data (for import operation)")] export_data: Option<Value>,
-        #[description("Partial update data object (for update operation)")] update_data: Option<Value>,
+        #[description("Search filters {start_date, end_date, role} for search_messages")] search_filters: Option<Map<String, Value>>,
+        #[description("Full agent export data (for import operation)")] export_data: Option<Map<String, Value>>,
+        #[description("Partial update data object (for update operation)")] update_data: Option<Map<String, Value>>,
         #[description("Conversation ID (for get_conversation, cancel_conversation, compact_conversation)")] conversation_id: Option<String>,
         #[description("Include verbose output in response")] verbose: Option<bool>,
     ) -> McpResult<String> {
@@ -91,19 +91,19 @@ impl LettaServer {
 
         // Parse complex types from Value
         let pagination: Option<letta_types::Pagination> = pagination
-            .map(|v| serde_json::from_value(v))
+            .map(|v| serde_json::from_value(Value::Object(v)))
             .transpose()
             .map_err(|e| McpError::invalid_request(format!("Invalid pagination: {}", e)))?;
         let messages: Option<Vec<letta_types::Message>> = messages
-            .map(|v| serde_json::from_value(v))
+            .map(|v| serde_json::from_value(Value::Array(v)))
             .transpose()
             .map_err(|e| McpError::invalid_request(format!("Invalid messages: {}", e)))?;
         let filters: Option<agent_advanced::BulkDeleteFilters> = filters
-            .map(|v| serde_json::from_value(v))
+            .map(|v| serde_json::from_value(Value::Object(v)))
             .transpose()
             .map_err(|e| McpError::invalid_request(format!("Invalid filters: {}", e)))?;
         let search_filters: Option<agent_advanced::SearchFilters> = search_filters
-            .map(|v| serde_json::from_value(v))
+            .map(|v| serde_json::from_value(Value::Object(v)))
             .transpose()
             .map_err(|e| McpError::invalid_request(format!("Invalid search_filters: {}", e)))?;
 
@@ -114,9 +114,9 @@ impl LettaServer {
             name,
             description,
             system,
-            llm_config,
-            embedding_config,
-            tool_ids,
+            llm_config: llm_config.map(Value::Object),
+            embedding_config: embedding_config.map(Value::Object),
+            tool_ids: tool_ids.map(Value::Array),
             pagination,
             messages,
             stream,
@@ -124,8 +124,8 @@ impl LettaServer {
             query,
             tags,
             search_filters,
-            export_data,
-            update_data,
+            export_data: export_data.map(Value::Object),
+            update_data: update_data.map(Value::Object),
             conversation_id,
             verbose,
         };
@@ -221,10 +221,10 @@ impl LettaServer {
         #[description("Source type identifier")] source_type: Option<String>,
         #[description("Tags array for filtering or categorizing tools")] tags: Option<Vec<String>>,
         #[description("Tool description (for create, generate_from_prompt)")] description: Option<String>,
-        #[description("JSON Schema object for the tool")] json_schema: Option<Value>,
-        #[description("JSON Schema for tool arguments")] args_json_schema: Option<Value>,
+        #[description("JSON Schema object for the tool")] json_schema: Option<Map<String, Value>>,
+        #[description("JSON Schema for tool arguments")] args_json_schema: Option<Map<String, Value>>,
         #[description("Maximum character limit for tool return values")] return_char_limit: Option<u32>,
-        #[description("Arguments to pass when running tool (for run_from_source)")] tool_args: Option<Value>,
+        #[description("Arguments to pass when running tool (for run_from_source)")] tool_args: Option<Map<String, Value>>,
         #[description("Environment variables map for tool execution")] env_vars: Option<std::collections::HashMap<String, String>>,
         #[description("Tool name (for create, upsert)")] name: Option<String>,
         #[description("Include verbose output in response")] verbose: Option<bool>,
@@ -243,10 +243,10 @@ impl LettaServer {
             source_type,
             tags,
             description,
-            json_schema,
-            args_json_schema,
+            json_schema: json_schema.map(Value::Object),
+            args_json_schema: args_json_schema.map(Value::Object),
             return_char_limit,
-            args: tool_args,
+            args: tool_args.map(Value::Object),
             env_vars,
             name,
             request_heartbeat: None,
@@ -403,12 +403,12 @@ impl LettaServer {
         #[description("The operation to perform (add, update, delete, test, connect, resync, list_servers, list_tools, register_tool, execute, attach_mcp_server)")] operation: String,
         #[description("MCP server display name (for add operation)")] server_name: Option<String>,
         #[description("MCP server ID (required for update, delete, test, connect, resync, list_tools, register_tool)")] mcp_server_id: Option<String>,
-        #[description("MCP server configuration object (for add, update operations)")] server_config: Option<Value>,
+        #[description("MCP server configuration object (for add, update operations)")] server_config: Option<Map<String, Value>>,
         #[description("Tool name to register (for register_tool operation)")] tool_name: Option<String>,
         #[description("Tool ID (for execute operation)")] tool_id: Option<String>,
-        #[description("Arguments to pass to the tool (for execute operation)")] tool_args: Option<Value>,
-        #[description("OAuth configuration object for authenticated MCP servers")] oauth_config: Option<Value>,
-        #[description("Pagination config {limit, offset} for list_servers")] pagination: Option<Value>,
+        #[description("Arguments to pass to the tool (for execute operation)")] tool_args: Option<Map<String, Value>>,
+        #[description("OAuth configuration object for authenticated MCP servers")] oauth_config: Option<Map<String, Value>>,
+        #[description("Pagination config {limit, offset} for list_servers")] pagination: Option<Map<String, Value>>,
         #[description("Agent ID (for attach_mcp_server operation)")] agent_id: Option<String>,
     ) -> McpResult<String> {
         // Parse operation from string
@@ -420,12 +420,12 @@ impl LettaServer {
             operation: op,
             server_name,
             mcp_server_id,
-            server_config,
+            server_config: server_config.map(Value::Object),
             tool_name,
             tool_id,
-            tool_args,
-            oauth_config,
-            pagination,
+            tool_args: tool_args.map(Value::Object),
+            oauth_config: oauth_config.map(Value::Object),
+            pagination: pagination.map(Value::Object),
             request_heartbeat: None,
             agent_id,
             verbose: None,

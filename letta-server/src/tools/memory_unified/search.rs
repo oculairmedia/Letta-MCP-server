@@ -145,7 +145,6 @@ async fn search_messages(
             .map_err(|e| sdk_err("list messages", e))?;
 
         if messages.is_empty() {
-            has_more = false;
             break;
         }
 
