@@ -13,7 +13,6 @@ use letta_types::{Message, Pagination};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use turbomcp::McpError;
-use turbomcp_macros::FlattenTool;
 
 // ===================================================
 // Shared Types
@@ -87,7 +86,7 @@ impl AgentSummary {
 }
 
 /// Bulk delete filters
-#[derive(Debug, Deserialize, schemars::JsonSchema, FlattenTool)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct BulkDeleteFilters {
     /// Filter agents by name pattern
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -103,7 +102,7 @@ pub struct BulkDeleteFilters {
 }
 
 /// Search filters for messages
-#[derive(Debug, Deserialize, schemars::JsonSchema, FlattenTool)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct SearchFilters {
     /// Filter messages after this date (ISO 8601 format)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -119,7 +118,7 @@ pub struct SearchFilters {
 }
 
 /// Agent advanced request - all parameters are optional except operation
-#[derive(Debug, Deserialize, schemars::JsonSchema, FlattenTool)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct AgentAdvancedRequest {
     /// The operation to perform (list, create, get, update, delete, send_message, etc.)
     #[schemars(schema_with = "operation_schema")]
