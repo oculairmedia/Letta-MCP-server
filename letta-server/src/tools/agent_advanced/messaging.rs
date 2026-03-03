@@ -3,7 +3,7 @@ use letta::LettaClient;
 use letta_types::StandardResponse;
 use turbomcp::McpError;
 
-use super::{truncate_text, AgentAdvancedRequest};
+use super::{AgentAdvancedRequest, truncate_text};
 
 pub(crate) async fn handle_send_message(
     client: &LettaClient,

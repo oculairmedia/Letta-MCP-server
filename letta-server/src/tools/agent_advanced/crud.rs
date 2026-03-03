@@ -14,7 +14,7 @@ pub(crate) async fn handle_list_agents(
     let (limit, offset) = paginate(
         pagination.limit.map(|l| l as usize),
         pagination.offset.map(|o| o as usize),
-        15,  // agent lists default smaller
+        15, // agent lists default smaller
         50,
     );
 
@@ -26,18 +26,13 @@ pub(crate) async fn handle_list_agents(
     // Fan-out: list + count in parallel
     let agents_api = client.agents();
     let count_api = client.agents();
-    let (agents_result, count_result) = tokio::join!(
-        agents_api.list(Some(params)),
-        count_api.count()
-    );
+    let (agents_result, count_result) =
+        tokio::join!(agents_api.list(Some(params)), count_api.count());
 
     let agents = agents_result.map_err(|e| sdk_err("list agents", e))?;
     let total = count_result.unwrap_or(agents.len() as u32);
 
-    let agent_summaries: Vec<AgentSummary> = agents
-        .iter()
-        .map(AgentSummary::from_agent)
-        .collect();
+    let agent_summaries: Vec<AgentSummary> = agents.iter().map(AgentSummary::from_agent).collect();
 
     let returned = agent_summaries.len() as u32;
     let has_more = total > (offset as u32 + returned);
@@ -100,10 +95,7 @@ pub(crate) async fn handle_search_agents(
     }
     let criteria_str = criteria.join(", ");
 
-    let agent_summaries: Vec<AgentSummary> = agents
-        .iter()
-        .map(AgentSummary::from_agent)
-        .collect();
+    let agent_summaries: Vec<AgentSummary> = agents.iter().map(AgentSummary::from_agent).collect();
 
     let count = agent_summaries.len();
 
@@ -225,7 +217,10 @@ pub(crate) async fn handle_get_agent(
     let tool_count = tool_ids.len();
 
     let model = agent.llm_config.as_ref().map(|c| c.model.clone());
-    let embedding_model = agent.embedding_config.as_ref().and_then(|c| c.embedding_model.clone());
+    let embedding_model = agent
+        .embedding_config
+        .as_ref()
+        .and_then(|c| c.embedding_model.clone());
 
     let memory_block_labels: Vec<String> = agent
         .memory
@@ -263,7 +258,10 @@ pub(crate) async fn handle_update_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = require_field(request.agent_id, "agent_id is required for update operation")?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for update operation",
+    )?;
     let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let mut update_request = letta::types::UpdateAgentRequest::default();
@@ -271,10 +269,8 @@ pub(crate) async fn handle_update_agent(
     // Two modes: flat fields (name, system, etc.) or update_data object.
     // Flat fields override update_data when both are provided.
     if let Some(update_data) = request.update_data {
-        let parsed: letta::types::UpdateAgentRequest =
-            serde_json::from_value(update_data).map_err(|e| {
-                McpError::invalid_request(format!("Invalid update_data: {}", e))
-            })?;
+        let parsed: letta::types::UpdateAgentRequest = serde_json::from_value(update_data)
+            .map_err(|e| McpError::invalid_request(format!("Invalid update_data: {}", e)))?;
         update_request = parsed;
     }
     if let Some(name) = request.name {
@@ -290,10 +286,8 @@ pub(crate) async fn handle_update_agent(
         update_request.tags = Some(tags);
     }
     if let Some(llm_config_value) = request.llm_config {
-        let llm_config: letta::types::LLMConfig =
-            serde_json::from_value(llm_config_value).map_err(|e| {
-                McpError::invalid_request(format!("Invalid llm_config: {}", e))
-            })?;
+        let llm_config: letta::types::LLMConfig = serde_json::from_value(llm_config_value)
+            .map_err(|e| McpError::invalid_request(format!("Invalid llm_config: {}", e)))?;
         update_request.llm_config = Some(llm_config);
     }
     if let Some(embedding_config_value) = request.embedding_config {
@@ -337,7 +331,10 @@ pub(crate) async fn handle_delete_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = require_field(request.agent_id, "agent_id is required for delete operation")?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for delete operation",
+    )?;
     let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     client

@@ -2,10 +2,12 @@
 //!
 //! Tests that file/folder operations properly limit and paginate responses
 //! Validates requirements from LMS-54
+//!
+//! Note: FileFolderResponse was replaced by the unified ToolResponse struct
+//! (see response_utils.rs). These tests validate the public types that remain:
+//! FileFolderRequest, FileMetadata, FolderMetadata.
 
-use letta_server::tools::file_folder_ops::{
-    FileFolderRequest, FileFolderResponse, FileMetadata, FolderMetadata,
-};
+use letta_server::tools::file_folder_ops::{FileFolderRequest, FileMetadata, FolderMetadata};
 
 #[test]
 fn test_file_metadata_excludes_content() {
@@ -27,313 +29,67 @@ fn test_file_metadata_excludes_content() {
 }
 
 #[test]
-fn test_list_files_response_structure() {
-    // Test that list_files response has proper pagination metadata
-    let response = FileFolderResponse {
-        success: true,
-        operation: "list_files".to_string(),
-        message: "Returned 25 of 100 files".to_string(),
-        agent_id: Some("agent-123".to_string()),
-        total: Some(100),
-        returned: Some(25),
-        offset: Some(0),
-        hints: Some(vec![
-            "File content is NEVER included in list operations".to_string(),
-            "More files available. Use offset=25 to see next page".to_string(),
-        ]),
-        files: Some(vec![]),
-        file_id: None,
-        folder_id: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
+fn test_file_metadata_skips_none_fields() {
+    // Verify serde skip_serializing_if works for optional fields
+    let file_meta = FileMetadata {
+        id: "file-456".to_string(),
+        filename: "minimal.txt".to_string(),
+        size: None,
+        mime_type: None,
+        is_open: None,
+        opened_at: None,
     };
 
-    assert_eq!(response.total, Some(100));
-    assert_eq!(response.returned, Some(25));
-    assert!(response.hints.is_some());
-    assert!(response.file_content.is_none());
+    let json = serde_json::to_value(&file_meta).unwrap();
+    // Required fields always present
+    assert!(json.get("id").is_some());
+    assert!(json.get("filename").is_some());
+    // Optional None fields should be omitted
+    assert!(json.get("size").is_none());
+    assert!(json.get("mime_type").is_none());
+    assert!(json.get("is_open").is_none());
+    assert!(json.get("opened_at").is_none());
 }
 
 #[test]
-fn test_list_folders_response_structure() {
-    // Test that list_folders response has proper pagination
-    let response = FileFolderResponse {
-        success: true,
-        operation: "list_folders".to_string(),
-        message: "Returned 20 of 50 folders".to_string(),
-        total: Some(50),
-        returned: Some(20),
-        offset: Some(0),
-        hints: Some(vec![
-            "More folders available. Use offset=20 to see next page".to_string(),
-        ]),
-        folders: Some(vec![]),
-        agent_id: None,
-        file_id: None,
-        folder_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
+fn test_folder_metadata_structure() {
+    let folder = FolderMetadata {
+        id: "folder-123".to_string(),
+        name: "Test Folder".to_string(),
+        description: Some("A test folder".to_string()),
+        file_count: Some(50),
+        agent_count: Some(10),
     };
 
-    assert_eq!(response.total, Some(50));
-    assert_eq!(response.returned, Some(20));
-    assert!(response.hints.is_some());
+    let json = serde_json::to_value(&folder).unwrap();
+    assert_eq!(json.get("id").unwrap().as_str().unwrap(), "folder-123");
+    assert_eq!(json.get("name").unwrap().as_str().unwrap(), "Test Folder");
+    assert_eq!(json.get("file_count").unwrap().as_i64().unwrap(), 50);
+    assert_eq!(json.get("agent_count").unwrap().as_i64().unwrap(), 10);
 }
 
 #[test]
-fn test_open_file_minimal_response() {
-    // Test that open_file returns minimal confirmation
-    let response = FileFolderResponse {
-        success: true,
-        operation: "open_file".to_string(),
-        message: "File opened successfully".to_string(),
-        agent_id: Some("agent-123".to_string()),
-        file_id: Some("file-456".to_string()),
-        opened: Some(true),
-        evicted_files: Some(vec![]),
-        hints: Some(vec![
-            "File marked as open in agent context. Content retrieval requires separate API call."
-                .to_string(),
-        ]),
-        folder_id: None,
-        files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        total: None,
-        returned: None,
-        offset: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
+fn test_folder_metadata_skips_none_fields() {
+    let folder = FolderMetadata {
+        id: "folder-456".to_string(),
+        name: "Minimal Folder".to_string(),
+        description: None,
+        file_count: None,
+        agent_count: None,
     };
 
-    assert_eq!(response.opened, Some(true));
-    assert!(response.file_content.is_none());
-    assert!(response.agent_state.is_none());
+    let json = serde_json::to_value(&folder).unwrap();
+    assert!(json.get("id").is_some());
+    assert!(json.get("name").is_some());
+    assert!(json.get("description").is_none());
+    assert!(json.get("file_count").is_none());
+    assert!(json.get("agent_count").is_none());
 }
 
 #[test]
-fn test_close_file_minimal_response() {
-    // Test that close_file returns minimal confirmation
-    let response = FileFolderResponse {
-        success: true,
-        operation: "close_file".to_string(),
-        message: "File closed successfully".to_string(),
-        agent_id: Some("agent-123".to_string()),
-        file_id: Some("file-456".to_string()),
-        closed: Some(true),
-        folder_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        total: None,
-        returned: None,
-        offset: None,
-        hints: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    };
-
-    assert_eq!(response.closed, Some(true));
-    assert!(response.files.is_none());
-    assert!(response.agent_state.is_none());
-}
-
-#[test]
-fn test_close_all_files_minimal_response() {
-    // Test that close_all_files returns minimal info
-    let response = FileFolderResponse {
-        success: true,
-        operation: "close_all_files".to_string(),
-        message: "Closed 5 files".to_string(),
-        agent_id: Some("agent-123".to_string()),
-        closed_count: Some(5),
-        closed_files: Some(vec![
-            "file-1".to_string(),
-            "file-2".to_string(),
-            "file-3".to_string(),
-            "file-4".to_string(),
-            "file-5".to_string(),
-        ]),
-        file_id: None,
-        folder_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        folders: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        total: None,
-        returned: None,
-        offset: None,
-        hints: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    };
-
-    assert_eq!(response.closed_count, Some(5));
-    assert!(response.closed_files.is_some());
-    assert_eq!(response.closed_files.unwrap().len(), 5);
-}
-
-#[test]
-fn test_list_agents_in_folder_minimal_response() {
-    // Test that list_agents_in_folder returns IDs only
-    let response = FileFolderResponse {
-        success: true,
-        operation: "list_agents_in_folder".to_string(),
-        message: "Found 3 agents in folder".to_string(),
-        folder_id: Some("folder-789".to_string()),
-        agent_ids: Some(vec![
-            "agent-1".to_string(),
-            "agent-2".to_string(),
-            "agent-3".to_string(),
-        ]),
-        agents: Some(vec![]),
-        agent_id: None,
-        file_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        total: None,
-        returned: None,
-        offset: None,
-        hints: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    };
-
-    assert!(response.agent_ids.is_some());
-    assert_eq!(response.agent_ids.unwrap().len(), 3);
-    // Should not include full agent objects with names, configs, etc.
-}
-
-#[test]
-fn test_attach_folder_excludes_agent_state() {
-    // Test that attach_folder doesn't return full agent state
-    let response = FileFolderResponse {
-        success: true,
-        operation: "attach_folder".to_string(),
-        message: "Folder attached to agent successfully".to_string(),
-        agent_id: Some("agent-123".to_string()),
-        folder_id: Some("folder-456".to_string()),
-        attached: Some(true),
-        file_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        detached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        total: None,
-        returned: None,
-        offset: None,
-        hints: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    };
-
-    assert_eq!(response.attached, Some(true));
-    assert!(response.agent_state.is_none());
-}
-
-#[test]
-fn test_detach_folder_excludes_agent_state() {
-    // Test that detach_folder doesn't return full agent state
-    let response = FileFolderResponse {
-        success: true,
-        operation: "detach_folder".to_string(),
-        message: "Folder detached from agent successfully".to_string(),
-        agent_id: Some("agent-123".to_string()),
-        folder_id: Some("folder-456".to_string()),
-        detached: Some(true),
-        file_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        attached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        total: None,
-        returned: None,
-        offset: None,
-        hints: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    };
-
-    assert_eq!(response.detached, Some(true));
-    assert!(response.agent_state.is_none());
-}
-
-#[test]
-fn test_folder_metadata_truncates_description() {
-    // Test that folder descriptions are truncated
+fn test_folder_metadata_long_description() {
+    // Test that folder descriptions can hold long strings
+    // (truncation happens in handle_list_folders, not in the struct)
     let long_desc = "a".repeat(200);
     let folder = FolderMetadata {
         id: "folder-123".to_string(),
@@ -343,9 +99,8 @@ fn test_folder_metadata_truncates_description() {
         agent_count: Some(10),
     };
 
-    // In actual implementation, truncation happens in handle_list_folders
-    // This test just validates the struct can hold the data
     assert!(folder.description.is_some());
+    assert_eq!(folder.description.unwrap().len(), 200);
 }
 
 #[test]
@@ -365,4 +120,45 @@ fn test_file_folder_request_defaults() {
     assert_eq!(request.operation, "list_files");
     assert!(request.limit.is_none());
     assert!(request.offset.is_none());
+}
+
+#[test]
+fn test_file_folder_request_with_pagination() {
+    // Test request with pagination parameters
+    let request = FileFolderRequest {
+        operation: "list_folders".to_string(),
+        agent_id: None,
+        file_id: None,
+        folder_id: None,
+        limit: Some(25),
+        offset: Some(50),
+        request_heartbeat: None,
+        verbose: None,
+    };
+
+    assert_eq!(request.limit, Some(25));
+    assert_eq!(request.offset, Some(50));
+}
+
+#[test]
+fn test_file_folder_request_json_roundtrip() {
+    // Test serialization/deserialization roundtrip
+    let request = FileFolderRequest {
+        operation: "open_file".to_string(),
+        agent_id: Some("agent-123".to_string()),
+        file_id: Some("file-456".to_string()),
+        folder_id: None,
+        limit: None,
+        offset: None,
+        request_heartbeat: None,
+        verbose: None,
+    };
+
+    let json = serde_json::to_string(&request).unwrap();
+    let parsed: FileFolderRequest = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.operation, "open_file");
+    assert_eq!(parsed.agent_id, Some("agent-123".to_string()));
+    assert_eq!(parsed.file_id, Some("file-456".to_string()));
+    // None fields should not appear in JSON
+    assert!(!json.contains("folder_id"));
 }

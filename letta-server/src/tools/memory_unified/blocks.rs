@@ -1,9 +1,9 @@
-use crate::tools::memory_utils::{truncate_block_value, BlockSummary};
+use crate::tools::memory_utils::{BlockSummary, truncate_block_value};
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use turbomcp::McpError;
 
-use super::{MemoryUnifiedRequest};
+use super::MemoryUnifiedRequest;
 use crate::tools::response_utils::ToolResponse;
 
 const BLOCK_VALUE_TRUNCATE_LEN: usize = 500;
@@ -12,9 +12,14 @@ pub(crate) async fn handle_get_block_by_label(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
 ) -> Result<ToolResponse, McpError> {
-    let agent_id = require_field(request.agent_id, "agent_id is required for get_block_by_label")?;
-    let block_label =
-        require_field(request.block_label, "block_label is required for get_block_by_label")?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for get_block_by_label",
+    )?;
+    let block_label = require_field(
+        request.block_label,
+        "block_label is required for get_block_by_label",
+    )?;
     let verbose = request.verbose.unwrap_or(false);
     let letta_id = require_id(Some(agent_id.clone()), "agent_id")?;
 
@@ -29,9 +34,12 @@ pub(crate) async fn handle_get_block_by_label(
         truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
     }
 
-    Ok(ToolResponse::success("get_block_by_label", format!("Block '{}' retrieved successfully", block_label))
-        .with_json_data(block_value)
-        .with_extra(serde_json::json!({ "agent_id": agent_id })))
+    Ok(ToolResponse::success(
+        "get_block_by_label",
+        format!("Block '{}' retrieved successfully", block_label),
+    )
+    .with_json_data(block_value)
+    .with_extra(serde_json::json!({ "agent_id": agent_id })))
 }
 
 pub(crate) async fn handle_list_blocks(
@@ -61,16 +69,23 @@ pub(crate) async fn handle_list_blocks(
         serde_json::to_value(&summaries)?
     };
 
-    Ok(ToolResponse::success("list_blocks", format!(
+    Ok(ToolResponse::success(
+        "list_blocks",
+        format!(
             "Found {} blocks{}",
             count,
-            if verbose { "" } else { " (compact, use verbose=true for full values)" }
-        ))
-        .with_count(count)
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "blocks": blocks_data,
-        })))
+            if verbose {
+                ""
+            } else {
+                " (compact, use verbose=true for full values)"
+            }
+        ),
+    )
+    .with_count(count)
+    .with_extra(serde_json::json!({
+        "agent_id": agent_id,
+        "blocks": blocks_data,
+    })))
 }
 
 pub(crate) async fn handle_create_block(
@@ -105,9 +120,11 @@ pub(crate) async fn handle_create_block(
         truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
     }
 
-    Ok(ToolResponse::success("create_block", "Block created successfully")
-        .with_json_data(block_value)
-        .with_extra(serde_json::json!({ "block_id": block_id })))
+    Ok(
+        ToolResponse::success("create_block", "Block created successfully")
+            .with_json_data(block_value)
+            .with_extra(serde_json::json!({ "block_id": block_id })),
+    )
 }
 
 pub(crate) async fn handle_get_block(
@@ -129,9 +146,11 @@ pub(crate) async fn handle_get_block(
         truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
     }
 
-    Ok(ToolResponse::success("get_block", "Block retrieved successfully")
-        .with_json_data(block_value)
-        .with_extra(serde_json::json!({ "block_id": block_id })))
+    Ok(
+        ToolResponse::success("get_block", "Block retrieved successfully")
+            .with_json_data(block_value)
+            .with_extra(serde_json::json!({ "block_id": block_id })),
+    )
 }
 
 pub(crate) async fn handle_update_block(
@@ -165,9 +184,11 @@ pub(crate) async fn handle_update_block(
         truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
     }
 
-    Ok(ToolResponse::success("update_block", "Block updated successfully")
-        .with_json_data(block_value)
-        .with_extra(serde_json::json!({ "block_id": block_id })))
+    Ok(
+        ToolResponse::success("update_block", "Block updated successfully")
+            .with_json_data(block_value)
+            .with_extra(serde_json::json!({ "block_id": block_id })),
+    )
 }
 
 pub(crate) async fn handle_attach_block(
@@ -185,12 +206,14 @@ pub(crate) async fn handle_attach_block(
         .await
         .map_err(|e| sdk_err("attach block", e))?;
 
-    Ok(ToolResponse::success("attach_block", "Block attached to agent successfully")
-        .with_json_data(serde_json::json!({
-            "attached": true,
-            "hint": "Use get_core_memory to see updated blocks"
-        }))
-        .with_extra(serde_json::json!({ "agent_id": agent_id, "block_id": block_id })))
+    Ok(
+        ToolResponse::success("attach_block", "Block attached to agent successfully")
+            .with_json_data(serde_json::json!({
+                "attached": true,
+                "hint": "Use get_core_memory to see updated blocks"
+            }))
+            .with_extra(serde_json::json!({ "agent_id": agent_id, "block_id": block_id })),
+    )
 }
 
 pub(crate) async fn handle_detach_block(
@@ -208,12 +231,14 @@ pub(crate) async fn handle_detach_block(
         .await
         .map_err(|e| sdk_err("detach block", e))?;
 
-    Ok(ToolResponse::success("detach_block", "Block detached from agent successfully")
-        .with_json_data(serde_json::json!({
-            "detached": true,
-            "hint": "Use get_core_memory to see updated blocks"
-        }))
-        .with_extra(serde_json::json!({ "agent_id": agent_id, "block_id": block_id })))
+    Ok(
+        ToolResponse::success("detach_block", "Block detached from agent successfully")
+            .with_json_data(serde_json::json!({
+                "detached": true,
+                "hint": "Use get_core_memory to see updated blocks"
+            }))
+            .with_extra(serde_json::json!({ "agent_id": agent_id, "block_id": block_id })),
+    )
 }
 
 pub(crate) async fn handle_list_agents_using_block(
@@ -226,9 +251,7 @@ pub(crate) async fn handle_list_agents_using_block(
     )?;
     let letta_block_id = require_id(Some(block_id.clone()), "block_id")?;
 
-    let limit = request
-        .limit
-        .and_then(|l| u32::try_from(l).ok());
+    let limit = request.limit.and_then(|l| u32::try_from(l).ok());
 
     let agents = client
         .blocks()
@@ -256,8 +279,11 @@ pub(crate) async fn handle_list_agents_using_block(
         serde_json::to_value(&summaries)?
     };
 
-    Ok(ToolResponse::success("list_agents_using_block", format!("Found {} agents using block {}", count, block_id))
-        .with_json_data(agents_data)
-        .with_count(count)
-        .with_extra(serde_json::json!({ "block_id": block_id })))
+    Ok(ToolResponse::success(
+        "list_agents_using_block",
+        format!("Found {} agents using block {}", count, block_id),
+    )
+    .with_json_data(agents_data)
+    .with_count(count)
+    .with_extra(serde_json::json!({ "block_id": block_id })))
 }

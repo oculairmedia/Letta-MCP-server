@@ -127,10 +127,12 @@ fn test_job_summary_optional_fields() {
     });
 
     assert!(!summary.as_object().unwrap().contains_key("completed_at"));
-    assert!(!summary
-        .as_object()
-        .unwrap()
-        .contains_key("progress_percent"));
+    assert!(
+        !summary
+            .as_object()
+            .unwrap()
+            .contains_key("progress_percent")
+    );
 }
 
 #[test]
@@ -490,10 +492,12 @@ mod truncation {
         });
 
         assert_eq!(not_truncated["truncated"], false);
-        assert!(!not_truncated
-            .as_object()
-            .unwrap()
-            .contains_key("original_length"));
+        assert!(
+            !not_truncated
+                .as_object()
+                .unwrap()
+                .contains_key("original_length")
+        );
     }
 }
 
@@ -575,10 +579,12 @@ mod progress {
             "status": "pending"
         });
 
-        assert!(!summary
-            .as_object()
-            .unwrap()
-            .contains_key("progress_percent"));
+        assert!(
+            !summary
+                .as_object()
+                .unwrap()
+                .contains_key("progress_percent")
+        );
     }
 }
 

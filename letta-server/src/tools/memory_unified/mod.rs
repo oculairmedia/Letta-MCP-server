@@ -4,13 +4,13 @@ mod core;
 mod passages;
 mod search;
 
+use crate::tools::response_utils::ToolResponse;
 use chrono::{DateTime, Utc};
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
 use turbomcp::McpError;
-use crate::tools::response_utils::ToolResponse;
 
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -118,7 +118,6 @@ pub struct MemoryUnifiedRequest {
     pub verbose: Option<bool>,
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct ArchivalSearchResult {
     pub passages: Vec<Value>,
@@ -149,9 +148,7 @@ pub async fn handle_memory_unified(
     match request.operation {
         // Core
         MemoryOperation::GetCoreMemory => core::handle_get_core_memory(client, request).await,
-        MemoryOperation::UpdateCoreMemory => {
-            core::handle_update_core_memory(client, request).await
-        }
+        MemoryOperation::UpdateCoreMemory => core::handle_update_core_memory(client, request).await,
         // Blocks
         MemoryOperation::GetBlockByLabel => {
             blocks::handle_get_block_by_label(client, request).await
@@ -166,9 +163,7 @@ pub async fn handle_memory_unified(
             blocks::handle_list_agents_using_block(client, request).await
         }
         // Passages
-        MemoryOperation::SearchArchival => {
-            passages::handle_search_archival(client, request).await
-        }
+        MemoryOperation::SearchArchival => passages::handle_search_archival(client, request).await,
         MemoryOperation::ListPassages => passages::handle_list_passages(client, request).await,
         MemoryOperation::CreatePassage => passages::handle_create_passage(client, request).await,
         MemoryOperation::UpdatePassage => passages::handle_update_passage(client, request).await,

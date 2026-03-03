@@ -2,9 +2,9 @@
 //!
 //! Consolidated tool for job monitoring operations with response size optimizations.
 
-use letta::LettaClient;
 use crate::tools::response_utils::ToolResponse;
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
+use letta::LettaClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -36,7 +36,6 @@ pub struct JobMonitorRequest {
     #[serde(default)]
     pub verbose: Option<bool>,
 }
-
 
 /// Simplified job summary for list operations
 #[derive(Debug, Serialize)]
@@ -134,13 +133,15 @@ async fn handle_list_jobs(
 
     let returned = summaries.len();
 
-    Ok(ToolResponse::success("list", format!("Returned {} jobs", returned))
-        .with_json_data(serde_json::to_value(&summaries)?)
-        .with_count(returned)
-        .with_extra(serde_json::json!({
-            "returned": returned,
-            "hints": vec!["Use 'get' operation with job_id for full details"]
-        })))
+    Ok(
+        ToolResponse::success("list", format!("Returned {} jobs", returned))
+            .with_json_data(serde_json::to_value(&summaries)?)
+            .with_count(returned)
+            .with_extra(serde_json::json!({
+                "returned": returned,
+                "hints": vec!["Use 'get' operation with job_id for full details"]
+            })),
+    )
 }
 
 async fn handle_get_job(
@@ -236,8 +237,10 @@ async fn handle_cancel_job(
         ),
     };
 
-    Ok(ToolResponse::success("cancel", cancel_response.message.clone())
-        .with_json_data(serde_json::to_value(cancel_response)?))
+    Ok(
+        ToolResponse::success("cancel", cancel_response.message.clone())
+            .with_json_data(serde_json::to_value(cancel_response)?),
+    )
 }
 
 async fn handle_list_active_jobs(
@@ -273,16 +276,18 @@ async fn handle_list_active_jobs(
 
     let returned = summaries.len();
 
-    Ok(ToolResponse::success("list_active", format!("Found {} active jobs", returned))
-        .with_json_data(serde_json::to_value(&summaries)?)
-        .with_count(returned)
-        .with_extra(serde_json::json!({
-            "returned": returned,
-            "hints": [
-                "Active jobs are those with status 'pending' or 'running'",
-                "Use 'get' operation with job_id for full details"
-            ]
-        })))
+    Ok(
+        ToolResponse::success("list_active", format!("Found {} active jobs", returned))
+            .with_json_data(serde_json::to_value(&summaries)?)
+            .with_count(returned)
+            .with_extra(serde_json::json!({
+                "returned": returned,
+                "hints": [
+                    "Active jobs are those with status 'pending' or 'running'",
+                    "Use 'get' operation with job_id for full details"
+                ]
+            })),
+    )
 }
 
 /// Truncate a JSON field if it exceeds max_length when serialized

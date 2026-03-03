@@ -3,7 +3,7 @@ use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use turbomcp::McpError;
 
-use super::{MemoryUnifiedRequest};
+use super::MemoryUnifiedRequest;
 use crate::tools::response_utils::ToolResponse;
 
 pub(crate) async fn handle_get_core_memory(
@@ -21,9 +21,12 @@ pub(crate) async fn handle_get_core_memory(
         .map_err(|e| sdk_err("get core memory", e))?;
 
     if verbose {
-        return Ok(ToolResponse::success("get_core_memory", "Core memory retrieved successfully (verbose)")
-            .with_json_data(serde_json::to_value(memory)?)
-            .with_extra(serde_json::json!({ "agent_id": agent_id })));
+        return Ok(ToolResponse::success(
+            "get_core_memory",
+            "Core memory retrieved successfully (verbose)",
+        )
+        .with_json_data(serde_json::to_value(memory)?)
+        .with_extra(serde_json::json!({ "agent_id": agent_id })));
     }
 
     // Compact mode: return block summaries with value previews
@@ -31,34 +34,37 @@ pub(crate) async fn handle_get_core_memory(
     let block_summaries: Vec<BlockSummary> = memory_value
         .get("blocks")
         .and_then(|b| b.as_array())
-        .map(|blocks| {
-            blocks
-                .iter()
-                .map(BlockSummary::from_block_value)
-                .collect()
-        })
+        .map(|blocks| blocks.iter().map(BlockSummary::from_block_value).collect())
         .unwrap_or_default();
 
     let count = block_summaries.len();
 
-    Ok(ToolResponse::success("get_core_memory", format!(
+    Ok(ToolResponse::success(
+        "get_core_memory",
+        format!(
             "Core memory: {} blocks (compact mode, use verbose=true for full values)",
             count
-        ))
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "core_memory": serde_json::to_value(&block_summaries)?,
-        }))
-        .with_count(count))
+        ),
+    )
+    .with_extra(serde_json::json!({
+        "agent_id": agent_id,
+        "core_memory": serde_json::to_value(&block_summaries)?,
+    }))
+    .with_count(count))
 }
 
 pub(crate) async fn handle_update_core_memory(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
 ) -> Result<ToolResponse, McpError> {
-    let agent_id = require_field(request.agent_id, "agent_id is required for update_core_memory")?;
-    let block_label =
-        require_field(request.block_label, "block_label is required for update_core_memory")?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for update_core_memory",
+    )?;
+    let block_label = require_field(
+        request.block_label,
+        "block_label is required for update_core_memory",
+    )?;
     let value = require_field(request.value, "value is required for update_core_memory")?;
     let verbose = request.verbose.unwrap_or(false);
     let letta_id = require_id(Some(agent_id.clone()), "agent_id")?;
@@ -85,7 +91,10 @@ pub(crate) async fn handle_update_core_memory(
         crate::tools::memory_utils::truncate_block_value(&mut block_value, 200);
     }
 
-    Ok(ToolResponse::success("update_core_memory", format!("Core memory block '{}' updated successfully", block_label))
-        .with_json_data(block_value)
-        .with_extra(serde_json::json!({ "agent_id": agent_id })))
+    Ok(ToolResponse::success(
+        "update_core_memory",
+        format!("Core memory block '{}' updated successfully", block_label),
+    )
+    .with_json_data(block_value)
+    .with_extra(serde_json::json!({ "agent_id": agent_id })))
 }

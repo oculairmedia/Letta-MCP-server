@@ -186,10 +186,7 @@ impl<'a> RunApi<'a> {
 
                         Some(parsed)
                     }
-                    Err(e) => Some(Err(LettaError::config(format!(
-                        "Run stream error: {}",
-                        e
-                    )))),
+                    Err(e) => Some(Err(LettaError::config(format!("Run stream error: {}", e)))),
                 }
             });
 
