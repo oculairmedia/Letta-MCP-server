@@ -1,13 +1,12 @@
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use chrono::{DateTime, Utc};
-use letta::types::{LettaMessageUnion, ListMessagesRequest};
 use letta::LettaClient;
+use letta::types::{LettaMessageUnion, ListMessagesRequest};
 use serde_json::Value;
 use turbomcp::McpError;
 
 use super::{
-    ArchivalSearchResult, MemoryUnifiedRequest, MessageMatch,
-    MessageSearchResult, SearchSource,
+    ArchivalSearchResult, MemoryUnifiedRequest, MessageMatch, MessageSearchResult, SearchSource,
 };
 use crate::tools::response_utils::ToolResponse;
 
@@ -34,11 +33,14 @@ pub(crate) async fn handle_search_memory(
             (Some(arch?), Some(msgs?))
         }
         SearchSource::Archival => {
-            let arch = search_archival_memory(client, &letta_id, &query, limit, start_date, end_date).await?;
+            let arch =
+                search_archival_memory(client, &letta_id, &query, limit, start_date, end_date)
+                    .await?;
             (Some(arch), None)
         }
         SearchSource::Messages => {
-            let msgs = search_messages(client, &letta_id, &query, limit, start_date, end_date).await?;
+            let msgs =
+                search_messages(client, &letta_id, &query, limit, start_date, end_date).await?;
             (None, Some(msgs))
         }
     };
@@ -46,16 +48,19 @@ pub(crate) async fn handle_search_memory(
     let archival_count = archival_result.as_ref().map(|r| r.count).unwrap_or(0);
     let messages_count = messages_result.as_ref().map(|r| r.count).unwrap_or(0);
 
-    Ok(ToolResponse::success("search_memory", format!(
+    Ok(ToolResponse::success(
+        "search_memory",
+        format!(
             "Found {} archival passages and {} messages",
             archival_count, messages_count
-        ))
-        .with_count(archival_count + messages_count)
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "archival": archival_result,
-            "messages": messages_result,
-        })))
+        ),
+    )
+    .with_count(archival_count + messages_count)
+    .with_extra(serde_json::json!({
+        "agent_id": agent_id,
+        "archival": archival_result,
+        "messages": messages_result,
+    })))
 }
 
 async fn search_archival_memory(

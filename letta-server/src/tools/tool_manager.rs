@@ -2,11 +2,11 @@
 //!
 //! Consolidated tool for tool management operations using discriminator pattern.
 
-use crate::tools::response_utils::{paginate, ToolResponse};
+use crate::tools::response_utils::{ToolResponse, paginate};
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
-use letta::types::tool::ListToolsParams;
-use letta::types::ListAgentsParams;
 use letta::LettaClient;
+use letta::types::ListAgentsParams;
+use letta::types::tool::ListToolsParams;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -92,7 +92,6 @@ pub struct ToolManagerRequest {
     #[serde(default)]
     pub verbose: Option<bool>,
 }
-
 
 /// Tool summary for list operation (LMS-50 optimization)
 /// Excludes source_code, json_schema, and args_json_schema to reduce response size
@@ -202,16 +201,18 @@ async fn handle_list_tools(
 
     let returned = summaries.len();
 
-    Ok(ToolResponse::success("list", format!("Returned {} of {} tools", returned, total))
-        .with_json_data(serde_json::json!({
-            "total": total,
-            "returned": returned,
-            "offset": offset,
-            "limit": limit,
-            "tools": summaries,
-            "hints": vec!["Use 'get' with tool_id for full source code and schema"]
-        }))
-        .with_count(returned))
+    Ok(
+        ToolResponse::success("list", format!("Returned {} of {} tools", returned, total))
+            .with_json_data(serde_json::json!({
+                "total": total,
+                "returned": returned,
+                "offset": offset,
+                "limit": limit,
+                "tools": summaries,
+                "hints": vec!["Use 'get' with tool_id for full source code and schema"]
+            }))
+            .with_count(returned),
+    )
 }
 
 async fn handle_get_tool(
@@ -260,8 +261,7 @@ async fn handle_get_tool(
         }
     }
 
-    Ok(ToolResponse::success("get", "Tool retrieved successfully")
-        .with_json_data(tool_json))
+    Ok(ToolResponse::success("get", "Tool retrieved successfully").with_json_data(tool_json))
 }
 
 async fn handle_create_tool(
@@ -327,10 +327,13 @@ async fn handle_attach_tool(
         ))
     };
 
-    let mut resp = ToolResponse::success("attach", format!(
-        "Tool attached successfully. Agent now has {} tools.",
-        tool_count
-    ));
+    let mut resp = ToolResponse::success(
+        "attach",
+        format!(
+            "Tool attached successfully. Agent now has {} tools.",
+            tool_count
+        ),
+    );
     if let Some(d) = data {
         resp = resp.with_json_data(d);
     }
@@ -458,13 +461,23 @@ async fn handle_bulk_attach(
     }
 
     let resp = if errors.is_empty() {
-        ToolResponse::success("bulk_attach", format!(
-            "Attached to {} agents, {} errors", results.len(), errors.len()
-        ))
+        ToolResponse::success(
+            "bulk_attach",
+            format!(
+                "Attached to {} agents, {} errors",
+                results.len(),
+                errors.len()
+            ),
+        )
     } else {
-        ToolResponse::error("bulk_attach", format!(
-            "Attached to {} agents, {} errors", results.len(), errors.len()
-        ))
+        ToolResponse::error(
+            "bulk_attach",
+            format!(
+                "Attached to {} agents, {} errors",
+                results.len(),
+                errors.len()
+            ),
+        )
     };
     Ok(resp
         .with_json_data(serde_json::json!({
@@ -549,8 +562,10 @@ async fn handle_upsert_tool(
         .await
         .map_err(|e| sdk_err("upsert tool", e))?;
 
-    Ok(ToolResponse::success("upsert", "Tool upserted successfully")
-        .with_json_data(serde_json::to_value(tool)?))
+    Ok(
+        ToolResponse::success("upsert", "Tool upserted successfully")
+            .with_json_data(serde_json::to_value(tool)?),
+    )
 }
 
 async fn handle_detach_tool(
@@ -580,10 +595,13 @@ async fn handle_detach_tool(
         ))
     };
 
-    let mut resp = ToolResponse::success("detach", format!(
-        "Tool detached successfully. Agent now has {} tools.",
-        tool_count
-    ));
+    let mut resp = ToolResponse::success(
+        "detach",
+        format!(
+            "Tool detached successfully. Agent now has {} tools.",
+            tool_count
+        ),
+    );
     if let Some(d) = data {
         resp = resp.with_json_data(d);
     }
@@ -643,8 +661,10 @@ async fn handle_run_from_source(
         }
     }
 
-    Ok(ToolResponse::success("run_from_source", "Tool executed successfully")
-        .with_json_data(response_json))
+    Ok(
+        ToolResponse::success("run_from_source", "Tool executed successfully")
+            .with_json_data(response_json),
+    )
 }
 
 async fn handle_add_base_tools(
@@ -660,13 +680,16 @@ async fn handle_add_base_tools(
     // LMS-50 optimization: Return names only, not full definitions
     let tool_names: Vec<String> = tools.iter().map(|t| t.name.clone()).collect();
 
-    Ok(ToolResponse::success("add_base_tools", format!("Added {} base tools", tools.len()))
-        .with_json_data(serde_json::json!({
-            "tools_added": tools.len(),
-            "tool_names": tool_names,
-            "hint": "Use 'list' operation to see tool details"
-        }))
-        .with_count(tools.len()))
+    Ok(ToolResponse::success(
+        "add_base_tools",
+        format!("Added {} base tools", tools.len()),
+    )
+    .with_json_data(serde_json::json!({
+        "tools_added": tools.len(),
+        "tool_names": tool_names,
+        "hint": "Use 'list' operation to see tool details"
+    }))
+    .with_count(tools.len()))
 }
 
 // ========================================

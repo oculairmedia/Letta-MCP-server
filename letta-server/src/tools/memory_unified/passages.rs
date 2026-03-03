@@ -1,9 +1,9 @@
-use crate::tools::memory_utils::{truncate_passage_text, PassageSummary};
+use crate::tools::memory_utils::{PassageSummary, truncate_passage_text};
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use turbomcp::McpError;
 
-use super::{MemoryUnifiedRequest};
+use super::MemoryUnifiedRequest;
 use crate::tools::response_utils::ToolResponse;
 
 const PASSAGE_TEXT_TRUNCATE_LEN: usize = 500;
@@ -44,12 +44,14 @@ pub(crate) async fn handle_search_archival(
         serde_json::to_value(&summaries)?
     };
 
-    Ok(ToolResponse::success("search_archival", format!("Found {} passages", count))
-        .with_count(count)
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "passages": passages_data,
-        })))
+    Ok(
+        ToolResponse::success("search_archival", format!("Found {} passages", count))
+            .with_count(count)
+            .with_extra(serde_json::json!({
+                "agent_id": agent_id,
+                "passages": passages_data,
+            })),
+    )
 }
 
 pub(crate) async fn handle_list_passages(
@@ -87,16 +89,23 @@ pub(crate) async fn handle_list_passages(
         serde_json::to_value(&summaries)?
     };
 
-    Ok(ToolResponse::success("list_passages", format!(
+    Ok(ToolResponse::success(
+        "list_passages",
+        format!(
             "Found {} passages{}",
             count,
-            if verbose { "" } else { " (compact, use verbose=true for full text)" }
-        ))
-        .with_count(count)
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "passages": passages_data,
-        })))
+            if verbose {
+                ""
+            } else {
+                " (compact, use verbose=true for full text)"
+            }
+        ),
+    )
+    .with_count(count)
+    .with_extra(serde_json::json!({
+        "agent_id": agent_id,
+        "passages": passages_data,
+    })))
 }
 
 pub(crate) async fn handle_create_passage(
@@ -125,11 +134,14 @@ pub(crate) async fn handle_create_passage(
         }
     }
 
-    Ok(ToolResponse::success("create_passage", "Passage created successfully")
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "passages": passages_value,
-        })))
+    Ok(
+        ToolResponse::success("create_passage", "Passage created successfully").with_extra(
+            serde_json::json!({
+                "agent_id": agent_id,
+                "passages": passages_value,
+            }),
+        ),
+    )
 }
 
 pub(crate) async fn handle_update_passage(
@@ -148,7 +160,10 @@ pub(crate) async fn handle_delete_passage(
     request: MemoryUnifiedRequest,
 ) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id, "agent_id is required for delete_passage")?;
-    let passage_id = require_field(request.passage_id, "passage_id is required for delete_passage")?;
+    let passage_id = require_field(
+        request.passage_id,
+        "passage_id is required for delete_passage",
+    )?;
     let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
     let letta_passage_id = require_id(Some(passage_id.clone()), "passage_id")?;
 
@@ -158,9 +173,12 @@ pub(crate) async fn handle_delete_passage(
         .await
         .map_err(|e| sdk_err("delete passage", e))?;
 
-    Ok(ToolResponse::success("delete_passage", "Passage deleted successfully")
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "passage_id": passage_id,
-        })))
+    Ok(
+        ToolResponse::success("delete_passage", "Passage deleted successfully").with_extra(
+            serde_json::json!({
+                "agent_id": agent_id,
+                "passage_id": passage_id,
+            }),
+        ),
+    )
 }

@@ -4,7 +4,7 @@ use letta::LettaClient;
 use letta_types::StandardResponse;
 use turbomcp::McpError;
 
-use super::{truncate_text, AgentAdvancedRequest};
+use super::{AgentAdvancedRequest, truncate_text};
 
 pub(crate) async fn handle_list_tools(
     client: &LettaClient,
@@ -72,7 +72,10 @@ pub(crate) async fn handle_export_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = require_field(request.agent_id, "agent_id is required for export operation")?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for export operation",
+    )?;
     let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let export_json = client
@@ -97,8 +100,9 @@ pub(crate) async fn handle_import_agent(
         "export_data is required for import operation (JSON from agent export)",
     )?;
 
-    let json_bytes = serde_json::to_vec(&export_data)
-        .map_err(|e| McpError::invalid_request(format!("Failed to serialize export_data: {}", e)))?;
+    let json_bytes = serde_json::to_vec(&export_data).map_err(|e| {
+        McpError::invalid_request(format!("Failed to serialize export_data: {}", e))
+    })?;
 
     let tmp_dir = tempfile::tempdir().map_err(|e| sdk_err("create temp directory", e))?;
     let tmp_path = tmp_dir.path().join("agent_import.json");
@@ -171,7 +175,10 @@ pub(crate) async fn handle_get_config(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = require_field(request.agent_id, "agent_id is required for get_config operation")?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for get_config operation",
+    )?;
     let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     // Fan-out: get agent + list tools in parallel
@@ -268,9 +275,7 @@ pub(crate) async fn handle_bulk_delete(
     // Concurrent deletes with bounded concurrency
     let matched = to_delete.len();
     let results: Vec<bool> = stream::iter(to_delete)
-        .map(|agent_id| async move {
-            client.agents().delete(&agent_id).await.is_ok()
-        })
+        .map(|agent_id| async move { client.agents().delete(&agent_id).await.is_ok() })
         .buffer_unordered(10)
         .collect()
         .await;
@@ -293,7 +298,10 @@ pub(crate) async fn handle_get_context(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = require_field(request.agent_id, "agent_id is required for context operation")?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for context operation",
+    )?;
     let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let context = client
@@ -335,7 +343,10 @@ pub(crate) async fn handle_summarize(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = require_field(request.agent_id, "agent_id is required for summarize operation")?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for summarize operation",
+    )?;
     let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let max_message_length = 10u32;

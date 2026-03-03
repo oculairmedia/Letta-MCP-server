@@ -1,6 +1,6 @@
 use letta_server::LettaServer;
-use turbomcp::prelude::*; // v3: McpHandlerExt for run_stdio/run_http
 use std::env;
+use turbomcp::prelude::*; // v3: McpHandlerExt for run_stdio/run_http
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("╔══════════════════════════════════════╗");
     tracing::info!("║   Letta MCP Server (Rust/TurboMCP)  ║");
     tracing::info!("╚══════════════════════════════════════╝");
-    tracing::info!("Version: 2.0.1");
+    tracing::info!("Version: {}", env!("CARGO_PKG_VERSION"));
     tracing::info!("Transport: {}", transport);
     tracing::info!("Letta API: {}", base_url);
 

@@ -123,10 +123,7 @@ impl<'a> BlocksApi<'a> {
             query.push(("limit", l.to_string()));
         }
         self.client
-            .get_with_query(
-                &format!("v1/blocks/{}/agents", block_id),
-                &query,
-            )
+            .get_with_query(&format!("v1/blocks/{}/agents", block_id), &query)
             .await
     }
 }

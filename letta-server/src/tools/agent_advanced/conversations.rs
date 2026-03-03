@@ -10,7 +10,10 @@ pub(crate) async fn handle_list_conversations(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = require_field(request.agent_id, "agent_id is required for list_conversations")?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for list_conversations",
+    )?;
     let letta_agent_id = require_id(Some(agent_id), "agent_id")?;
 
     let conversations = client

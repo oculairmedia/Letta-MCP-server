@@ -370,9 +370,7 @@ pub async fn handle_agent_advanced(
         AgentOperation::GetConfig => management::handle_get_config(client, request).await?,
         AgentOperation::BulkDelete => management::handle_bulk_delete(client, request).await?,
         AgentOperation::Context => management::handle_get_context(client, request).await?,
-        AgentOperation::ResetMessages => {
-            management::handle_reset_messages(client, request).await?
-        }
+        AgentOperation::ResetMessages => management::handle_reset_messages(client, request).await?,
         AgentOperation::Summarize => management::handle_summarize(client, request).await?,
     };
 

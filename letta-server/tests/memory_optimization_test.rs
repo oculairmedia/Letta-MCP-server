@@ -3,8 +3,8 @@
 //! Tests that memory operations properly truncate large responses
 
 use letta_server::tools::memory_utils::{
-    truncate_block_value, truncate_preview, truncate_string, BlockSummary, PaginationMeta,
-    PassageSummary,
+    BlockSummary, PaginationMeta, PassageSummary, truncate_block_value, truncate_preview,
+    truncate_string,
 };
 use serde_json::json;
 

@@ -2,7 +2,7 @@
 //!
 //! Consolidated tool for source management operations.
 
-use crate::tools::response_utils::{paginate, ToolResponse};
+use crate::tools::response_utils::{ToolResponse, paginate};
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
@@ -69,7 +69,6 @@ pub struct SourceManagerRequest {
     #[serde(default)]
     pub verbose: Option<bool>,
 }
-
 
 /// Pagination metadata for list operations
 #[derive(Debug, Serialize)]
@@ -333,8 +332,10 @@ async fn handle_attach_source(
         .await
         .map_err(|e| sdk_err("attach source", e))?;
 
-    Ok(ToolResponse::success("attach", "Source attached successfully")
-        .with_json_data(serde_json::to_value(agent_state)?))
+    Ok(
+        ToolResponse::success("attach", "Source attached successfully")
+            .with_json_data(serde_json::to_value(agent_state)?),
+    )
 }
 
 async fn handle_detach_source(
@@ -354,8 +355,10 @@ async fn handle_detach_source(
         .await
         .map_err(|e| sdk_err("detach source", e))?;
 
-    Ok(ToolResponse::success("detach", "Source detached successfully")
-        .with_json_data(serde_json::to_value(agent_state)?))
+    Ok(
+        ToolResponse::success("detach", "Source detached successfully")
+            .with_json_data(serde_json::to_value(agent_state)?),
+    )
 }
 
 async fn handle_count_sources(
@@ -368,9 +371,11 @@ async fn handle_count_sources(
         .await
         .map_err(|e| sdk_err("count sources", e))?;
 
-    Ok(ToolResponse::success("count", format!("Total sources: {}", count))
-        .with_json_data(serde_json::json!({"count": count}))
-        .with_count(count as usize))
+    Ok(
+        ToolResponse::success("count", format!("Total sources: {}", count))
+            .with_json_data(serde_json::json!({"count": count}))
+            .with_count(count as usize),
+    )
 }
 
 async fn handle_list_attached(
@@ -400,9 +405,12 @@ async fn handle_list_attached(
         })
         .collect();
 
-    Ok(ToolResponse::success("list_attached", format!("Found {} attached sources", summaries.len()))
-        .with_json_data(serde_json::to_value(&summaries)?)
-        .with_count(summaries.len()))
+    Ok(ToolResponse::success(
+        "list_attached",
+        format!("Found {} attached sources", summaries.len()),
+    )
+    .with_json_data(serde_json::to_value(&summaries)?)
+    .with_count(summaries.len()))
 }
 
 async fn handle_list_files(
@@ -449,13 +457,20 @@ async fn handle_list_files(
         total,
         returned: summaries.len(),
         limit,
-        hint: Some(format!("File content is NEVER included in list operations. Use individual file retrieval to get content. Showing {} files (limit: {}).", summaries.len(), limit)),
+        hint: Some(format!(
+            "File content is NEVER included in list operations. Use individual file retrieval to get content. Showing {} files (limit: {}).",
+            summaries.len(),
+            limit
+        )),
     };
 
-    Ok(ToolResponse::success("list_files", format!("Found {} files (content not included)", total))
-        .with_json_data(serde_json::to_value(&summaries)?)
-        .with_count(total)
-        .with_extra(serde_json::to_value(&pagination).unwrap()))
+    Ok(ToolResponse::success(
+        "list_files",
+        format!("Found {} files (content not included)", total),
+    )
+    .with_json_data(serde_json::to_value(&summaries)?)
+    .with_count(total)
+    .with_extra(serde_json::to_value(&pagination).unwrap()))
 }
 
 async fn handle_upload_file(
@@ -464,15 +479,12 @@ async fn handle_upload_file(
 ) -> Result<ToolResponse, McpError> {
     let source_id = require_field(request.source_id, "source_id required")?;
     let file_name = require_field(request.file_name, "file_name required")?;
-    let file_data_b64 = require_field(
-        request.file_data,
-        "file_data required (base64 encoded)",
-    )?;
+    let file_data_b64 = require_field(request.file_data, "file_data required (base64 encoded)")?;
 
     let letta_id = require_id(Some(source_id.clone()), "source_id")?;
 
     // Decode base64 file data
-    use base64::{engine::general_purpose, Engine as _};
+    use base64::{Engine as _, engine::general_purpose};
     let file_bytes = general_purpose::STANDARD
         .decode(&file_data_b64)
         .map_err(|e| McpError::invalid_request(format!("Invalid base64 file_data: {}", e)))?;
@@ -516,11 +528,14 @@ async fn handle_upload_file(
         content_type: actual_content_type,
     };
 
-    Ok(ToolResponse::success("upload", format!(
-        "File '{}' uploaded successfully ({} bytes)",
-        file_name,
-        actual_size.unwrap_or(file_size as i64)
-    ))
+    Ok(ToolResponse::success(
+        "upload",
+        format!(
+            "File '{}' uploaded successfully ({} bytes)",
+            file_name,
+            actual_size.unwrap_or(file_size as i64)
+        ),
+    )
     .with_json_data(serde_json::to_value(&upload_summary)?))
 }
 
@@ -540,7 +555,10 @@ async fn handle_delete_file(
         .await
         .map_err(|e| sdk_err("delete file", e))?;
 
-    Ok(ToolResponse::success("delete_files", "File deleted successfully"))
+    Ok(ToolResponse::success(
+        "delete_files",
+        "File deleted successfully",
+    ))
 }
 
 async fn handle_list_agents_using(
@@ -592,11 +610,14 @@ async fn handle_list_agents_using(
 
     let agent_count = agent_refs.len();
 
-    Ok(ToolResponse::success("list_agents_using", format!("Found {} agents using this source", agent_count))
-        .with_json_data(serde_json::json!({
-            "source_id": source_id,
-            "agent_count": agent_count,
-            "agents": agent_refs,
-        }))
-        .with_count(agent_count))
+    Ok(ToolResponse::success(
+        "list_agents_using",
+        format!("Found {} agents using this source", agent_count),
+    )
+    .with_json_data(serde_json::json!({
+        "source_id": source_id,
+        "agent_count": agent_count,
+        "agents": agent_refs,
+    }))
+    .with_count(agent_count))
 }

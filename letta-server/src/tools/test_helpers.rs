@@ -4,7 +4,7 @@
 //! a live Letta server connection.
 
 use letta_types::StandardResponse;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Create a mock agent state for testing
 pub fn mock_agent(id: &str, name: &str) -> Value {

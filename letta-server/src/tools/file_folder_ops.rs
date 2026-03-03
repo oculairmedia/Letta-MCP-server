@@ -11,7 +11,7 @@
 //! - open_file: Returns minimal confirmation (content retrieval via separate API)
 //! - All list operations include pagination metadata
 
-use crate::tools::response_utils::{paginate, ToolResponse};
+use crate::tools::response_utils::{ToolResponse, paginate};
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
@@ -97,7 +97,6 @@ pub struct AgentReference {
     pub id: String,
 }
 
-
 /// Handle letta_file_folder_ops tool requests
 pub async fn handle_file_folder_ops(
     client: &LettaClient,
@@ -172,15 +171,18 @@ async fn handle_list_files(
         ));
     }
 
-    Ok(ToolResponse::success("list_files", format!("Returned {} of {} files", returned, total))
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "total": total,
-            "returned": returned,
-            "offset": offset,
-            "hints": hints,
-            "files": files,
-        })))
+    Ok(ToolResponse::success(
+        "list_files",
+        format!("Returned {} of {} files", returned, total),
+    )
+    .with_extra(serde_json::json!({
+        "agent_id": agent_id,
+        "total": total,
+        "returned": returned,
+        "offset": offset,
+        "hints": hints,
+        "files": files,
+    })))
 }
 
 /// Open a file for an agent
@@ -209,14 +211,17 @@ async fn handle_open_file(
             .to_string(),
     ];
 
-    Ok(ToolResponse::success("open_file", "File opened successfully")
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "file_id": file_id,
-            "opened": true,
-            "evicted_files": evicted,
-            "hints": hints,
-        })))
+    Ok(
+        ToolResponse::success("open_file", "File opened successfully").with_extra(
+            serde_json::json!({
+                "agent_id": agent_id,
+                "file_id": file_id,
+                "opened": true,
+                "evicted_files": evicted,
+                "hints": hints,
+            }),
+        ),
+    )
 }
 
 /// Close a specific file
@@ -239,12 +244,15 @@ async fn handle_close_file(
         .map_err(|e| sdk_err("close file", e))?;
 
     // Minimal response as per LMS-54 requirements
-    Ok(ToolResponse::success("close_file", "File closed successfully")
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "file_id": file_id,
-            "closed": true,
-        })))
+    Ok(
+        ToolResponse::success("close_file", "File closed successfully").with_extra(
+            serde_json::json!({
+                "agent_id": agent_id,
+                "file_id": file_id,
+                "closed": true,
+            }),
+        ),
+    )
 }
 
 /// Close all files for an agent
@@ -267,12 +275,15 @@ async fn handle_close_all_files(
     let count = closed.len();
 
     // Minimal response - just file IDs, not full metadata (LMS-54)
-    Ok(ToolResponse::success("close_all_files", format!("Closed {} files", count))
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "closed_count": count,
-            "closed_files": closed,
-        })))
+    Ok(
+        ToolResponse::success("close_all_files", format!("Closed {} files", count)).with_extra(
+            serde_json::json!({
+                "agent_id": agent_id,
+                "closed_count": count,
+                "closed_files": closed,
+            }),
+        ),
+    )
 }
 
 /// List all folders
@@ -317,14 +328,17 @@ async fn handle_list_folders(
         ));
     }
 
-    Ok(ToolResponse::success("list_folders", format!("Returned {} of {} folders", returned, total))
-        .with_extra(serde_json::json!({
-            "total": total,
-            "returned": returned,
-            "offset": offset,
-            "hints": if hints.is_empty() { None } else { Some(hints) },
-            "folders": folders,
-        })))
+    Ok(ToolResponse::success(
+        "list_folders",
+        format!("Returned {} of {} folders", returned, total),
+    )
+    .with_extra(serde_json::json!({
+        "total": total,
+        "returned": returned,
+        "offset": offset,
+        "hints": if hints.is_empty() { None } else { Some(hints) },
+        "folders": folders,
+    })))
 }
 
 /// Attach folder to agent
@@ -347,12 +361,15 @@ async fn handle_attach_folder(
         .map_err(|e| sdk_err("attach folder", e))?;
 
     // Minimal response - don't include full agent state (LMS-54)
-    Ok(ToolResponse::success("attach_folder", "Folder attached to agent successfully")
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "folder_id": folder_id,
-            "attached": true,
-        })))
+    Ok(
+        ToolResponse::success("attach_folder", "Folder attached to agent successfully").with_extra(
+            serde_json::json!({
+                "agent_id": agent_id,
+                "folder_id": folder_id,
+                "attached": true,
+            }),
+        ),
+    )
 }
 
 /// Detach folder from agent
@@ -375,12 +392,14 @@ async fn handle_detach_folder(
         .map_err(|e| sdk_err("detach folder", e))?;
 
     // Minimal response - don't include full agent state (LMS-54)
-    Ok(ToolResponse::success("detach_folder", "Folder detached from agent successfully")
-        .with_extra(serde_json::json!({
-            "agent_id": agent_id,
-            "folder_id": folder_id,
-            "detached": true,
-        })))
+    Ok(
+        ToolResponse::success("detach_folder", "Folder detached from agent successfully")
+            .with_extra(serde_json::json!({
+                "agent_id": agent_id,
+                "folder_id": folder_id,
+                "detached": true,
+            })),
+    )
 }
 
 /// List agents in a specific folder
@@ -407,10 +426,13 @@ async fn handle_list_agents_in_folder(
 
     let count = agent_ids.len();
 
-    Ok(ToolResponse::success("list_agents_in_folder", format!("Found {} agents in folder", count))
-        .with_extra(serde_json::json!({
-            "folder_id": folder_id,
-            "agent_ids": agent_ids,
-            "agents": agents,
-        })))
+    Ok(ToolResponse::success(
+        "list_agents_in_folder",
+        format!("Found {} agents in folder", count),
+    )
+    .with_extra(serde_json::json!({
+        "folder_id": folder_id,
+        "agent_ids": agent_ids,
+        "agents": agents,
+    })))
 }

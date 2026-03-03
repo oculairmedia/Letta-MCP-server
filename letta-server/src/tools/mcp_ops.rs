@@ -2,18 +2,18 @@
 //!
 //! Consolidated tool for MCP server lifecycle management.
 
+use crate::tools::id_utils::parse_letta_id;
+use crate::tools::response_utils::ToolResponse;
+use crate::tools::validation_utils::{require_field, sdk_err};
+use futures::stream::{self, StreamExt};
 use letta::{
+    LettaClient,
     types::mcp_server::McpToolExecuteRequestV2,
     types::tool::{McpServerConfig, TestMcpServerRequest, UpdateMcpServerRequest},
-    LettaClient,
 };
-use crate::tools::id_utils::parse_letta_id;
-use crate::tools::validation_utils::{require_field, sdk_err};
-use crate::tools::response_utils::ToolResponse;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
-use futures::stream::{self, StreamExt};
 use turbomcp::McpError;
 
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
@@ -71,7 +71,6 @@ pub struct McpOpsRequest {
     pub verbose: Option<bool>,
 }
 
-
 // Constants for response size optimization
 const DEFAULT_SERVERS_LIMIT: usize = 20;
 const MAX_SERVERS_LIMIT: usize = 50;
@@ -111,7 +110,8 @@ fn truncate_string(s: &str, max_length: usize) -> (String, bool) {
     if s.len() <= max_length {
         (s.to_string(), false)
     } else {
-        let truncated = crate::tools::response_utils::truncate_preview(s, max_length.saturating_sub(3));
+        let truncated =
+            crate::tools::response_utils::truncate_preview(s, max_length.saturating_sub(3));
         (truncated, true)
     }
 }
@@ -264,15 +264,17 @@ async fn handle_test_server(
         "tool_names": tool_names,
     });
 
-    Ok(ToolResponse::success("test", "MCP server connection successful").with_json_data(test_result))
+    Ok(
+        ToolResponse::success("test", "MCP server connection successful")
+            .with_json_data(test_result),
+    )
 }
 
 async fn handle_connect_server(
     client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<ToolResponse, McpError> {
-    let mcp_server_id =
-        require_field(request.mcp_server_id, "mcp_server_id required for connect")?;
+    let mcp_server_id = require_field(request.mcp_server_id, "mcp_server_id required for connect")?;
     let letta_mcp_server_id = parse_letta_id(&mcp_server_id, "mcp_server_id")?;
 
     let result = client
@@ -281,9 +283,11 @@ async fn handle_connect_server(
         .await
         .map_err(|e| sdk_err("connect MCP server", e))?;
 
-    Ok(ToolResponse::success("connect", "MCP server connected successfully")
-        .with_json_data(result)
-        .with_extra(serde_json::json!({ "mcp_server_id": mcp_server_id })))
+    Ok(
+        ToolResponse::success("connect", "MCP server connected successfully")
+            .with_json_data(result)
+            .with_extra(serde_json::json!({ "mcp_server_id": mcp_server_id })),
+    )
 }
 
 async fn handle_resync_server(
@@ -299,9 +303,11 @@ async fn handle_resync_server(
         .await
         .map_err(|e| sdk_err("refresh MCP server tools", e))?;
 
-    Ok(ToolResponse::success("resync", "MCP server tools refreshed successfully")
-        .with_json_data(result)
-        .with_extra(serde_json::json!({ "mcp_server_id": mcp_server_id })))
+    Ok(
+        ToolResponse::success("resync", "MCP server tools refreshed successfully")
+            .with_json_data(result)
+            .with_extra(serde_json::json!({ "mcp_server_id": mcp_server_id })),
+    )
 }
 
 async fn handle_execute_tool(
@@ -341,7 +347,8 @@ async fn handle_execute_tool(
             let len = serialized.len();
             output_length = Some(len);
             if len > MAX_OUTPUT_LENGTH {
-                let preview = crate::tools::response_utils::truncate_silent(&serialized, MAX_OUTPUT_LENGTH);
+                let preview =
+                    crate::tools::response_utils::truncate_silent(&serialized, MAX_OUTPUT_LENGTH);
                 *func_return = serde_json::json!({
                     "truncated": true,
                     "original_length": len,
@@ -361,11 +368,16 @@ async fn handle_execute_tool(
         extra["output_length"] = serde_json::json!(len);
     }
     if truncated {
-        extra["hints"] = serde_json::json!([format!("Output truncated to {} characters", MAX_OUTPUT_LENGTH)]);
+        extra["hints"] = serde_json::json!([format!(
+            "Output truncated to {} characters",
+            MAX_OUTPUT_LENGTH
+        )]);
     }
-    Ok(ToolResponse::success("execute", "MCP tool executed successfully")
-        .with_json_data(output)
-        .with_extra(extra))
+    Ok(
+        ToolResponse::success("execute", "MCP tool executed successfully")
+            .with_json_data(output)
+            .with_extra(extra),
+    )
 }
 
 async fn handle_list_servers(
@@ -412,13 +424,15 @@ async fn handle_list_servers(
     }
     hints.push("Use 'test' operation with server_name for full config".into());
 
-    Ok(ToolResponse::success("list_servers", format!("Found {} MCP servers", total_count))
-        .with_extra(serde_json::json!({
-            "servers": paginated_servers,
-            "total": total_count,
-            "returned": returned_count,
-            "hints": hints
-        })))
+    Ok(
+        ToolResponse::success("list_servers", format!("Found {} MCP servers", total_count))
+            .with_extra(serde_json::json!({
+                "servers": paginated_servers,
+                "total": total_count,
+                "returned": returned_count,
+                "hints": hints
+            })),
+    )
 }
 
 async fn handle_list_tools(
@@ -540,8 +554,10 @@ async fn handle_list_tools(
     if let Some(h) = hints {
         extra["hints"] = serde_json::json!(h);
     }
-    Ok(ToolResponse::success("list_tools", format!("Found {} MCP tools", total_count))
-        .with_extra(extra))
+    Ok(
+        ToolResponse::success("list_tools", format!("Found {} MCP tools", total_count))
+            .with_extra(extra),
+    )
 }
 
 async fn handle_register_tool(
@@ -557,15 +573,18 @@ async fn handle_register_tool(
         .await
         .map_err(|e| sdk_err("register MCP tool", e))?;
 
-    Ok(ToolResponse::success("register_tool", format!(
+    Ok(ToolResponse::success(
+        "register_tool",
+        format!(
             "Tool {} from {} registered successfully in Letta",
             tool_name, server_name
-        ))
-        .with_json_data(serde_json::to_value(&result)?)
-        .with_extra(serde_json::json!({
-            "server_name": server_name,
-            "tool_name": tool_name
-        })))
+        ),
+    )
+    .with_json_data(serde_json::to_value(&result)?)
+    .with_extra(serde_json::json!({
+        "server_name": server_name,
+        "tool_name": tool_name
+    })))
 }
 
 async fn handle_attach_mcp_server(
@@ -634,12 +653,18 @@ async fn handle_attach_mcp_server(
                 }
             }
         })
-        .buffer_unordered(10)  // up to 10 concurrent register+attach ops
+        .buffer_unordered(10) // up to 10 concurrent register+attach ops
         .collect()
         .await;
 
-    let registered_count = tools_results.iter().filter(|r| r["status"] != "register_failed").count();
-    let attached_count = tools_results.iter().filter(|r| r["status"] == "attached").count();
+    let registered_count = tools_results
+        .iter()
+        .filter(|r| r["status"] != "register_failed")
+        .count();
+    let attached_count = tools_results
+        .iter()
+        .filter(|r| r["status"] == "attached")
+        .count();
     let failed_count = total_discovered - attached_count;
 
     let message = format!(
