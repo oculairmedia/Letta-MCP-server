@@ -116,7 +116,7 @@ pub struct AgentAdvancedRequest {
 
     /// Tool IDs to attach to agent (for create/update operations)
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(schema_with = "value_object_schema")]
+    #[schemars(schema_with = "value_array_schema")]
     pub tool_ids: Option<Value>,
 
     /// Pagination settings (for list operations)
@@ -176,6 +176,10 @@ pub struct AgentAdvancedRequest {
 /// Schema helper for Value fields - generates object type
 fn value_object_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
     schemars::json_schema!({ "type": "object" })
+}
+
+fn value_array_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({ "type": "array" })
 }
 
 /// Schema helper for Pagination - adds explicit type to $ref
@@ -559,53 +563,59 @@ async fn handle_update_agent(
         .parse()
         .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
 
-    // Build update request from provided fields
-    let mut update_request = letta::types::UpdateAgentRequest::default();
+    // LMS-173: Build raw JSON body to avoid LettaId roundtrip transformation.
+    // Previous approach deserialized tool_ids through Vec<LettaId> which could
+    // alter IDs during the UUID parse/serialize cycle, silently dropping tools.
+    let mut body = serde_json::Map::new();
 
-    // Direct field mappings
+    // If update_data is provided, use it as the base (passthrough to Letta API)
+    if let Some(Value::Object(data)) = request.update_data {
+        body = data;
+    }
+
+    // Top-level fields override update_data
     if let Some(name) = request.name {
-        update_request.name = Some(name);
+        body.insert("name".into(), Value::String(name));
     }
     if let Some(description) = request.description {
-        update_request.description = Some(description);
+        body.insert("description".into(), Value::String(description));
     }
     if let Some(system) = request.system {
-        update_request.system = Some(system);
+        body.insert("system".into(), Value::String(system));
     }
     if let Some(tags) = request.tags {
-        update_request.tags = Some(tags);
+        body.insert("tags".into(), serde_json::to_value(tags)?);
     }
 
-    // LMS-168: tool_ids support (replaces all agent tools)
-    if let Some(tool_ids_value) = request.tool_ids {
-        let tool_ids: Vec<letta::types::LettaId> = serde_json::from_value(tool_ids_value)
-            .map_err(|e| McpError::invalid_request(format!("Invalid tool_ids: {}", e)))?;
-        update_request.tool_ids = Some(tool_ids);
+    // tool_ids: pass through as-is, no LettaId deserialization
+    if let Some(tool_ids) = request.tool_ids {
+        body.insert("tool_ids".into(), tool_ids);
     }
 
-    // Complex type mappings
-    if let Some(llm_config_value) = request.llm_config {
-        let llm_config: letta::types::LLMConfig = serde_json::from_value(llm_config_value)
-            .map_err(|e| McpError::invalid_request(format!("Invalid llm_config: {}", e)))?;
-        update_request.llm_config = Some(llm_config);
+    // Complex config objects: pass through as-is
+    if let Some(llm_config) = request.llm_config {
+        body.insert("llm_config".into(), llm_config);
     }
-    if let Some(embedding_config_value) = request.embedding_config {
-        let embedding_config: letta::types::EmbeddingConfig =
-            serde_json::from_value(embedding_config_value).map_err(|e| {
-                McpError::invalid_request(format!("Invalid embedding_config: {}", e))
-            })?;
-        update_request.embedding_config = Some(embedding_config);
+    if let Some(embedding_config) = request.embedding_config {
+        body.insert("embedding_config".into(), embedding_config);
     }
 
-    let agent = client
-        .agents()
-        .update(&letta_id, update_request)
+    if body.is_empty() {
+        return Err(McpError::invalid_request(
+            "No update fields provided. Supply tool_ids, name, description, system, tags, llm_config, embedding_config, or update_data".to_string(),
+        ));
+    }
+
+    // Raw PATCH to avoid any type transformation in the SDK layer
+    let url = letta::api::endpoints::agents::update(&letta_id);
+    let agent: serde_json::Value = client
+        .patch(&url, &Value::Object(body))
         .await
         .map_err(|e| McpError::internal(format!("Failed to update agent: {}", e)))?;
 
     Ok(StandardResponse::success(
         "update",
-        serde_json::to_value(agent)?,
+        agent,
         "Agent updated successfully",
     ))
 }
