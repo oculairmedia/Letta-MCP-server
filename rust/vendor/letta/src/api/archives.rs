@@ -5,7 +5,7 @@ use crate::error::LettaResult;
 use crate::types::agent::AgentState;
 use crate::types::archive::{
     Archive, ArchiveCreateRequest, ArchivePassagesResponse, ArchiveUpdateRequest,
-    PassageBatchCreateRequest, PassageCreateRequest,
+    ListArchivesParams, PassageBatchCreateRequest, PassageCreateRequest,
 };
 use crate::types::memory::Passage;
 use crate::types::LettaId;
@@ -24,8 +24,10 @@ impl<'a> ArchiveApi<'a> {
     }
 
     /// List all archives.
-    pub async fn list(&self) -> LettaResult<Vec<Archive>> {
-        self.client.get("v1/archives/").await
+    pub async fn list(&self, params: Option<ListArchivesParams>) -> LettaResult<Vec<Archive>> {
+        self.client
+            .get_with_query("v1/archives/", &params.unwrap_or_default())
+            .await
     }
 
     /// Create a new archive.
@@ -101,6 +103,13 @@ impl<'a> ArchiveApi<'a> {
                 "v1/archives/{}/passages/{}",
                 archive_id, passage_id
             ))
+            .await
+    }
+
+    /// List passages in an archive.
+    pub async fn list_passages(&self, archive_id: &LettaId) -> LettaResult<Vec<Passage>> {
+        self.client
+            .get(&format!("v1/archives/{}/passages", archive_id))
             .await
     }
 

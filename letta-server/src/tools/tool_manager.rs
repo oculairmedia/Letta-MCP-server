@@ -421,13 +421,11 @@ async fn handle_bulk_attach(
             let letta_tool_id = &letta_tool_id;
             async move {
                 let result = match require_id(Some(agent_id.clone()), "agent_id") {
-                    Ok(letta_agent_id) => {
-                        client
-                            .memory()
-                            .attach_tool_to_agent(&letta_agent_id, letta_tool_id)
-                            .await
-                            .map_err(|e| e.to_string())
-                    }
+                    Ok(letta_agent_id) => client
+                        .memory()
+                        .attach_tool_to_agent(&letta_agent_id, letta_tool_id)
+                        .await
+                        .map_err(|e| e.to_string()),
                     Err(e) => Err(e.to_string()),
                 };
                 (agent_id, result)

@@ -4,6 +4,7 @@ use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::{
     BatchMessagesResponse, BatchRun, CreateBatchRequest, LettaId, ListBatchMessagesParams,
+    ListBatchRunsParams,
 };
 
 /// Batch API operations.
@@ -23,8 +24,10 @@ impl<'a> BatchApi<'a> {
     /// # Errors
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
-    pub async fn list(&self) -> LettaResult<Vec<BatchRun>> {
-        self.client.get("v1/messages/batches/").await
+    pub async fn list(&self, params: Option<ListBatchRunsParams>) -> LettaResult<Vec<BatchRun>> {
+        self.client
+            .get_with_query("v1/messages/batches/", &params.unwrap_or_default())
+            .await
     }
 
     /// Create a batch of messages.

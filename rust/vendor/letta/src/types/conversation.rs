@@ -98,3 +98,31 @@ pub struct ConversationMessageRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub background: Option<bool>,
 }
+
+/// Parameters for listing conversations.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ListConversationsParams {
+    /// Agent ID to filter conversations by.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
+
+    /// Conversation ID cursor for pagination (returns conversations before this ID).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub before: Option<String>,
+
+    /// Conversation ID cursor for pagination (returns conversations after this ID).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub after: Option<String>,
+
+    /// Maximum number of conversations to return (default: 50).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u32>,
+
+    /// Sort order by creation time ('asc' or 'desc', default: 'asc').
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<String>,
+
+    /// Field to sort by (default: 'created_at').
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_by: Option<String>,
+}

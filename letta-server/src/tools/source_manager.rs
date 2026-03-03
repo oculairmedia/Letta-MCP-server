@@ -173,7 +173,7 @@ async fn handle_list_sources(
 
     let all_sources = client
         .sources()
-        .list()
+        .list(None)
         .await
         .map_err(|e| sdk_err("list sources", e))?;
 
@@ -592,9 +592,9 @@ async fn handle_list_agents_using(
                     .await;
                 match sources {
                     Ok(sources) => {
-                        let has_source = sources.iter().any(|s| {
-                            s.id.as_ref().map_or(false, |sid| *sid == target_id)
-                        });
+                        let has_source = sources
+                            .iter()
+                            .any(|s| s.id.as_ref().map_or(false, |sid| *sid == target_id));
                         if has_source { Some(agent) } else { None }
                     }
                     Err(_) => None,

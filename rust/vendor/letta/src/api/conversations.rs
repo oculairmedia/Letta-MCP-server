@@ -4,7 +4,7 @@ use crate::client::LettaClient;
 use crate::error::{LettaError, LettaResult};
 use crate::types::{
     Conversation, ConversationMessageRequest, CreateConversationRequest, LettaId,
-    LettaMessageUnion, LettaResponse, UpdateConversationRequest,
+    LettaMessageUnion, LettaResponse, ListConversationsParams, UpdateConversationRequest,
 };
 use eventsource_stream::Eventsource;
 use futures::stream::{Stream, StreamExt};
@@ -39,10 +39,14 @@ impl<'a> ConversationApi<'a> {
     }
 
     /// List conversations for an agent.
-    pub async fn list(&self, agent_id: &LettaId) -> LettaResult<Vec<Conversation>> {
-        self.client
-            .get(&format!("v1/conversations/?agent_id={}", agent_id))
-            .await
+    pub async fn list(
+        &self,
+        agent_id: &LettaId,
+        params: Option<ListConversationsParams>,
+    ) -> LettaResult<Vec<Conversation>> {
+        let mut p = params.unwrap_or_default();
+        p.agent_id = Some(agent_id.to_string());
+        self.client.get_with_query("v1/conversations/", &p).await
     }
 
     /// Create a conversation.
@@ -65,6 +69,13 @@ impl<'a> ConversationApi<'a> {
     ) -> LettaResult<Conversation> {
         self.client
             .patch(&format!("v1/conversations/{}", conversation_id), &request)
+            .await
+    }
+
+    /// Delete a conversation.
+    pub async fn delete(&self, conversation_id: &LettaId) -> LettaResult<()> {
+        self.client
+            .delete_no_response(&format!("v1/conversations/{}", conversation_id))
             .await
     }
 

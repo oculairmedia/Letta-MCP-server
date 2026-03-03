@@ -97,3 +97,31 @@ pub type ArchiveAgentsResponse = Vec<AgentState>;
 
 /// Response alias for listing passages in an archive batch insert.
 pub type ArchivePassagesResponse = Vec<Passage>;
+
+/// Parameters for listing archives.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ListArchivesParams {
+    /// Archive ID cursor for pagination (returns archives before this ID).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub before: Option<String>,
+
+    /// Archive ID cursor for pagination (returns archives after this ID).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub after: Option<String>,
+
+    /// Maximum number of archives to return (default: 50).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u32>,
+
+    /// Sort order by creation time ('asc' or 'desc', default: 'asc').
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<String>,
+
+    /// Field to sort by (default: 'created_at').
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_by: Option<String>,
+
+    /// Filter by archive name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}

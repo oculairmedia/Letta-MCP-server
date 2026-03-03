@@ -2,7 +2,7 @@
 
 use crate::client::LettaClient;
 use crate::error::LettaResult;
-use crate::types::ProjectsListResponse;
+use crate::types::{ListProjectsParams, ProjectsListResponse};
 
 /// Project API operations (Cloud only).
 #[derive(Debug)]
@@ -22,35 +22,18 @@ impl<'a> ProjectApi<'a> {
     ///
     /// # Arguments
     ///
-    /// * `name` - Filter by project name
-    /// * `offset` - Pagination offset
-    /// * `limit` - Maximum number of projects to return
+    /// * `params` - Optional parameters for filtering and pagination
     ///
     /// # Errors
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(
         &self,
-        name: Option<String>,
-        offset: Option<String>,
-        limit: Option<String>,
+        params: Option<ListProjectsParams>,
     ) -> LettaResult<ProjectsListResponse> {
-        let mut params = Vec::new();
-        if let Some(n) = name {
-            params.push(("name", n));
-        }
-        if let Some(o) = offset {
-            params.push(("offset", o));
-        }
-        if let Some(l) = limit {
-            params.push(("limit", l));
-        }
-
-        if params.is_empty() {
-            self.client.get("v1/projects/").await
-        } else {
-            self.client.get_with_query("v1/projects/", &params).await
-        }
+        self.client
+            .get_with_query("v1/projects/", &params.unwrap_or_default())
+            .await
     }
 }
 

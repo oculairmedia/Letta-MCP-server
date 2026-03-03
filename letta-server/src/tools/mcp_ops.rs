@@ -386,7 +386,7 @@ async fn handle_list_servers(
 ) -> Result<ToolResponse, McpError> {
     let result = client
         .mcp_servers()
-        .list()
+        .list(None)
         .await
         .map_err(|e| sdk_err("list MCP servers", e))?;
 

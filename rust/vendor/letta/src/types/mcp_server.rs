@@ -153,3 +153,31 @@ pub struct McpToolExecutionResultV2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sandbox_config_fingerprint: Option<String>,
 }
+
+/// Parameters for listing MCP servers.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ListMcpServersParams {
+    /// MCP server ID cursor for pagination (returns servers before this ID).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub before: Option<String>,
+
+    /// MCP server ID cursor for pagination (returns servers after this ID).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub after: Option<String>,
+
+    /// Maximum number of MCP servers to return (default: 50).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u32>,
+
+    /// Sort order by creation time ('asc' or 'desc', default: 'asc').
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<String>,
+
+    /// Field to sort by (default: 'created_at').
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_by: Option<String>,
+
+    /// Filter by server name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_name: Option<String>,
+}

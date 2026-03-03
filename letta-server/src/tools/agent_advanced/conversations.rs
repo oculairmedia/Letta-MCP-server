@@ -18,7 +18,7 @@ pub(crate) async fn handle_list_conversations(
 
     let conversations = client
         .conversations()
-        .list(&letta_agent_id)
+        .list(&letta_agent_id, None)
         .await
         .map_err(|e| sdk_err("list conversations", e))?;
 

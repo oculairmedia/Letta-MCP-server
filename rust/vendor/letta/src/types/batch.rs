@@ -152,3 +152,19 @@ pub struct BatchMessagesResponse {
     /// List of messages.
     pub messages: Vec<Message>,
 }
+
+/// Parameters for listing batch runs.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ListBatchRunsParams {
+    /// Batch run ID cursor for pagination (returns runs before this ID).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub before: Option<String>,
+
+    /// Batch run ID cursor for pagination (returns runs after this ID).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub after: Option<String>,
+
+    /// Maximum number of batch runs to return (default: 50).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u32>,
+}

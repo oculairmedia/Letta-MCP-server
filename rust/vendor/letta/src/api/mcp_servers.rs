@@ -3,8 +3,8 @@
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::mcp_server::{
-    CreateMcpServerRequestV2, McpServerSchemaV2, McpToolExecuteRequestV2, McpToolExecutionResultV2,
-    UpdateMcpServerRequestV2,
+    CreateMcpServerRequestV2, ListMcpServersParams, McpServerSchemaV2, McpToolExecuteRequestV2,
+    McpToolExecutionResultV2, UpdateMcpServerRequestV2,
 };
 use crate::types::{LettaId, Tool};
 
@@ -29,8 +29,13 @@ impl<'a> McpServerApi<'a> {
     }
 
     /// List MCP servers.
-    pub async fn list(&self) -> LettaResult<Vec<McpServerSchemaV2>> {
-        self.client.get("v1/mcp-servers/").await
+    pub async fn list(
+        &self,
+        params: Option<ListMcpServersParams>,
+    ) -> LettaResult<Vec<McpServerSchemaV2>> {
+        self.client
+            .get_with_query("v1/mcp-servers/", &params.unwrap_or_default())
+            .await
     }
 
     /// Get an MCP server by ID.

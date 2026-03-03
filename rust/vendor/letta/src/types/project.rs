@@ -23,6 +23,22 @@ pub struct ProjectsListResponse {
     pub has_next_page: bool,
 }
 
+/// Parameters for listing projects.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ListProjectsParams {
+    /// Filter by project name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
+    /// Pagination offset.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<String>,
+
+    /// Maximum number of projects to return.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

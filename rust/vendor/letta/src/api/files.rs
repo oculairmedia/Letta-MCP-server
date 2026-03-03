@@ -6,7 +6,7 @@
 
 use crate::client::LettaClient;
 use crate::error::LettaResult;
-use crate::types::file::PaginatedAgentFiles;
+use crate::types::file::{ListAgentFilesParams, PaginatedAgentFiles};
 use crate::types::LettaId;
 
 /// File session API operations for agents.
@@ -41,14 +41,20 @@ impl<'a> AgentFileApi<'a> {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let client = LettaClient::new(ClientConfig::new("http://localhost:8283")?)?;
     /// let agent_id = LettaId::from_str("agent-123")?;
-    /// let files = client.agents().files(agent_id.clone()).list().await?;
+    /// let files = client.agents().files(agent_id.clone()).list(None).await?;
     /// println!("Agent has {} files in session", files.files.len());
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn list(&self) -> LettaResult<PaginatedAgentFiles> {
+    pub async fn list(
+        &self,
+        params: Option<ListAgentFilesParams>,
+    ) -> LettaResult<PaginatedAgentFiles> {
         self.client
-            .get(&format!("v1/agents/{}/files", self.agent_id))
+            .get_with_query(
+                &format!("v1/agents/{}/files", self.agent_id),
+                &params.unwrap_or_default(),
+            )
             .await
     }
 

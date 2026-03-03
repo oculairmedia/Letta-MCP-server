@@ -39,3 +39,15 @@ pub struct PaginatedAgentFiles {
     #[serde(default)]
     pub total: u32,
 }
+
+/// Parameters for listing agent files.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ListAgentFilesParams {
+    /// Maximum number of files to return.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u32>,
+
+    /// Pagination cursor (returns files after this ID).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub after: Option<String>,
+}

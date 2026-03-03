@@ -183,6 +183,22 @@ pub struct UpdateRunStatus {
     pub status: JobStatus,
 }
 
+/// Parameters for listing jobs.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ListJobsParams {
+    /// Filter by job status.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<JobStatus>,
+
+    /// Maximum number of jobs to return.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<i32>,
+
+    /// Filter by source ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_id: Option<String>,
+}
+
 /// Query parameters for listing steps.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ListStepsParams {

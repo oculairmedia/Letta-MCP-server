@@ -23,6 +23,26 @@ pub struct TemplatesListResponse {
     pub has_next_page: bool,
 }
 
+/// Parameters for listing templates.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ListTemplatesParams {
+    /// Pagination offset.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<String>,
+
+    /// Maximum number of templates to return.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<String>,
+
+    /// Filter by template name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
+    /// Filter by project ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<String>,
+}
+
 /// Request to create a template from an agent.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CreateTemplateRequest {

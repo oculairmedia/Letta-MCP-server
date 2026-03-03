@@ -4,7 +4,7 @@ use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::{
     AgentsCreateResponse, CreateAgentsFromTemplateRequest, CreateTemplateRequest, LettaId,
-    MemoryVariablesListResponse, MigrateAgentRequest, TemplatesCreateResponse,
+    ListTemplatesParams, MemoryVariablesListResponse, MigrateAgentRequest, TemplatesCreateResponse,
     TemplatesListResponse, TemplatesMigrateResponse, VersionTemplateRequest,
 };
 
@@ -26,40 +26,18 @@ impl<'a> TemplateApi<'a> {
     ///
     /// # Arguments
     ///
-    /// * `offset` - Pagination offset
-    /// * `limit` - Maximum number of templates to return
-    /// * `name` - Filter by template name
-    /// * `project_id` - Filter by project ID
+    /// * `params` - Optional parameters for filtering and pagination
     ///
     /// # Errors
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(
         &self,
-        offset: Option<String>,
-        limit: Option<String>,
-        name: Option<String>,
-        project_id: Option<String>,
+        params: Option<ListTemplatesParams>,
     ) -> LettaResult<TemplatesListResponse> {
-        let mut params = Vec::new();
-        if let Some(o) = offset {
-            params.push(("offset", o));
-        }
-        if let Some(l) = limit {
-            params.push(("limit", l));
-        }
-        if let Some(n) = name {
-            params.push(("name", n));
-        }
-        if let Some(p) = project_id {
-            params.push(("project_id", p));
-        }
-
-        if params.is_empty() {
-            self.client.get("v1/templates/").await
-        } else {
-            self.client.get_with_query("v1/templates/", &params).await
-        }
+        self.client
+            .get_with_query("v1/templates/", &params.unwrap_or_default())
+            .await
     }
 
     /// Create a template from an agent.

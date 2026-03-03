@@ -139,7 +139,7 @@ async fn handle_list_files(
     let result = client
         .agents()
         .files(letta_agent_id)
-        .list()
+        .list(None)
         .await
         .map_err(|e| sdk_err("list files", e))?;
 

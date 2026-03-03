@@ -3,7 +3,7 @@
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::{
-    Job, JobStatus, LettaId, LettaMessageUnion, ModifyFeedbackRequest, Step, StepFeedback,
+    Job, LettaId, LettaMessageUnion, ListJobsParams, ModifyFeedbackRequest, Step, StepFeedback,
     StepMetrics, TelemetryTrace,
 };
 
@@ -23,66 +23,30 @@ impl<'a> JobApi<'a> {
     ///
     /// # Arguments
     ///
-    /// * `status` - Optional status filter
-    /// * `limit` - Maximum number of jobs to return
-    /// * `source_id` - Optional source ID to filter jobs
+    /// * `params` - Optional parameters for filtering and pagination
     ///
     /// # Errors
     ///
-    ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
-    pub async fn list(
-        &self,
-        status: Option<JobStatus>,
-        limit: Option<i32>,
-        source_id: Option<&LettaId>,
-    ) -> LettaResult<Vec<Job>> {
-        let mut params = Vec::new();
-        if let Some(s) = status {
-            params.push(("status", serde_json::to_string(&s)?));
-        }
-        if let Some(l) = limit {
-            params.push(("limit", l.to_string()));
-        }
-        if let Some(sid) = source_id {
-            params.push(("source_id", sid.to_string()));
-        }
-
-        if params.is_empty() {
-            self.client.get("v1/jobs/").await
-        } else {
-            self.client.get_with_query("v1/jobs/", &params).await
-        }
+    pub async fn list(&self, params: Option<ListJobsParams>) -> LettaResult<Vec<Job>> {
+        self.client
+            .get_with_query("v1/jobs/", &params.unwrap_or_default())
+            .await
     }
 
     /// List active jobs.
     ///
     /// # Arguments
     ///
-    /// * `status` - Optional status filter
-    /// * `limit` - Maximum number of jobs to return
+    /// * `params` - Optional parameters for filtering and pagination
     ///
     /// # Errors
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
-    pub async fn list_active(
-        &self,
-        status: Option<JobStatus>,
-        limit: Option<i32>,
-    ) -> LettaResult<Vec<Job>> {
-        let mut params = Vec::new();
-        if let Some(s) = status {
-            params.push(("status", serde_json::to_string(&s)?));
-        }
-        if let Some(l) = limit {
-            params.push(("limit", l.to_string()));
-        }
-
-        if params.is_empty() {
-            self.client.get("v1/jobs/active/").await
-        } else {
-            self.client.get_with_query("v1/jobs/active/", &params).await
-        }
+    pub async fn list_active(&self, params: Option<ListJobsParams>) -> LettaResult<Vec<Job>> {
+        self.client
+            .get_with_query("v1/jobs/active/", &params.unwrap_or_default())
+            .await
     }
 
     /// Get a specific job.

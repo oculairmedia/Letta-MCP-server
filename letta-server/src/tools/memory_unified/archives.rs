@@ -18,7 +18,7 @@ pub(crate) async fn handle_list_archives(
 
     let archives = client
         .archives()
-        .list()
+        .list(None)
         .await
         .map_err(|e| sdk_err("list archives", e))?;
 
@@ -41,19 +41,20 @@ pub(crate) async fn handle_list_archives(
         ));
     }
 
-    Ok(
-        ToolResponse::success("list_archives", format!("Returned {} of {} archives", returned, total))
-            .with_count(total)
-            .with_extra(serde_json::json!({
-                "archival": {
-                    "passages": paginated,
-                    "count": total,
-                },
-                "returned": returned,
-                "offset": offset,
-                "hints": if hints.is_empty() { None } else { Some(hints) },
-            })),
+    Ok(ToolResponse::success(
+        "list_archives",
+        format!("Returned {} of {} archives", returned, total),
     )
+    .with_count(total)
+    .with_extra(serde_json::json!({
+        "archival": {
+            "passages": paginated,
+            "count": total,
+        },
+        "returned": returned,
+        "offset": offset,
+        "hints": if hints.is_empty() { None } else { Some(hints) },
+    })))
 }
 
 pub(crate) async fn handle_get_archive(

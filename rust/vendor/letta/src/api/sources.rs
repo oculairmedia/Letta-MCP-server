@@ -7,7 +7,7 @@ use crate::types::agent::AgentState;
 use crate::types::memory::Passage;
 use crate::types::source::{
     CreateSourceRequest, FileMetadata, FileUploadResponse, GetFileParams, ListFilesParams,
-    ListPassagesParams, Source, UpdateSourceRequest,
+    ListPassagesParams, ListSourcesParams, Source, UpdateSourceRequest,
 };
 use crate::types::{LettaId, PaginationParams};
 use bytes::Bytes;
@@ -27,8 +27,10 @@ impl<'a> SourceApi<'a> {
     }
 
     /// List all sources.
-    pub async fn list(&self) -> LettaResult<Vec<Source>> {
-        self.client.get("v1/sources/").await
+    pub async fn list(&self, params: Option<ListSourcesParams>) -> LettaResult<Vec<Source>> {
+        self.client
+            .get_with_query("v1/sources/", &params.unwrap_or_default())
+            .await
     }
 
     /// Create a new source.

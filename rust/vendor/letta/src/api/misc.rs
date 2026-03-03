@@ -18,8 +18,11 @@ impl<'a> MiscApi<'a> {
     }
 
     /// Health check.
+    ///
+    /// Note: Prefer using `client.health().check()` directly instead.
+    /// This method delegates to the Health API.
     pub async fn health(&self) -> LettaResult<HealthResponse> {
-        todo!("Implement health check")
+        self.client.get("v1/health/").await
     }
 }
 
