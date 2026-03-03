@@ -1,5 +1,6 @@
 //! Agent API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::pagination::{PaginatedStream, PaginationExt};
@@ -33,7 +34,7 @@ impl<'a> AgentApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(&self, params: Option<ListAgentsParams>) -> LettaResult<Vec<AgentState>> {
         self.client
-            .get_with_query("v1/agents/", &params.unwrap_or_default())
+            .get_with_query(endpoints::agents::LIST, &params.unwrap_or_default())
             .await
     }
 
@@ -47,7 +48,7 @@ impl<'a> AgentApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn create(&self, request: CreateAgentRequest) -> LettaResult<AgentState> {
-        self.client.post("v1/agents", &request).await
+        self.client.post(endpoints::agents::CREATE, &request).await
     }
 
     /// Create a new agent with optional project context.
@@ -74,7 +75,7 @@ impl<'a> AgentApi<'a> {
         );
 
         self.client
-            .post_with_headers("v1/agents", &request, headers)
+            .post_with_headers(endpoints::agents::CREATE, &request, headers)
             .await
     }
 
@@ -88,7 +89,7 @@ impl<'a> AgentApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get(&self, agent_id: &LettaId) -> LettaResult<AgentState> {
-        self.client.get(&format!("v1/agents/{}", agent_id)).await
+        self.client.get(&endpoints::agents::get(agent_id)).await
     }
 
     /// Delete an agent by ID.
@@ -102,7 +103,7 @@ impl<'a> AgentApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails.
     pub async fn delete(&self, agent_id: &LettaId) -> LettaResult<()> {
         self.client
-            .delete_no_response(&format!("v1/agents/{}", agent_id))
+            .delete_no_response(&endpoints::agents::delete(agent_id))
             .await
     }
 
@@ -122,7 +123,7 @@ impl<'a> AgentApi<'a> {
         request: crate::types::UpdateAgentRequest,
     ) -> LettaResult<AgentState> {
         self.client
-            .patch(&format!("v1/agents/{}", agent_id), &request)
+            .patch(&endpoints::agents::update(agent_id), &request)
             .await
     }
 
@@ -138,9 +139,7 @@ impl<'a> AgentApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get_context(&self, agent_id: &LettaId) -> LettaResult<serde_json::Value> {
-        self.client
-            .get(&format!("v1/agents/{}/context", agent_id))
-            .await
+        self.client.get(&endpoints::agents::context(agent_id)).await
     }
 
     /// Reset an agent's message history.
@@ -157,7 +156,7 @@ impl<'a> AgentApi<'a> {
     pub async fn reset_messages(&self, agent_id: &LettaId) -> LettaResult<()> {
         self.client
             .post(
-                &format!("v1/agents/{}/reset-messages", agent_id),
+                &endpoints::agents::reset_messages(agent_id),
                 &serde_json::json!({}),
             )
             .await
@@ -207,10 +206,7 @@ impl<'a> AgentApi<'a> {
         // Empty body for POST with query params
         self.client
             .post(
-                &format!(
-                    "v1/agents/{}/summarize?max_message_length={}",
-                    agent_id, max_message_length
-                ),
+                &endpoints::agents::summarize(agent_id, max_message_length as usize),
                 &serde_json::json!({}),
             )
             .await
@@ -222,7 +218,7 @@ impl<'a> AgentApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn count(&self) -> LettaResult<u32> {
-        self.client.get("v1/agents/count").await
+        self.client.get(endpoints::agents::COUNT).await
     }
 
     /// Export the serialized JSON representation of an agent, formatted with indentation.
@@ -238,7 +234,7 @@ impl<'a> AgentApi<'a> {
         // The export endpoint returns a JSON object, but we need to return it as a string
         let json_value: serde_json::Value = self
             .client
-            .get(&format!("v1/agents/{}/export", agent_id))
+            .get(&endpoints::agents::export(agent_id))
             .await?;
 
         // Serialize the JSON value to a string
@@ -294,7 +290,7 @@ impl<'a> AgentApi<'a> {
         }
 
         // Build the path with query parameters
-        let mut path = String::from("v1/agents/import");
+        let mut path = String::from(endpoints::agents::IMPORT);
         if !params.is_empty() {
             path.push('?');
             path.push_str(&serde_urlencoded::to_string(&params)?);
@@ -313,7 +309,7 @@ impl<'a> AgentApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn search(&self, request: AgentsSearchRequest) -> LettaResult<AgentsSearchResponse> {
-        self.client.post("v1/agents/search", &request).await
+        self.client.post(endpoints::agents::SEARCH, &request).await
     }
 
     /// List groups that an agent belongs to.
@@ -326,9 +322,7 @@ impl<'a> AgentApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list_groups(&self, agent_id: &LettaId) -> LettaResult<Vec<crate::types::Group>> {
-        self.client
-            .get(&format!("v1/agents/{}/groups", agent_id))
-            .await
+        self.client.get(&endpoints::agents::groups(agent_id)).await
     }
 
     /// List agents with pagination support.

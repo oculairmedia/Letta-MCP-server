@@ -1,5 +1,6 @@
 //! Run and job execution management API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::{LettaError, LettaResult};
 use crate::types::{LettaId, LettaMessageUnion, Run, RunMetrics, Step, UsageStatistics};
@@ -46,7 +47,7 @@ impl<'a> RunApi<'a> {
     pub async fn list(&self, agent_ids: &[LettaId]) -> LettaResult<Vec<Run>> {
         let id_list = agent_ids.iter().map(|id| id.as_str()).collect::<Vec<_>>();
         self.client
-            .get_with_query("v1/runs/", &[("agent_ids", id_list.join(","))])
+            .get_with_query(endpoints::runs::LIST, &[("agent_ids", id_list.join(","))])
             .await
     }
 
@@ -60,7 +61,7 @@ impl<'a> RunApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get(&self, run_id: &LettaId) -> LettaResult<Run> {
-        self.client.get(&format!("v1/runs/{}", run_id)).await
+        self.client.get(&endpoints::runs::get(run_id)).await
     }
 
     /// Get messages for a run.
@@ -73,9 +74,7 @@ impl<'a> RunApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get_messages(&self, run_id: &LettaId) -> LettaResult<Vec<LettaMessageUnion>> {
-        self.client
-            .get(&format!("v1/runs/{}/messages", run_id))
-            .await
+        self.client.get(&endpoints::runs::messages(run_id)).await
     }
 
     /// Get steps for a run.
@@ -88,7 +87,7 @@ impl<'a> RunApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get_steps(&self, run_id: &LettaId) -> LettaResult<Vec<Step>> {
-        self.client.get(&format!("v1/runs/{}/steps", run_id)).await
+        self.client.get(&endpoints::runs::steps(run_id)).await
     }
 
     /// List active runs for an agent.
@@ -103,25 +102,26 @@ impl<'a> RunApi<'a> {
     pub async fn list_active(&self, agent_ids: &[LettaId]) -> LettaResult<Vec<Run>> {
         let id_list = agent_ids.iter().map(|id| id.as_str()).collect::<Vec<_>>();
         self.client
-            .get_with_query("v1/runs/active/", &[("agent_ids", id_list.join(","))])
+            .get_with_query(
+                endpoints::runs::LIST_ACTIVE,
+                &[("agent_ids", id_list.join(","))],
+            )
             .await
     }
 
     /// Get run metrics payload.
     pub async fn get_metrics(&self, run_id: &LettaId) -> LettaResult<RunMetrics> {
-        self.client
-            .get(&format!("v1/runs/{}/metrics", run_id))
-            .await
+        self.client.get(&endpoints::runs::metrics(run_id)).await
     }
 
     /// Get run usage payload.
     pub async fn get_usage(&self, run_id: &LettaId) -> LettaResult<UsageStatistics> {
-        self.client.get(&format!("v1/runs/{}/usage", run_id)).await
+        self.client.get(&endpoints::runs::usage(run_id)).await
     }
 
     /// Get run trace payload.
     pub async fn get_trace(&self, run_id: &LettaId) -> LettaResult<serde_json::Value> {
-        self.client.get(&format!("v1/runs/{}/trace", run_id)).await
+        self.client.get(&endpoints::runs::trace(run_id)).await
     }
 
     /// Stream run events via Server-Sent Events.
@@ -129,7 +129,7 @@ impl<'a> RunApi<'a> {
         let url = self
             .client
             .base_url()
-            .join(&format!("v1/runs/{}/stream", run_id))?;
+            .join(&endpoints::runs::stream(run_id))?;
 
         let mut headers = HeaderMap::new();
         self.client.auth().apply_to_headers(&mut headers)?;

@@ -1,5 +1,6 @@
 //! Models API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::{EmbeddingModel, ListEmbeddingModelsParams, ListModelsParams, LlmConfig};
@@ -43,10 +44,10 @@ impl<'a> ModelsApi<'a> {
         }
 
         if query_params.is_empty() {
-            self.client.get("v1/models/").await
+            self.client.get(endpoints::models::LIST).await
         } else {
             self.client
-                .get_with_query("v1/models/", &query_params)
+                .get_with_query(endpoints::models::LIST, &query_params)
                 .await
         }
     }
@@ -75,10 +76,10 @@ impl<'a> ModelsApi<'a> {
         }
 
         if query_params.is_empty() {
-            self.client.get("v1/models/embedding/").await
+            self.client.get(endpoints::models::LIST_EMBEDDING).await
         } else {
             self.client
-                .get_with_query("v1/models/embedding/", &query_params)
+                .get_with_query(endpoints::models::LIST_EMBEDDING, &query_params)
                 .await
         }
     }

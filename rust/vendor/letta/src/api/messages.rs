@@ -1,5 +1,6 @@
 //! Message API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::{LettaError, LettaResult};
 use crate::pagination::PaginatedStream;
@@ -57,7 +58,7 @@ impl<'a> MessageApi<'a> {
     ) -> LettaResult<Vec<LettaMessageUnion>> {
         self.client
             .get_with_query(
-                &format!("v1/agents/{}/messages", agent_id),
+                &endpoints::agents::messages::list(agent_id),
                 &params.unwrap_or_default(),
             )
             .await
@@ -79,7 +80,7 @@ impl<'a> MessageApi<'a> {
         request: CreateMessagesRequest,
     ) -> LettaResult<LettaResponse> {
         self.client
-            .post(&format!("v1/agents/{}/messages", agent_id), &request)
+            .post(&endpoints::agents::messages::send(agent_id), &request)
             .await
     }
 
@@ -107,7 +108,7 @@ impl<'a> MessageApi<'a> {
         }
 
         self.client
-            .patch(&format!("v1/agents/{}/reset-messages", agent_id), &body)
+            .patch(&endpoints::agents::reset_messages(agent_id), &body)
             .await
     }
 
@@ -178,7 +179,7 @@ impl<'a> MessageApi<'a> {
         let url = self
             .client
             .base_url()
-            .join(&format!("v1/agents/{}/messages/stream", agent_id))?;
+            .join(&endpoints::agents::messages::stream(agent_id))?;
 
         // Add query parameter for token streaming
         let url = if stream_tokens {
@@ -265,7 +266,7 @@ impl<'a> MessageApi<'a> {
     ) -> LettaResult<LettaMessageUnion> {
         self.client
             .patch(
-                &format!("v1/agents/{}/messages/{}", agent_id, message_id),
+                &endpoints::agents::messages::get(agent_id, message_id),
                 &request,
             )
             .await
@@ -294,7 +295,7 @@ impl<'a> MessageApi<'a> {
         request: CreateMessagesRequest,
     ) -> LettaResult<crate::types::Run> {
         self.client
-            .post(&format!("v1/agents/{}/messages/async", agent_id), &request)
+            .post(&endpoints::agents::messages::send_async(agent_id), &request)
             .await
     }
 
@@ -322,7 +323,7 @@ impl<'a> MessageApi<'a> {
     ) -> LettaResult<serde_json::Value> {
         self.client
             .post(
-                &format!("v1/agents/{}/messages/cancel", agent_id),
+                &endpoints::agents::messages::cancel(agent_id),
                 &request.unwrap_or_default(),
             )
             .await
@@ -352,10 +353,7 @@ impl<'a> MessageApi<'a> {
         request: CreateMessagesRequest,
     ) -> LettaResult<serde_json::Value> {
         self.client
-            .post(
-                &format!("v1/agents/{}/messages/preview-raw-payload", agent_id),
-                &request,
-            )
+            .post(&endpoints::agents::messages::preview(agent_id), &request)
             .await
     }
 
@@ -406,7 +404,7 @@ impl<'a> MessageApi<'a> {
         request: crate::types::MessageSearchRequest,
     ) -> LettaResult<Vec<crate::types::MessageSearchResult>> {
         self.client
-            .post("v1/agents/messages/search", &request)
+            .post(endpoints::agents::MESSAGE_SEARCH, &request)
             .await
     }
 

@@ -183,7 +183,7 @@ async fn handle_list_sources(
 
     let all_sources = client
         .sources()
-        .list()
+        .list(None)
         .await
         .map_err(|e| McpError::internal(format!("Failed to list sources: {}", e)))?;
 
@@ -197,7 +197,9 @@ async fn handle_list_sources(
     let summaries: Vec<SourceSummary> = sources_to_return
         .into_iter()
         .map(|source| {
-            let description = source.description.map(|d| truncate_with_suffix(&d, 100).into_owned());
+            let description = source
+                .description
+                .map(|d| truncate_with_suffix(&d, 100).into_owned());
 
             SourceSummary {
                 id: source.id.map(|id| id.to_string()).unwrap_or_default(),
@@ -680,9 +682,9 @@ async fn handle_list_agents_using(
                     .await
                     .unwrap_or_default();
 
-                let has_source = sources.iter().any(|s| {
-                    s.id.as_ref().map_or(false, |sid| sid == &target_source_id)
-                });
+                let has_source = sources
+                    .iter()
+                    .any(|s| s.id.as_ref().map_or(false, |sid| sid == &target_source_id));
 
                 if has_source {
                     Some((agent_id.to_string(), agent_name))
@@ -700,7 +702,6 @@ async fn handle_list_agents_using(
         .flatten()
         .map(|(id, name)| AgentReference { id, name })
         .collect();
-
 
     let agent_count = agent_refs.len();
 

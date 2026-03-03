@@ -1,5 +1,6 @@
 //! Job and batch processing API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::{
@@ -30,7 +31,7 @@ impl<'a> JobApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(&self, params: Option<ListJobsParams>) -> LettaResult<Vec<Job>> {
         self.client
-            .get_with_query("v1/jobs/", &params.unwrap_or_default())
+            .get_with_query(endpoints::jobs::LIST, &params.unwrap_or_default())
             .await
     }
 
@@ -45,7 +46,7 @@ impl<'a> JobApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list_active(&self, params: Option<ListJobsParams>) -> LettaResult<Vec<Job>> {
         self.client
-            .get_with_query("v1/jobs/active/", &params.unwrap_or_default())
+            .get_with_query(endpoints::jobs::LIST_ACTIVE, &params.unwrap_or_default())
             .await
     }
 
@@ -59,7 +60,7 @@ impl<'a> JobApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get(&self, job_id: &LettaId) -> LettaResult<Job> {
-        self.client.get(&format!("v1/jobs/{}", job_id)).await
+        self.client.get(&endpoints::jobs::get(job_id)).await
     }
 
     /// Delete/cancel a job.
@@ -72,7 +73,7 @@ impl<'a> JobApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails.
     pub async fn delete(&self, job_id: &LettaId) -> LettaResult<String> {
-        self.client.delete(&format!("v1/jobs/{}", job_id)).await
+        self.client.delete(&endpoints::jobs::delete(job_id)).await
     }
 }
 
@@ -102,7 +103,7 @@ impl<'a> StepApi<'a> {
         params: Option<crate::types::ListStepsParams>,
     ) -> LettaResult<Vec<Step>> {
         self.client
-            .get_with_query("v1/steps/", &params.unwrap_or_default())
+            .get_with_query(endpoints::steps::LIST, &params.unwrap_or_default())
             .await
     }
 
@@ -116,7 +117,7 @@ impl<'a> StepApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get(&self, step_id: &LettaId) -> LettaResult<Step> {
-        self.client.get(&format!("v1/steps/{}", step_id)).await
+        self.client.get(&endpoints::steps::get(step_id)).await
     }
 
     /// Provide feedback on a step.
@@ -135,10 +136,7 @@ impl<'a> StepApi<'a> {
         feedback: StepFeedback,
     ) -> LettaResult<String> {
         self.client
-            .patch_no_body(&format!(
-                "v1/steps/{}/feedback?feedback={}",
-                step_id, feedback
-            ))
+            .patch_no_body(&endpoints::steps::feedback_with_value(step_id, &feedback))
             .await
     }
 
@@ -149,29 +147,23 @@ impl<'a> StepApi<'a> {
         request: ModifyFeedbackRequest,
     ) -> LettaResult<Step> {
         self.client
-            .patch(&format!("v1/steps/{}/feedback", step_id), &request)
+            .patch(&endpoints::steps::feedback(step_id), &request)
             .await
     }
 
     /// List messages for a step.
     pub async fn list_messages(&self, step_id: &LettaId) -> LettaResult<Vec<LettaMessageUnion>> {
-        self.client
-            .get(&format!("v1/steps/{}/messages", step_id))
-            .await
+        self.client.get(&endpoints::steps::messages(step_id)).await
     }
 
     /// Get metrics for a step.
     pub async fn get_metrics(&self, step_id: &LettaId) -> LettaResult<StepMetrics> {
-        self.client
-            .get(&format!("v1/steps/{}/metrics", step_id))
-            .await
+        self.client.get(&endpoints::steps::metrics(step_id)).await
     }
 
     /// Get trace payload for a step.
     pub async fn get_trace(&self, step_id: &LettaId) -> LettaResult<Option<TelemetryTrace>> {
-        self.client
-            .get(&format!("v1/steps/{}/trace", step_id))
-            .await
+        self.client.get(&endpoints::steps::trace(step_id)).await
     }
 
     /// Step transaction patch endpoint.
@@ -181,16 +173,13 @@ impl<'a> StepApi<'a> {
         transaction_id: &str,
     ) -> LettaResult<Step> {
         self.client
-            .patch_no_body(&format!(
-                "v1/steps/{}/transaction/{}",
-                step_id, transaction_id
-            ))
+            .patch_no_body(&endpoints::steps::transaction(step_id, transaction_id))
             .await
     }
 
     /// Get provider telemetry payload for a step.
     pub async fn get_provider_trace(&self, step_id: &LettaId) -> LettaResult<TelemetryTrace> {
-        self.client.get(&format!("v1/telemetry/{}", step_id)).await
+        self.client.get(&endpoints::telemetry::get(step_id)).await
     }
 }
 

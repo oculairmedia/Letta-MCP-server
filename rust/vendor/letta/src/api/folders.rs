@@ -1,5 +1,6 @@
 //! Folder API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::agent::AgentState;
@@ -33,7 +34,7 @@ impl<'a> FolderApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(&self, params: Option<ListFoldersParams>) -> LettaResult<Vec<Folder>> {
         self.client
-            .get_with_query("v1/folders/", &params.unwrap_or_default())
+            .get_with_query(endpoints::folders::LIST, &params.unwrap_or_default())
             .await
     }
 
@@ -47,7 +48,7 @@ impl<'a> FolderApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn create(&self, request: CreateFolderRequest) -> LettaResult<Folder> {
-        self.client.post("v1/folders/", &request).await
+        self.client.post(endpoints::folders::CREATE, &request).await
     }
 
     /// Get a folder by ID.
@@ -60,7 +61,7 @@ impl<'a> FolderApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get(&self, folder_id: &LettaId) -> LettaResult<Folder> {
-        self.client.get(&format!("v1/folders/{}", folder_id)).await
+        self.client.get(&endpoints::folders::get(folder_id)).await
     }
 
     /// Update a folder.
@@ -79,7 +80,7 @@ impl<'a> FolderApi<'a> {
         request: UpdateFolderRequest,
     ) -> LettaResult<Folder> {
         self.client
-            .patch(&format!("v1/folders/{}", folder_id), &request)
+            .patch(&endpoints::folders::update(folder_id), &request)
             .await
     }
 
@@ -94,7 +95,7 @@ impl<'a> FolderApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails.
     pub async fn delete(&self, folder_id: &LettaId) -> LettaResult<()> {
         self.client
-            .delete_no_response(&format!("v1/folders/{}", folder_id))
+            .delete_no_response(&endpoints::folders::delete(folder_id))
             .await
     }
 
@@ -104,7 +105,7 @@ impl<'a> FolderApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn count(&self) -> LettaResult<u32> {
-        self.client.get("v1/folders/count").await
+        self.client.get(endpoints::folders::COUNT).await
     }
 
     /// Get a folder by name.
@@ -118,7 +119,7 @@ impl<'a> FolderApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get_by_name(&self, folder_name: &str) -> LettaResult<Folder> {
         self.client
-            .get(&format!("v1/folders/name/{}", folder_name))
+            .get(&endpoints::folders::get_by_name(folder_name))
             .await
     }
 
@@ -128,7 +129,7 @@ impl<'a> FolderApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get_metadata(&self) -> LettaResult<serde_json::Value> {
-        self.client.get("v1/folders/metadata").await
+        self.client.get(endpoints::folders::METADATA).await
     }
 
     /// Upload a file to a folder.
@@ -160,7 +161,7 @@ impl<'a> FolderApi<'a> {
         let form = form.part("file", part);
 
         self.client
-            .post_multipart(&format!("v1/folders/{}/upload", folder_id), form)
+            .post_multipart(&endpoints::folders::upload(folder_id), form)
             .await
     }
 
@@ -175,7 +176,7 @@ impl<'a> FolderApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list_agents(&self, folder_id: &LettaId) -> LettaResult<Vec<String>> {
         self.client
-            .get(&format!("v1/folders/{}/agents", folder_id))
+            .get(&endpoints::folders::list_agents(folder_id))
             .await
     }
 
@@ -190,7 +191,7 @@ impl<'a> FolderApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list_passages(&self, folder_id: &LettaId) -> LettaResult<Vec<Passage>> {
         self.client
-            .get(&format!("v1/folders/{}/passages", folder_id))
+            .get(&endpoints::folders::list_passages(folder_id))
             .await
     }
 
@@ -205,7 +206,7 @@ impl<'a> FolderApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list_files(&self, folder_id: &LettaId) -> LettaResult<Vec<FileMetadata>> {
         self.client
-            .get(&format!("v1/folders/{}/files", folder_id))
+            .get(&endpoints::folders::list_files(folder_id))
             .await
     }
 
@@ -221,7 +222,7 @@ impl<'a> FolderApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails.
     pub async fn delete_file(&self, folder_id: &LettaId, file_id: &LettaId) -> LettaResult<()> {
         self.client
-            .delete_no_response(&format!("v1/folders/{}/{}", folder_id, file_id))
+            .delete_no_response(&endpoints::folders::delete_file(folder_id, file_id))
             .await
     }
 
@@ -255,9 +256,9 @@ impl<'a> AgentFolderApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn attach(&self, folder_id: &LettaId) -> LettaResult<AgentState> {
         self.client
-            .patch_no_body(&format!(
-                "v1/agents/{}/folders/attach/{}",
-                self.agent_id, folder_id
+            .patch_no_body(&endpoints::agents::folders::attach(
+                &self.agent_id,
+                folder_id,
             ))
             .await
     }
@@ -273,9 +274,9 @@ impl<'a> AgentFolderApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn detach(&self, folder_id: &LettaId) -> LettaResult<AgentState> {
         self.client
-            .patch_no_body(&format!(
-                "v1/agents/{}/folders/detach/{}",
-                self.agent_id, folder_id
+            .patch_no_body(&endpoints::agents::folders::detach(
+                &self.agent_id,
+                folder_id,
             ))
             .await
     }

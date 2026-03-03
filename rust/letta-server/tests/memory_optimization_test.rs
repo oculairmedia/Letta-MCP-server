@@ -72,8 +72,7 @@ fn test_passage_summary_from_value() {
 
 #[test]
 fn test_pagination_meta() {
-    let meta = PaginationMeta::new(100, 20, 0, 20)
-        .with_hint("Use 'get_block' for full content");
+    let meta = PaginationMeta::new(100, 20, 0, 20).with_hint("Use 'get_block' for full content");
 
     assert_eq!(meta.total, 100);
     assert_eq!(meta.returned, 20);

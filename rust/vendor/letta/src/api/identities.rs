@@ -1,5 +1,6 @@
 //! Identities API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::pagination::PaginatedStream;
@@ -31,9 +32,11 @@ impl<'a> IdentitiesApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(&self, params: Option<ListIdentitiesParams>) -> LettaResult<Vec<Identity>> {
         if let Some(params) = params {
-            self.client.get_with_query("v1/identities/", &params).await
+            self.client
+                .get_with_query(endpoints::identities::LIST, &params)
+                .await
         } else {
-            self.client.get("v1/identities/").await
+            self.client.get(endpoints::identities::LIST).await
         }
     }
 
@@ -47,7 +50,9 @@ impl<'a> IdentitiesApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn create(&self, request: CreateIdentityRequest) -> LettaResult<Identity> {
-        self.client.post("v1/identities/", &request).await
+        self.client
+            .post(endpoints::identities::CREATE, &request)
+            .await
     }
 
     /// Create a new identity with optional project context.
@@ -74,7 +79,7 @@ impl<'a> IdentitiesApi<'a> {
         );
 
         self.client
-            .post_with_headers("v1/identities/", &request, headers)
+            .post_with_headers(endpoints::identities::CREATE, &request, headers)
             .await
     }
 
@@ -89,7 +94,7 @@ impl<'a> IdentitiesApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get(&self, identity_id: &LettaId) -> LettaResult<Identity> {
         self.client
-            .get(&format!("v1/identities/{}", identity_id))
+            .get(&endpoints::identities::get(identity_id))
             .await
     }
 
@@ -109,7 +114,7 @@ impl<'a> IdentitiesApi<'a> {
         update: UpdateIdentityRequest,
     ) -> LettaResult<Identity> {
         self.client
-            .patch(&format!("v1/identities/{}", identity_id), &update)
+            .patch(&endpoints::identities::update(identity_id), &update)
             .await
     }
 
@@ -124,7 +129,7 @@ impl<'a> IdentitiesApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails.
     pub async fn delete(&self, identity_id: &LettaId) -> LettaResult<()> {
         self.client
-            .delete_no_response(&format!("v1/identities/{}", identity_id))
+            .delete_no_response(&endpoints::identities::delete(identity_id))
             .await
     }
 
@@ -134,7 +139,7 @@ impl<'a> IdentitiesApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn count(&self) -> LettaResult<u32> {
-        let response: serde_json::Value = self.client.get("v1/identities/count").await?;
+        let response: serde_json::Value = self.client.get(endpoints::identities::COUNT).await?;
         // The response is just a bare number
         response.as_u64().map(|v| v as u32).ok_or_else(|| {
             crate::error::LettaError::validation("Invalid count response - expected number")
@@ -157,7 +162,9 @@ impl<'a> IdentitiesApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails, if the identity doesn't exist,
     /// or if the response cannot be parsed.
     pub async fn upsert(&self, request: CreateIdentityRequest) -> LettaResult<Identity> {
-        self.client.put("v1/identities/", &request).await
+        self.client
+            .put(endpoints::identities::UPSERT, &request)
+            .await
     }
 
     /// Upsert an identity (update existing) with optional project context.
@@ -190,7 +197,7 @@ impl<'a> IdentitiesApi<'a> {
         );
 
         self.client
-            .put_with_headers("v1/identities/", &request, headers)
+            .put_with_headers(endpoints::identities::UPSERT, &request, headers)
             .await
     }
 

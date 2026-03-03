@@ -203,7 +203,7 @@ async fn handle_list_files(
     let result = client
         .agents()
         .files(letta_agent_id)
-        .list()
+        .list(None)
         .await
         .map_err(|e| McpError::internal(format!("Failed to list files: {}", e)))?;
 

@@ -1,5 +1,6 @@
 //! Voice API endpoints (beta).
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::{LettaId, VoiceChatCompletionRequest, VoiceChatCompletionResponse};
@@ -36,7 +37,7 @@ impl<'a> VoiceApi<'a> {
         request: VoiceChatCompletionRequest,
         user_id: Option<&str>,
     ) -> LettaResult<VoiceChatCompletionResponse> {
-        let path = format!("v1/voice-beta/{}/chat/completions", agent_id);
+        let path = endpoints::voice::chat(agent_id);
 
         if let Some(user_id) = user_id {
             // Use post_with_headers when we have a user_id

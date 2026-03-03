@@ -1,5 +1,6 @@
 //! Source API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::pagination::PaginatedStream;
@@ -29,18 +30,18 @@ impl<'a> SourceApi<'a> {
     /// List all sources.
     pub async fn list(&self, params: Option<ListSourcesParams>) -> LettaResult<Vec<Source>> {
         self.client
-            .get_with_query("v1/sources/", &params.unwrap_or_default())
+            .get_with_query(endpoints::sources::LIST, &params.unwrap_or_default())
             .await
     }
 
     /// Create a new source.
     pub async fn create(&self, request: CreateSourceRequest) -> LettaResult<Source> {
-        self.client.post("v1/sources/", &request).await
+        self.client.post(endpoints::sources::CREATE, &request).await
     }
 
     /// Get a source by ID.
     pub async fn get(&self, source_id: &LettaId) -> LettaResult<Source> {
-        self.client.get(&format!("v1/sources/{}", source_id)).await
+        self.client.get(&endpoints::sources::get(source_id)).await
     }
 
     /// Update a source.
@@ -50,26 +51,26 @@ impl<'a> SourceApi<'a> {
         request: UpdateSourceRequest,
     ) -> LettaResult<Source> {
         self.client
-            .patch(&format!("v1/sources/{}", source_id), &request)
+            .patch(&endpoints::sources::update(source_id), &request)
             .await
     }
 
     /// Delete a source.
     pub async fn delete(&self, source_id: &LettaId) -> LettaResult<Option<Value>> {
         self.client
-            .delete(&format!("v1/sources/{}", source_id))
+            .delete(&endpoints::sources::delete(source_id))
             .await
     }
 
     /// Get source count.
     pub async fn count(&self) -> LettaResult<i32> {
-        self.client.get("v1/sources/count").await
+        self.client.get(endpoints::sources::COUNT).await
     }
 
     /// Get source ID by name.
     pub async fn get_by_name(&self, source_name: &str) -> LettaResult<String> {
         self.client
-            .get(&format!("v1/sources/name/{}", source_name))
+            .get(&endpoints::sources::get_by_name(source_name))
             .await
     }
 
@@ -92,7 +93,7 @@ impl<'a> SourceApi<'a> {
         let form = form.part("file", part);
 
         self.client
-            .post_multipart(&format!("v1/sources/{}/upload", source_id), form)
+            .post_multipart(&endpoints::sources::upload(source_id), form)
             .await
     }
 
@@ -103,7 +104,7 @@ impl<'a> SourceApi<'a> {
         params: Option<ListFilesParams>,
     ) -> LettaResult<Vec<FileMetadata>> {
         self.client
-            .get_with_query(&format!("v1/sources/{}/files", source_id), &params)
+            .get_with_query(&endpoints::sources::list_files(source_id), &params)
             .await
     }
 
@@ -115,17 +116,14 @@ impl<'a> SourceApi<'a> {
         params: Option<GetFileParams>,
     ) -> LettaResult<FileMetadata> {
         self.client
-            .get_with_query(
-                &format!("v1/sources/{}/files/{}", source_id, file_id),
-                &params,
-            )
+            .get_with_query(&endpoints::sources::get_file(source_id, file_id), &params)
             .await
     }
 
     /// Delete a file from a source.
     pub async fn delete_file(&self, source_id: &LettaId, file_id: &LettaId) -> LettaResult<()> {
         self.client
-            .delete_no_response(&format!("v1/sources/{}/{}", source_id, file_id))
+            .delete_no_response(&endpoints::sources::delete_file(source_id, file_id))
             .await
     }
 
@@ -136,7 +134,7 @@ impl<'a> SourceApi<'a> {
         params: Option<ListPassagesParams>,
     ) -> LettaResult<Vec<Passage>> {
         self.client
-            .get_with_query(&format!("v1/sources/{}/passages", source_id), &params)
+            .get_with_query(&endpoints::sources::list_passages(source_id), &params)
             .await
     }
 
@@ -284,7 +282,7 @@ impl<'a> AgentSourceApi<'a> {
     /// List sources attached to the agent.
     pub async fn list(&self) -> LettaResult<Vec<Source>> {
         self.client
-            .get(&format!("v1/agents/{}/sources", self.agent_id))
+            .get(&endpoints::agents::sources::list(&self.agent_id))
             .await
     }
 
@@ -292,7 +290,7 @@ impl<'a> AgentSourceApi<'a> {
     pub async fn attach(&self, source_id: &LettaId) -> LettaResult<AgentState> {
         self.client
             .patch(
-                &format!("v1/agents/{}/sources/attach/{}", self.agent_id, source_id),
+                &endpoints::agents::sources::attach(&self.agent_id, source_id),
                 &(),
             )
             .await
@@ -302,7 +300,7 @@ impl<'a> AgentSourceApi<'a> {
     pub async fn detach(&self, source_id: &LettaId) -> LettaResult<AgentState> {
         self.client
             .patch(
-                &format!("v1/agents/{}/sources/detach/{}", self.agent_id, source_id),
+                &endpoints::agents::sources::detach(&self.agent_id, source_id),
                 &(),
             )
             .await

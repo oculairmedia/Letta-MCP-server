@@ -1,5 +1,6 @@
 //! Miscellaneous API endpoints (health, models, etc.).
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::HealthResponse;
@@ -22,7 +23,7 @@ impl<'a> MiscApi<'a> {
     /// Note: Prefer using `client.health().check()` directly instead.
     /// This method delegates to the Health API.
     pub async fn health(&self) -> LettaResult<HealthResponse> {
-        self.client.get("v1/health/").await
+        self.client.get(endpoints::health::CHECK).await
     }
 }
 

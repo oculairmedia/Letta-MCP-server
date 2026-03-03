@@ -117,7 +117,10 @@ async fn handle_list_jobs(
 
     let jobs = client
         .jobs()
-        .list(None, Some(limit), None)
+        .list(Some(letta::types::ListJobsParams {
+            limit: Some(limit),
+            ..Default::default()
+        }))
         .await
         .map_err(|e| McpError::internal(format!("Failed to list jobs: {}", e)))?;
 
@@ -279,7 +282,10 @@ async fn handle_list_active_jobs(
 
     let jobs = client
         .jobs()
-        .list_active(None, Some(limit))
+        .list_active(Some(letta::types::ListJobsParams {
+            limit: Some(limit),
+            ..Default::default()
+        }))
         .await
         .map_err(|e| McpError::internal(format!("Failed to list active jobs: {}", e)))?;
 

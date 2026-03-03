@@ -1,5 +1,6 @@
 //! Project management API endpoints (Cloud only).
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::{ListProjectsParams, ProjectsListResponse};
@@ -32,7 +33,7 @@ impl<'a> ProjectApi<'a> {
         params: Option<ListProjectsParams>,
     ) -> LettaResult<ProjectsListResponse> {
         self.client
-            .get_with_query("v1/projects/", &params.unwrap_or_default())
+            .get_with_query(endpoints::projects::LIST, &params.unwrap_or_default())
             .await
     }
 }

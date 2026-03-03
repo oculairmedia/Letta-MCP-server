@@ -1,5 +1,6 @@
 //! Telemetry API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::TelemetryTrace;
@@ -26,7 +27,7 @@ impl<'a> TelemetryApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn retrieve_provider_trace(&self, step_id: &str) -> LettaResult<TelemetryTrace> {
-        self.client.get(&format!("v1/telemetry/{}", step_id)).await
+        self.client.get(&endpoints::telemetry::get(step_id)).await
     }
 }
 

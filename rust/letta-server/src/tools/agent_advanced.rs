@@ -241,12 +241,8 @@ pub async fn handle_agent_advanced(
         AgentOperation::SendConversationMessage => {
             handle_send_conversation_message(client, request).await?
         }
-        AgentOperation::CancelConversation => {
-            handle_cancel_conversation(client, request).await?
-        }
-        AgentOperation::CompactConversation => {
-            handle_compact_conversation(client, request).await?
-        }
+        AgentOperation::CancelConversation => handle_cancel_conversation(client, request).await?,
+        AgentOperation::CompactConversation => handle_compact_conversation(client, request).await?,
     };
 
     Ok(serde_json::to_string_pretty(&response)?)
@@ -299,7 +295,11 @@ async fn handle_list_agents(
         offset as u32 + returned_count
     } else {
         // Full page returned — there may be more, so fetch the count
-        client.agents().count().await.unwrap_or(offset as u32 + returned_count)
+        client
+            .agents()
+            .count()
+            .await
+            .unwrap_or(offset as u32 + returned_count)
     };
 
     // LMS-48: Create optimized agent summaries
@@ -311,7 +311,10 @@ async fn handle_list_agents(
             let model = agent.llm_config.as_ref().map(|config| config.model.clone());
 
             // Truncate description to 100 chars
-            let description = agent.description.as_ref().map(|d| truncate_with_indicator(d, 100));
+            let description = agent
+                .description
+                .as_ref()
+                .map(|d| truncate_with_indicator(d, 100));
 
             serde_json::json!({
                 "id": agent.id.to_string(),
@@ -397,7 +400,10 @@ async fn handle_search_agents(
         .map(|agent| {
             let model = agent.llm_config.as_ref().map(|config| config.model.clone());
 
-            let description = agent.description.as_ref().map(|d| truncate_with_indicator(d, 100));
+            let description = agent
+                .description
+                .as_ref()
+                .map(|d| truncate_with_indicator(d, 100));
 
             serde_json::json!({
                 "id": agent.id.to_string(),
@@ -677,7 +683,10 @@ async fn handle_list_tools(
         .iter()
         .take(limit)
         .map(|tool| {
-            let description = tool.description.as_ref().map(|d| truncate_with_indicator(d, 80));
+            let description = tool
+                .description
+                .as_ref()
+                .map(|d| truncate_with_indicator(d, 80));
             let id = tool
                 .id
                 .as_ref()
@@ -843,9 +852,7 @@ async fn handle_bulk_delete(
     })?;
 
     // Pre-compute agent_ids as HashSet for O(1) lookup instead of O(n) Vec::contains
-    let id_filter: Option<HashSet<String>> = filters
-        .agent_ids
-        .map(|ids| ids.into_iter().collect());
+    let id_filter: Option<HashSet<String>> = filters.agent_ids.map(|ids| ids.into_iter().collect());
 
     // Paginated fetch: collect matching agents without loading entire list at once
     let mut to_delete: Vec<letta::types::LettaId> = Vec::new();
@@ -1274,7 +1281,9 @@ async fn handle_get_message(
                     letta::types::LettaMessageUnion::UserMessage(msg) => msg.id.to_string(),
                     letta::types::LettaMessageUnion::AssistantMessage(msg) => msg.id.to_string(),
                     letta::types::LettaMessageUnion::ReasoningMessage(msg) => msg.id.to_string(),
-                    letta::types::LettaMessageUnion::HiddenReasoningMessage(msg) => msg.id.to_string(),
+                    letta::types::LettaMessageUnion::HiddenReasoningMessage(msg) => {
+                        msg.id.to_string()
+                    }
                     letta::types::LettaMessageUnion::ToolCallMessage(msg) => msg.id.to_string(),
                     letta::types::LettaMessageUnion::ToolReturnMessage(msg) => msg.id.to_string(),
                 };
@@ -1345,7 +1354,6 @@ async fn handle_count(
     ))
 }
 
-
 // ===================================================
 // Conversation Operation Handlers
 // ===================================================
@@ -1366,7 +1374,7 @@ async fn handle_list_conversations(
 
     let conversations = client
         .conversations()
-        .list(&letta_id)
+        .list(&letta_id, None)
         .await
         .map_err(|e| McpError::internal(format!("Failed to list conversations: {}", e)))?;
 
@@ -1391,9 +1399,7 @@ async fn handle_get_conversation(
 
     let letta_id: letta::types::LettaId = conversation_id
         .parse()
-        .map_err(|e| {
-            McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
-        })?;
+        .map_err(|e| McpError::invalid_request(format!("Invalid conversation_id format: {}", e)))?;
 
     let conversation = client
         .conversations()
@@ -1420,9 +1426,7 @@ async fn handle_send_conversation_message(
 
     let letta_id: letta::types::LettaId = conversation_id
         .parse()
-        .map_err(|e| {
-            McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
-        })?;
+        .map_err(|e| McpError::invalid_request(format!("Invalid conversation_id format: {}", e)))?;
 
     // Build ConversationMessageRequest from available fields
     let mut msg_request = letta::types::ConversationMessageRequest::default();
@@ -1445,9 +1449,7 @@ async fn handle_send_conversation_message(
         .conversations()
         .send_message(&letta_id, msg_request)
         .await
-        .map_err(|e| {
-            McpError::internal(format!("Failed to send conversation message: {}", e))
-        })?;
+        .map_err(|e| McpError::internal(format!("Failed to send conversation message: {}", e)))?;
 
     Ok(StandardResponse::success(
         "send_conversation_message",
@@ -1468,9 +1470,7 @@ async fn handle_cancel_conversation(
 
     let letta_id: letta::types::LettaId = conversation_id
         .parse()
-        .map_err(|e| {
-            McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
-        })?;
+        .map_err(|e| McpError::invalid_request(format!("Invalid conversation_id format: {}", e)))?;
 
     let result = client
         .conversations()
@@ -1497,17 +1497,13 @@ async fn handle_compact_conversation(
 
     let letta_id: letta::types::LettaId = conversation_id
         .parse()
-        .map_err(|e| {
-            McpError::invalid_request(format!("Invalid conversation_id format: {}", e))
-        })?;
+        .map_err(|e| McpError::invalid_request(format!("Invalid conversation_id format: {}", e)))?;
 
     let result = client
         .conversations()
         .compact(&letta_id, None)
         .await
-        .map_err(|e| {
-            McpError::internal(format!("Failed to compact conversation: {}", e))
-        })?;
+        .map_err(|e| McpError::internal(format!("Failed to compact conversation: {}", e)))?;
 
     Ok(StandardResponse::success(
         "compact_conversation",

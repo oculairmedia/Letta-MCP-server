@@ -1,5 +1,6 @@
 //! Tags API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::pagination::PaginatedStream;
@@ -42,9 +43,11 @@ impl<'a> TagsApi<'a> {
         }
 
         if query_params.is_empty() {
-            self.client.get("v1/tags/").await
+            self.client.get(endpoints::tags::LIST).await
         } else {
-            self.client.get_with_query("v1/tags/", &query_params).await
+            self.client
+                .get_with_query(endpoints::tags::LIST, &query_params)
+                .await
         }
     }
 
@@ -91,9 +94,11 @@ impl<'a> TagsApi<'a> {
                 }
 
                 if query_params.is_empty() {
-                    client.get("v1/tags/").await
+                    client.get(endpoints::tags::LIST).await
                 } else {
-                    client.get_with_query("v1/tags/", &query_params).await
+                    client
+                        .get_with_query(endpoints::tags::LIST, &query_params)
+                        .await
                 }
             }
         };

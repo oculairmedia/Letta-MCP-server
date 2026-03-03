@@ -8,6 +8,8 @@ pub mod archives;
 pub mod batch;
 pub mod blocks;
 pub mod conversations;
+#[allow(missing_docs)]
+pub mod endpoints;
 pub mod files;
 pub mod folders;
 pub mod groups;

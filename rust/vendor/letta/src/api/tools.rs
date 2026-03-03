@@ -1,5 +1,6 @@
 //! Tool API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::pagination::PaginatedStream;
@@ -24,7 +25,7 @@ impl<'a> ToolApi<'a> {
 
     /// List all tools.
     pub async fn list(&self, params: Option<ListToolsParams>) -> LettaResult<Vec<Tool>> {
-        let url = "/v1/tools/";
+        let url = endpoints::tools::LIST;
         if let Some(params) = params {
             let query = serde_urlencoded::to_string(&params)?;
             if !query.is_empty() {
@@ -37,30 +38,30 @@ impl<'a> ToolApi<'a> {
 
     /// Create a new tool.
     pub async fn create(&self, request: CreateToolRequest) -> LettaResult<Tool> {
-        self.client.post("/v1/tools/", &request).await
+        self.client.post(endpoints::tools::CREATE, &request).await
     }
 
     /// Get a specific tool by ID.
     pub async fn get(&self, tool_id: &LettaId) -> LettaResult<Tool> {
-        let url = format!("/v1/tools/{}", tool_id);
+        let url = endpoints::tools::get(tool_id);
         self.client.get(&url).await
     }
 
     /// Update a tool.
     pub async fn update(&self, tool_id: &LettaId, request: UpdateToolRequest) -> LettaResult<Tool> {
-        let url = format!("/v1/tools/{}", tool_id);
+        let url = endpoints::tools::update(tool_id);
         self.client.patch(&url, &request).await
     }
 
     /// Delete a tool.
     pub async fn delete(&self, tool_id: &LettaId) -> LettaResult<()> {
-        let url = format!("/v1/tools/{}", tool_id);
+        let url = endpoints::tools::delete(tool_id);
         self.client.delete(&url).await
     }
 
     /// Get count of tools.
     pub async fn count(&self) -> LettaResult<u32> {
-        let response: serde_json::Value = self.client.get("/v1/tools/count").await?;
+        let response: serde_json::Value = self.client.get(endpoints::tools::COUNT).await?;
         // The response is just a bare number
         response.as_u64().map(|v| v as u32).ok_or_else(|| {
             crate::error::LettaError::validation("Invalid count response - expected number")
@@ -69,7 +70,7 @@ impl<'a> ToolApi<'a> {
 
     /// Upsert a tool (create or update).
     pub async fn upsert(&self, request: CreateToolRequest) -> LettaResult<Tool> {
-        self.client.put("/v1/tools/", &request).await
+        self.client.put(endpoints::tools::UPSERT, &request).await
     }
 
     // MCP Server Management
@@ -82,7 +83,7 @@ impl<'a> ToolApi<'a> {
     pub async fn list_mcp_servers(
         &self,
     ) -> LettaResult<std::collections::HashMap<String, McpServerConfig>> {
-        self.client.get("v1/tools/mcp/servers").await
+        self.client.get(endpoints::tools_mcp::LIST_SERVERS).await
     }
 
     /// Get a list of all configured MCP servers with optional user context.
@@ -98,7 +99,7 @@ impl<'a> ToolApi<'a> {
         &self,
         user_id: &str,
     ) -> LettaResult<std::collections::HashMap<String, McpServerConfig>> {
-        let url = format!("v1/tools/mcp/servers?user-id={}", user_id);
+        let url = endpoints::tools_mcp::list_servers_with_user(user_id);
         self.client.get(&url).await
     }
 
@@ -119,7 +120,9 @@ impl<'a> ToolApi<'a> {
         &self,
         config: McpServerConfig,
     ) -> LettaResult<Vec<McpServerConfig>> {
-        self.client.put("v1/tools/mcp/servers", &config).await
+        self.client
+            .put(endpoints::tools_mcp::ADD_SERVER, &config)
+            .await
     }
 
     /// Get a list of tools for a specific MCP server.
@@ -133,7 +136,7 @@ impl<'a> ToolApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list_mcp_tools_by_server(&self, server_name: &str) -> LettaResult<Vec<McpTool>> {
         self.client
-            .get(&format!("v1/tools/mcp/servers/{}/tools", server_name))
+            .get(&endpoints::tools_mcp::list_tools(server_name))
             .await
     }
 
@@ -150,7 +153,7 @@ impl<'a> ToolApi<'a> {
     pub async fn add_mcp_tool(&self, server_name: &str, tool_name: &str) -> LettaResult<Tool> {
         self.client
             .post(
-                &format!("v1/tools/mcp/servers/{}/{}", server_name, tool_name),
+                &endpoints::tools_mcp::register_tool(server_name, tool_name),
                 &serde_json::json!({}),
             )
             .await
@@ -167,7 +170,7 @@ impl<'a> ToolApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails.
     pub async fn delete_mcp_server(&self, server_name: &str) -> LettaResult<()> {
         self.client
-            .delete_no_response(&format!("v1/tools/mcp/servers/{}", server_name))
+            .delete_no_response(&endpoints::tools_mcp::delete_server(server_name))
             .await
     }
 
@@ -187,7 +190,7 @@ impl<'a> ToolApi<'a> {
         request: UpdateMcpServerRequest,
     ) -> LettaResult<McpServerConfig> {
         self.client
-            .patch(&format!("v1/tools/mcp/servers/{}", server_name), &request)
+            .patch(&endpoints::tools_mcp::update_server(server_name), &request)
             .await
     }
 
@@ -209,7 +212,7 @@ impl<'a> ToolApi<'a> {
         request: TestMcpServerRequest,
     ) -> LettaResult<Vec<McpTool>> {
         self.client
-            .post("v1/tools/mcp/servers/test", &request)
+            .post(endpoints::tools_mcp::TEST_SERVER, &request)
             .await
     }
 
@@ -269,7 +272,9 @@ impl<'a> ToolApi<'a> {
         &self,
         request: RunToolFromSourceRequest,
     ) -> LettaResult<RunToolFromSourceResponse> {
-        self.client.post("/v1/tools/run", &request).await
+        self.client
+            .post(endpoints::tools::RUN_FROM_SOURCE, &request)
+            .await
     }
 
     // Composio Integration
@@ -284,7 +289,7 @@ impl<'a> ToolApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list_composio_apps(&self) -> LettaResult<Vec<crate::types::tool::AppModel>> {
-        self.client.get("/v1/tools/composio/apps").await
+        self.client.get(endpoints::tools::composio::LIST_APPS).await
     }
 
     /// List all actions for a specific Composio app.
@@ -306,7 +311,7 @@ impl<'a> ToolApi<'a> {
         app_name: &str,
     ) -> LettaResult<Vec<crate::types::tool::ActionModel>> {
         self.client
-            .get(&format!("/v1/tools/composio/apps/{}/actions", app_name))
+            .get(&endpoints::tools::composio::list_actions(app_name))
             .await
     }
 
@@ -329,7 +334,7 @@ impl<'a> ToolApi<'a> {
     pub async fn add_composio_tool(&self, action_name: &str) -> LettaResult<Tool> {
         self.client
             .post(
-                &format!("/v1/tools/composio/{}", action_name),
+                &endpoints::tools::composio::add_tool(action_name),
                 &serde_json::json!({}),
             )
             .await
@@ -350,7 +355,7 @@ impl<'a> ToolApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn upsert_base_tools(&self) -> LettaResult<Vec<Tool>> {
         self.client
-            .post("/v1/tools/add-base-tools", &serde_json::json!({}))
+            .post(endpoints::tools::ADD_BASE_TOOLS, &serde_json::json!({}))
             .await
     }
 

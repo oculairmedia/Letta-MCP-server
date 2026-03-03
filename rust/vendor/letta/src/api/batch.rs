@@ -1,5 +1,6 @@
 //! Batch API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::{
@@ -26,7 +27,7 @@ impl<'a> BatchApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(&self, params: Option<ListBatchRunsParams>) -> LettaResult<Vec<BatchRun>> {
         self.client
-            .get_with_query("v1/messages/batches/", &params.unwrap_or_default())
+            .get_with_query(endpoints::batch::LIST, &params.unwrap_or_default())
             .await
     }
 
@@ -47,7 +48,7 @@ impl<'a> BatchApi<'a> {
     /// May return a 500 Internal Server Error with `NotImplementedError` if the server
     /// does not support batch processing.
     pub async fn create(&self, request: CreateBatchRequest) -> LettaResult<BatchRun> {
-        self.client.post("v1/messages/batches", &request).await
+        self.client.post(endpoints::batch::CREATE, &request).await
     }
 
     /// Retrieve a specific batch run.
@@ -60,9 +61,7 @@ impl<'a> BatchApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get(&self, batch_id: &LettaId) -> LettaResult<BatchRun> {
-        self.client
-            .get(&format!("v1/messages/batches/{}", batch_id))
-            .await
+        self.client.get(&endpoints::batch::get(batch_id)).await
     }
 
     /// Cancel a batch run.
@@ -77,7 +76,7 @@ impl<'a> BatchApi<'a> {
     pub async fn cancel(&self, batch_id: &LettaId) -> LettaResult<BatchRun> {
         self.client
             .patch(
-                &format!("v1/messages/batches/{}/cancel", batch_id),
+                &endpoints::batch::cancel(batch_id),
                 &serde_json::Value::Null,
             )
             .await
@@ -98,7 +97,7 @@ impl<'a> BatchApi<'a> {
         batch_id: &LettaId,
         params: Option<ListBatchMessagesParams>,
     ) -> LettaResult<BatchMessagesResponse> {
-        let path = format!("v1/messages/batches/{}/messages", batch_id);
+        let path = endpoints::batch::messages(batch_id);
         if let Some(params) = params {
             self.client.get_with_query(&path, &params).await
         } else {

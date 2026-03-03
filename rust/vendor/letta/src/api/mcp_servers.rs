@@ -1,5 +1,6 @@
 //! MCP server v2 API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::mcp_server::{
@@ -25,7 +26,9 @@ impl<'a> McpServerApi<'a> {
         &self,
         request: CreateMcpServerRequestV2,
     ) -> LettaResult<McpServerSchemaV2> {
-        self.client.post("v1/mcp-servers/", &request).await
+        self.client
+            .post(endpoints::mcp_servers::CREATE, &request)
+            .await
     }
 
     /// List MCP servers.
@@ -34,14 +37,14 @@ impl<'a> McpServerApi<'a> {
         params: Option<ListMcpServersParams>,
     ) -> LettaResult<Vec<McpServerSchemaV2>> {
         self.client
-            .get_with_query("v1/mcp-servers/", &params.unwrap_or_default())
+            .get_with_query(endpoints::mcp_servers::LIST, &params.unwrap_or_default())
             .await
     }
 
     /// Get an MCP server by ID.
     pub async fn get(&self, mcp_server_id: &LettaId) -> LettaResult<McpServerSchemaV2> {
         self.client
-            .get(&format!("v1/mcp-servers/{}", mcp_server_id))
+            .get(&endpoints::mcp_servers::get(mcp_server_id))
             .await
     }
 
@@ -52,45 +55,42 @@ impl<'a> McpServerApi<'a> {
         request: UpdateMcpServerRequestV2,
     ) -> LettaResult<McpServerSchemaV2> {
         self.client
-            .patch(&format!("v1/mcp-servers/{}", mcp_server_id), &request)
+            .patch(&endpoints::mcp_servers::update(mcp_server_id), &request)
             .await
     }
 
     /// MCP server removal endpoint.
     pub async fn delete(&self, mcp_server_id: &LettaId) -> LettaResult<()> {
         self.client
-            .delete_no_response(&format!("v1/mcp-servers/{}", mcp_server_id))
+            .delete_no_response(&endpoints::mcp_servers::delete(mcp_server_id))
             .await
     }
 
     /// Connect to an MCP server by ID.
     pub async fn connect(&self, mcp_server_id: &LettaId) -> LettaResult<serde_json::Value> {
         self.client
-            .get(&format!("v1/mcp-servers/connect/{}", mcp_server_id))
+            .get(&endpoints::mcp_servers::connect(mcp_server_id))
             .await
     }
 
     /// Refresh tools for an MCP server by ID.
     pub async fn refresh(&self, mcp_server_id: &LettaId) -> LettaResult<serde_json::Value> {
         self.client
-            .patch_no_body(&format!("v1/mcp-servers/{}/refresh", mcp_server_id))
+            .patch_no_body(&endpoints::mcp_servers::refresh(mcp_server_id))
             .await
     }
 
     /// List tools for an MCP server by ID.
     pub async fn list_tools(&self, mcp_server_id: &LettaId) -> LettaResult<Vec<Tool>> {
         self.client
-            .get(&format!("v1/mcp-servers/{}/tools", mcp_server_id))
+            .get(&endpoints::mcp_servers::list_tools(mcp_server_id))
             .await
     }
 
     /// Get a tool from an MCP server.
     pub async fn get_tool(&self, mcp_server_id: &LettaId, tool_id: &LettaId) -> LettaResult<Tool> {
         self.client
-            .get(&format!(
-                "v1/mcp-servers/{}/tools/{}",
-                mcp_server_id, tool_id
-            ))
+            .get(&endpoints::mcp_servers::get_tool(mcp_server_id, tool_id))
             .await
     }
 
@@ -103,7 +103,7 @@ impl<'a> McpServerApi<'a> {
     ) -> LettaResult<McpToolExecutionResultV2> {
         self.client
             .post(
-                &format!("v1/mcp-servers/{}/tools/{}/run", mcp_server_id, tool_id),
+                &endpoints::mcp_servers::run_tool(mcp_server_id, tool_id),
                 &request,
             )
             .await

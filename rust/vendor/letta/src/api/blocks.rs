@@ -1,5 +1,6 @@
 //! Memory blocks API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::{
@@ -29,7 +30,7 @@ impl<'a> BlocksApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(&self, params: Option<ListBlocksParams>) -> LettaResult<Vec<Block>> {
         self.client
-            .get_with_query("v1/blocks/", &params.unwrap_or_default())
+            .get_with_query(endpoints::blocks::LIST, &params.unwrap_or_default())
             .await
     }
 
@@ -43,7 +44,7 @@ impl<'a> BlocksApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn create(&self, request: CreateBlockRequest) -> LettaResult<Block> {
-        self.client.post("v1/blocks/", &request).await
+        self.client.post(endpoints::blocks::CREATE, &request).await
     }
 
     /// Get a specific memory block by ID.
@@ -56,7 +57,7 @@ impl<'a> BlocksApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get(&self, block_id: &LettaId) -> LettaResult<Block> {
-        self.client.get(&format!("v1/blocks/{}", block_id)).await
+        self.client.get(&endpoints::blocks::get(block_id)).await
     }
 
     /// Update a memory block.
@@ -75,7 +76,7 @@ impl<'a> BlocksApi<'a> {
         request: UpdateBlockRequest,
     ) -> LettaResult<Block> {
         self.client
-            .patch(&format!("v1/blocks/{}", block_id), &request)
+            .patch(&endpoints::blocks::update(block_id), &request)
             .await
     }
 
@@ -90,7 +91,7 @@ impl<'a> BlocksApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails.
     pub async fn delete(&self, block_id: &LettaId) -> LettaResult<()> {
         self.client
-            .delete_no_response(&format!("v1/blocks/{}", block_id))
+            .delete_no_response(&endpoints::blocks::delete(block_id))
             .await
     }
 
@@ -100,7 +101,7 @@ impl<'a> BlocksApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn count(&self) -> LettaResult<u32> {
-        self.client.get("v1/blocks/count").await
+        self.client.get(endpoints::blocks::COUNT).await
     }
 
     /// List agents that use a specific memory block.
@@ -123,7 +124,7 @@ impl<'a> BlocksApi<'a> {
             query.push(("limit", l.to_string()));
         }
         self.client
-            .get_with_query(&format!("v1/blocks/{}/agents", block_id), &query)
+            .get_with_query(&endpoints::blocks::list_agents(block_id), &query)
             .await
     }
 }

@@ -1,5 +1,6 @@
 //! Memory API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::pagination::PaginatedStream;
@@ -25,13 +26,13 @@ impl<'a> MemoryApi<'a> {
 
     /// Get the core memory of an agent.
     pub async fn get_core_memory(&self, agent_id: &LettaId) -> LettaResult<Memory> {
-        let url = format!("/v1/agents/{}/core-memory", agent_id);
+        let url = endpoints::agents::core_memory::root(agent_id);
         self.client.get(&url).await
     }
 
     /// Get all core memory blocks for an agent.
     pub async fn list_core_memory_blocks(&self, agent_id: &LettaId) -> LettaResult<Vec<Block>> {
-        let url = format!("/v1/agents/{}/core-memory/blocks", agent_id);
+        let url = endpoints::agents::core_memory::blocks(agent_id);
         self.client.get(&url).await
     }
 
@@ -41,7 +42,7 @@ impl<'a> MemoryApi<'a> {
         agent_id: &LettaId,
         block_label: &str,
     ) -> LettaResult<Block> {
-        let url = format!("/v1/agents/{}/core-memory/blocks/{}", agent_id, block_label);
+        let url = endpoints::agents::core_memory::block(agent_id, block_label);
         self.client.get(&url).await
     }
 
@@ -52,7 +53,7 @@ impl<'a> MemoryApi<'a> {
         block_label: &str,
         request: UpdateMemoryBlockRequest,
     ) -> LettaResult<Block> {
-        let url = format!("/v1/agents/{}/core-memory/blocks/{}", agent_id, block_label);
+        let url = endpoints::agents::core_memory::block(agent_id, block_label);
         self.client.patch(&url, &request).await
     }
 
@@ -62,10 +63,7 @@ impl<'a> MemoryApi<'a> {
         agent_id: &LettaId,
         block_id: &LettaId,
     ) -> LettaResult<crate::types::agent::AgentState> {
-        let url = format!(
-            "/v1/agents/{}/core-memory/blocks/attach/{}",
-            agent_id, block_id
-        );
+        let url = endpoints::agents::core_memory::attach_block(agent_id, block_id);
         self.client.patch_no_body(&url).await
     }
 
@@ -75,10 +73,7 @@ impl<'a> MemoryApi<'a> {
         agent_id: &LettaId,
         block_id: &LettaId,
     ) -> LettaResult<crate::types::agent::AgentState> {
-        let url = format!(
-            "/v1/agents/{}/core-memory/blocks/detach/{}",
-            agent_id, block_id
-        );
+        let url = endpoints::agents::core_memory::detach_block(agent_id, block_id);
         self.client.patch_no_body(&url).await
     }
 
@@ -90,7 +85,7 @@ impl<'a> MemoryApi<'a> {
         agent_id: &LettaId,
         params: Option<ArchivalMemoryQueryParams>,
     ) -> LettaResult<Vec<Passage>> {
-        let url = format!("/v1/agents/{}/archival-memory", agent_id);
+        let url = endpoints::agents::archival::list(agent_id);
         if let Some(params) = params {
             let query = serde_urlencoded::to_string(&params)?;
             if !query.is_empty() {
@@ -107,7 +102,7 @@ impl<'a> MemoryApi<'a> {
         agent_id: &LettaId,
         request: CreateArchivalMemoryRequest,
     ) -> LettaResult<Vec<Passage>> {
-        let url = format!("/v1/agents/{}/archival-memory", agent_id);
+        let url = endpoints::agents::archival::create(agent_id);
         self.client.post(&url, &request).await
     }
 
@@ -118,7 +113,7 @@ impl<'a> MemoryApi<'a> {
         memory_id: &LettaId,
         request: UpdateArchivalMemoryRequest,
     ) -> LettaResult<Vec<Passage>> {
-        let url = format!("/v1/agents/{}/archival-memory/{}", agent_id, memory_id);
+        let url = endpoints::agents::archival::update(agent_id, memory_id);
         self.client.patch(&url, &request).await
     }
 
@@ -128,7 +123,7 @@ impl<'a> MemoryApi<'a> {
         agent_id: &LettaId,
         memory_id: &LettaId,
     ) -> LettaResult<serde_json::Value> {
-        let url = format!("/v1/agents/{}/archival-memory/{}", agent_id, memory_id);
+        let url = endpoints::agents::archival::delete(agent_id, memory_id);
         self.client.delete(&url).await
     }
 
@@ -139,7 +134,7 @@ impl<'a> MemoryApi<'a> {
         &self,
         agent_id: &LettaId,
     ) -> LettaResult<Vec<crate::types::tool::Tool>> {
-        let url = format!("/v1/agents/{}/tools", agent_id);
+        let url = endpoints::agents::tools::list(agent_id);
         self.client.get(&url).await
     }
 
@@ -149,7 +144,7 @@ impl<'a> MemoryApi<'a> {
         agent_id: &LettaId,
         tool_id: &LettaId,
     ) -> LettaResult<crate::types::agent::AgentState> {
-        let url = format!("/v1/agents/{}/tools/attach/{}", agent_id, tool_id);
+        let url = endpoints::agents::tools::attach(agent_id, tool_id);
         self.client.patch_no_body(&url).await
     }
 
@@ -159,7 +154,7 @@ impl<'a> MemoryApi<'a> {
         agent_id: &LettaId,
         tool_id: &LettaId,
     ) -> LettaResult<crate::types::agent::AgentState> {
-        let url = format!("/v1/agents/{}/tools/detach/{}", agent_id, tool_id);
+        let url = endpoints::agents::tools::detach(agent_id, tool_id);
         self.client.patch_no_body(&url).await
     }
 

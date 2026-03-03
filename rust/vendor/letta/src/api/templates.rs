@@ -1,5 +1,6 @@
 //! Template management API endpoints (Cloud only).
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::{
@@ -36,7 +37,7 @@ impl<'a> TemplateApi<'a> {
         params: Option<ListTemplatesParams>,
     ) -> LettaResult<TemplatesListResponse> {
         self.client
-            .get_with_query("v1/templates/", &params.unwrap_or_default())
+            .get_with_query(endpoints::templates::LIST, &params.unwrap_or_default())
             .await
     }
 
@@ -58,7 +59,7 @@ impl<'a> TemplateApi<'a> {
         request: &CreateTemplateRequest,
     ) -> LettaResult<TemplatesCreateResponse> {
         self.client
-            .post(&format!("v1/agents/{}/template", agent_id), request)
+            .post(&endpoints::agents::template(agent_id), request)
             .await
     }
 
@@ -81,7 +82,7 @@ impl<'a> TemplateApi<'a> {
         request: &VersionTemplateRequest,
         return_agent_state: Option<bool>,
     ) -> LettaResult<String> {
-        let mut path = format!("v1/agents/{}/version-template", agent_id);
+        let mut path = endpoints::agents::version_template(agent_id);
         if let Some(true) = return_agent_state {
             path.push_str("?return_agent_state=true");
         }
@@ -106,7 +107,7 @@ impl<'a> TemplateApi<'a> {
         request: &MigrateAgentRequest,
     ) -> LettaResult<TemplatesMigrateResponse> {
         self.client
-            .post(&format!("v1/agents/{}/migrate", agent_id), request)
+            .post(&endpoints::agents::migrate(agent_id), request)
             .await
     }
 
@@ -131,7 +132,7 @@ impl<'a> TemplateApi<'a> {
     ) -> LettaResult<AgentsCreateResponse> {
         self.client
             .post(
-                &format!("v1/templates/{}/{}/agents", project, template_version),
+                &endpoints::templates::create_agents(project, template_version),
                 request,
             )
             .await
@@ -160,7 +161,7 @@ impl LettaClient {
         &self,
         agent_id: &LettaId,
     ) -> LettaResult<MemoryVariablesListResponse> {
-        self.get(&format!("v1/agents/{}/core-memory/variables", agent_id))
+        self.get(&endpoints::agents::core_memory_variables(agent_id))
             .await
     }
 }

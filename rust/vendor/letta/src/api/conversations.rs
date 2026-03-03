@@ -1,5 +1,6 @@
 //! Conversation API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::{LettaError, LettaResult};
 use crate::types::{
@@ -46,18 +47,22 @@ impl<'a> ConversationApi<'a> {
     ) -> LettaResult<Vec<Conversation>> {
         let mut p = params.unwrap_or_default();
         p.agent_id = Some(agent_id.to_string());
-        self.client.get_with_query("v1/conversations/", &p).await
+        self.client
+            .get_with_query(endpoints::conversations::LIST, &p)
+            .await
     }
 
     /// Create a conversation.
     pub async fn create(&self, request: CreateConversationRequest) -> LettaResult<Conversation> {
-        self.client.post("v1/conversations/", &request).await
+        self.client
+            .post(endpoints::conversations::CREATE, &request)
+            .await
     }
 
     /// Get a conversation by ID.
     pub async fn get(&self, conversation_id: &LettaId) -> LettaResult<Conversation> {
         self.client
-            .get(&format!("v1/conversations/{}", conversation_id))
+            .get(&endpoints::conversations::get(conversation_id))
             .await
     }
 
@@ -68,21 +73,21 @@ impl<'a> ConversationApi<'a> {
         request: UpdateConversationRequest,
     ) -> LettaResult<Conversation> {
         self.client
-            .patch(&format!("v1/conversations/{}", conversation_id), &request)
+            .patch(&endpoints::conversations::update(conversation_id), &request)
             .await
     }
 
     /// Delete a conversation.
     pub async fn delete(&self, conversation_id: &LettaId) -> LettaResult<()> {
         self.client
-            .delete_no_response(&format!("v1/conversations/{}", conversation_id))
+            .delete_no_response(&endpoints::conversations::delete(conversation_id))
             .await
     }
 
     /// Cancel a conversation.
     pub async fn cancel(&self, conversation_id: &LettaId) -> LettaResult<serde_json::Value> {
         self.client
-            .post(&format!("v1/conversations/{}/cancel", conversation_id), &())
+            .post(&endpoints::conversations::cancel(conversation_id), &())
             .await
     }
 
@@ -95,7 +100,7 @@ impl<'a> ConversationApi<'a> {
         let payload = body.unwrap_or_default();
         self.client
             .post(
-                &format!("v1/conversations/{}/compact", conversation_id),
+                &endpoints::conversations::compact(conversation_id),
                 &payload,
             )
             .await
@@ -107,7 +112,7 @@ impl<'a> ConversationApi<'a> {
         conversation_id: &LettaId,
     ) -> LettaResult<Vec<LettaMessageUnion>> {
         self.client
-            .get(&format!("v1/conversations/{}/messages", conversation_id))
+            .get(&endpoints::conversations::messages(conversation_id))
             .await
     }
 
@@ -119,7 +124,7 @@ impl<'a> ConversationApi<'a> {
     ) -> LettaResult<LettaResponse> {
         self.client
             .post(
-                &format!("v1/conversations/{}/messages", conversation_id),
+                &endpoints::conversations::messages(conversation_id),
                 &request,
             )
             .await
@@ -134,7 +139,7 @@ impl<'a> ConversationApi<'a> {
         let url = self
             .client
             .base_url()
-            .join(&format!("v1/conversations/{}/stream", conversation_id))?;
+            .join(&endpoints::conversations::stream(conversation_id))?;
 
         let mut headers = HeaderMap::new();
         self.client.auth().apply_to_headers(&mut headers)?;

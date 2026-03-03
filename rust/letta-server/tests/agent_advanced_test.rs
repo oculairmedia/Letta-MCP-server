@@ -262,10 +262,7 @@ fn test_parse_conversation_operations() {
         "conversation_id": "conv-12345678-1234-1234-1234-123456789012"
     });
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
-    assert!(matches!(
-        request.operation,
-        AgentOperation::GetConversation
-    ));
+    assert!(matches!(request.operation, AgentOperation::GetConversation));
     assert!(request.conversation_id.is_some());
 
     // send_conversation_message with simple text

@@ -4,6 +4,7 @@
 //! Files can be opened and closed in an agent's context, with automatic
 //! eviction when the session limit is reached.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::file::{ListAgentFilesParams, PaginatedAgentFiles};
@@ -52,7 +53,7 @@ impl<'a> AgentFileApi<'a> {
     ) -> LettaResult<PaginatedAgentFiles> {
         self.client
             .get_with_query(
-                &format!("v1/agents/{}/files", self.agent_id),
+                &endpoints::agents::files::list(&self.agent_id),
                 &params.unwrap_or_default(),
             )
             .await
@@ -95,7 +96,7 @@ impl<'a> AgentFileApi<'a> {
     pub async fn open(&self, file_id: &LettaId) -> LettaResult<Vec<String>> {
         self.client
             .post(
-                &format!("v1/agents/{}/files/{}/open", self.agent_id, file_id),
+                &endpoints::agents::files::open(&self.agent_id, file_id),
                 &serde_json::json!({}),
             )
             .await
@@ -128,7 +129,7 @@ impl<'a> AgentFileApi<'a> {
     pub async fn close(&self, file_id: &LettaId) -> LettaResult<()> {
         self.client
             .post(
-                &format!("v1/agents/{}/files/{}/close", self.agent_id, file_id),
+                &endpoints::agents::files::close(&self.agent_id, file_id),
                 &serde_json::json!({}),
             )
             .await
@@ -162,7 +163,7 @@ impl<'a> AgentFileApi<'a> {
     pub async fn close_all(&self) -> LettaResult<Vec<String>> {
         self.client
             .post(
-                &format!("v1/agents/{}/files/close-all", self.agent_id),
+                &endpoints::agents::files::close_all(&self.agent_id),
                 &serde_json::json!({}),
             )
             .await

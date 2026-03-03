@@ -1,5 +1,6 @@
 //! Group and multi-agent conversation API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::{
@@ -34,7 +35,7 @@ impl<'a> GroupApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn list(&self, params: Option<GroupsListRequest>) -> LettaResult<Vec<Group>> {
         self.client
-            .get_with_query("v1/groups/", &params.unwrap_or_default())
+            .get_with_query(endpoints::groups::LIST, &params.unwrap_or_default())
             .await
     }
 
@@ -48,7 +49,7 @@ impl<'a> GroupApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn create(&self, request: GroupCreate) -> LettaResult<Group> {
-        self.client.post("v1/groups", &request).await
+        self.client.post(endpoints::groups::CREATE, &request).await
     }
 
     /// Get a specific group.
@@ -61,7 +62,7 @@ impl<'a> GroupApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn get(&self, group_id: &LettaId) -> LettaResult<Group> {
-        self.client.get(&format!("v1/groups/{}", group_id)).await
+        self.client.get(&endpoints::groups::get(group_id)).await
     }
 
     /// Update a group.
@@ -76,7 +77,7 @@ impl<'a> GroupApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn update(&self, group_id: &LettaId, request: GroupUpdate) -> LettaResult<Group> {
         self.client
-            .patch(&format!("v1/groups/{}", group_id), &request)
+            .patch(&endpoints::groups::update(group_id), &request)
             .await
     }
 
@@ -90,7 +91,9 @@ impl<'a> GroupApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn delete(&self, group_id: &LettaId) -> LettaResult<String> {
-        self.client.delete(&format!("v1/groups/{}", group_id)).await
+        self.client
+            .delete(&endpoints::groups::delete(group_id))
+            .await
     }
 
     /// Send a message to a group.
@@ -113,11 +116,11 @@ impl<'a> GroupApi<'a> {
             ..Default::default()
         };
         self.client
-            .post(&format!("v1/groups/{}/messages", group_id), &request)
+            .post(&endpoints::groups::send_message(group_id), &request)
             .await
     }
 
-    /// Process a user message and return the group’s responses. This endpoint accepts a message from a user and processes it through agents in the group based on the specified pattern. It will stream the steps of the response always, and stream the tokens if ‘stream_tokens’ is set to True.
+    /// Process a user message and return the group's responses. This endpoint accepts a message from a user and processes it through agents in the group based on the specified pattern. It will stream the steps of the response always, and stream the tokens if 'stream_tokens' is set to True.
     ///
     /// This method uses Server-Sent Events (SSE) to stream the response, allowing
     /// for real-time updates as the agent processes the messages.
@@ -145,7 +148,7 @@ impl<'a> GroupApi<'a> {
         let url = self
             .client
             .base_url()
-            .join(&format!("v1/groups/{}/messages/stream", group_id))?;
+            .join(&endpoints::groups::stream(group_id))?;
 
         // Add query parameter for token streaming
         let url = if stream_tokens {
@@ -232,7 +235,7 @@ impl<'a> GroupApi<'a> {
     ) -> LettaResult<LettaMessageUnion> {
         self.client
             .patch(
-                &format!("v1/groups/{}/messages/{}", group_id, message_id),
+                &endpoints::groups::get_message(group_id, message_id),
                 &request,
             )
             .await
@@ -262,7 +265,7 @@ impl<'a> GroupApi<'a> {
         }
 
         self.client
-            .patch(&format!("v1/agents/{}/reset-messages", group_id), &body)
+            .patch(&endpoints::groups::reset_messages(group_id), &body)
             .await
     }
 
@@ -286,7 +289,7 @@ impl<'a> GroupApi<'a> {
             ..Default::default()
         };
         self.client
-            .get_with_query(&format!("v1/groups/{}/messages", group_id), &request)
+            .get_with_query(&endpoints::groups::list_messages(group_id), &request)
             .await
     }
 }

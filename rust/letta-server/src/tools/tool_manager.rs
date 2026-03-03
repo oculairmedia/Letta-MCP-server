@@ -643,7 +643,10 @@ fn count_json_properties(schema: &Option<Value>) -> Option<u32> {
 
 /// Convert Tool to ToolSummary for list operation
 fn tool_to_summary(tool: &letta::types::tool::Tool) -> ToolSummary {
-    let description = tool.description.as_ref().map(|d| truncate_with_suffix(d, 100).into_owned());
+    let description = tool
+        .description
+        .as_ref()
+        .map(|d| truncate_with_suffix(d, 100).into_owned());
 
     let source_lines = tool.source_code.as_ref().map(|code| count_lines(code));
     let args_count = count_json_properties(&tool.args_json_schema);

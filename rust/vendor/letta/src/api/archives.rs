@@ -1,5 +1,6 @@
 //! Archive API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::agent::AgentState;
@@ -26,20 +27,20 @@ impl<'a> ArchiveApi<'a> {
     /// List all archives.
     pub async fn list(&self, params: Option<ListArchivesParams>) -> LettaResult<Vec<Archive>> {
         self.client
-            .get_with_query("v1/archives/", &params.unwrap_or_default())
+            .get_with_query(endpoints::archives::LIST, &params.unwrap_or_default())
             .await
     }
 
     /// Create a new archive.
     pub async fn create(&self, request: ArchiveCreateRequest) -> LettaResult<Archive> {
-        self.client.post("v1/archives/", &request).await
+        self.client
+            .post(endpoints::archives::CREATE, &request)
+            .await
     }
 
     /// Get an archive by ID.
     pub async fn get(&self, archive_id: &LettaId) -> LettaResult<Archive> {
-        self.client
-            .get(&format!("v1/archives/{}", archive_id))
-            .await
+        self.client.get(&endpoints::archives::get(archive_id)).await
     }
 
     /// Partial archive metadata mutation endpoint.
@@ -49,21 +50,21 @@ impl<'a> ArchiveApi<'a> {
         request: ArchiveUpdateRequest,
     ) -> LettaResult<Archive> {
         self.client
-            .patch(&format!("v1/archives/{}", archive_id), &request)
+            .patch(&endpoints::archives::update(archive_id), &request)
             .await
     }
 
     /// Archive deletion endpoint.
     pub async fn delete(&self, archive_id: &LettaId) -> LettaResult<Option<Value>> {
         self.client
-            .delete(&format!("v1/archives/{}", archive_id))
+            .delete(&endpoints::archives::delete(archive_id))
             .await
     }
 
     /// List agents attached to an archive.
     pub async fn list_agents(&self, archive_id: &LettaId) -> LettaResult<Vec<AgentState>> {
         self.client
-            .get(&format!("v1/archives/{}/agents", archive_id))
+            .get(&endpoints::archives::list_agents(archive_id))
             .await
     }
 
@@ -74,7 +75,7 @@ impl<'a> ArchiveApi<'a> {
         request: PassageCreateRequest,
     ) -> LettaResult<Passage> {
         self.client
-            .post(&format!("v1/archives/{}/passages", archive_id), &request)
+            .post(&endpoints::archives::passages::create(archive_id), &request)
             .await
     }
 
@@ -86,7 +87,7 @@ impl<'a> ArchiveApi<'a> {
     ) -> LettaResult<ArchivePassagesResponse> {
         self.client
             .post(
-                &format!("v1/archives/{}/passages/batch", archive_id),
+                &endpoints::archives::passages::batch_create(archive_id),
                 &request,
             )
             .await
@@ -99,9 +100,8 @@ impl<'a> ArchiveApi<'a> {
         passage_id: &LettaId,
     ) -> LettaResult<()> {
         self.client
-            .delete_no_response(&format!(
-                "v1/archives/{}/passages/{}",
-                archive_id, passage_id
+            .delete_no_response(&endpoints::archives::passages::delete(
+                archive_id, passage_id,
             ))
             .await
     }
@@ -109,7 +109,7 @@ impl<'a> ArchiveApi<'a> {
     /// List passages in an archive.
     pub async fn list_passages(&self, archive_id: &LettaId) -> LettaResult<Vec<Passage>> {
         self.client
-            .get(&format!("v1/archives/{}/passages", archive_id))
+            .get(&endpoints::archives::passages::list(archive_id))
             .await
     }
 
@@ -136,7 +136,7 @@ impl<'a> AgentArchiveApi<'a> {
     pub async fn attach(&self, archive_id: &LettaId) -> LettaResult<AgentState> {
         self.client
             .patch(
-                &format!("v1/agents/{}/archives/attach/{}", self.agent_id, archive_id),
+                &endpoints::agents::archives::attach(&self.agent_id, archive_id),
                 &(),
             )
             .await
@@ -146,7 +146,7 @@ impl<'a> AgentArchiveApi<'a> {
     pub async fn detach(&self, archive_id: &LettaId) -> LettaResult<AgentState> {
         self.client
             .patch(
-                &format!("v1/agents/{}/archives/detach/{}", self.agent_id, archive_id),
+                &endpoints::agents::archives::detach(&self.agent_id, archive_id),
                 &(),
             )
             .await

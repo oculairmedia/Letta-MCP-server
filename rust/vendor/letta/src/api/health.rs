@@ -1,5 +1,6 @@
 //! Health API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::types::health::Health;
@@ -26,7 +27,7 @@ impl<'a> HealthApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn check(&self) -> LettaResult<Health> {
         // Note: trailing slash is required on this endpoint
-        self.client.get("v1/health/").await
+        self.client.get(endpoints::health::CHECK).await
     }
 }
 

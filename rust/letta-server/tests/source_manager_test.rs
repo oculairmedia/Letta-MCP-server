@@ -362,8 +362,8 @@ fn test_agent_reference_serialization() {
 
 #[test]
 fn test_pagination_metadata() {
-    let pagination = PaginationMeta::new(100, 20, 0, 20)
-        .with_hint("Use limit parameter to see more");
+    let pagination =
+        PaginationMeta::new(100, 20, 0, 20).with_hint("Use limit parameter to see more");
 
     let json = serde_json::to_value(&pagination).unwrap();
     assert_eq!(json["total"], 100);

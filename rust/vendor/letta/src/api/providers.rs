@@ -1,5 +1,6 @@
 //! Providers API endpoints.
 
+use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::pagination::PaginatedStream;
@@ -48,10 +49,10 @@ impl<'a> ProvidersApi<'a> {
         }
 
         if query_params.is_empty() {
-            self.client.get("v1/providers/").await
+            self.client.get(endpoints::providers::LIST).await
         } else {
             self.client
-                .get_with_query("v1/providers/", &query_params)
+                .get_with_query(endpoints::providers::LIST, &query_params)
                 .await
         }
     }
@@ -66,7 +67,9 @@ impl<'a> ProvidersApi<'a> {
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn create(&self, provider: ProviderCreate) -> LettaResult<Provider> {
-        self.client.post("v1/providers", &provider).await
+        self.client
+            .post(endpoints::providers::CREATE, &provider)
+            .await
     }
 
     /// Delete a provider.
@@ -80,7 +83,7 @@ impl<'a> ProvidersApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails.
     pub async fn delete(&self, provider_id: &LettaId) -> LettaResult<ProviderDeleteResponse> {
         self.client
-            .delete(&format!("v1/providers/{}", provider_id))
+            .delete(&endpoints::providers::delete(provider_id))
             .await
     }
 
@@ -100,7 +103,7 @@ impl<'a> ProvidersApi<'a> {
         update: ProviderUpdate,
     ) -> LettaResult<Provider> {
         self.client
-            .patch(&format!("v1/providers/{}", provider_id), &update)
+            .patch(&endpoints::providers::update(provider_id), &update)
             .await
     }
 
@@ -117,7 +120,7 @@ impl<'a> ProvidersApi<'a> {
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
     pub async fn check(&self, provider_id: &LettaId) -> LettaResult<ProviderCheckResponse> {
         self.client
-            .get(&format!("v1/providers/{}/check", provider_id))
+            .get(&endpoints::providers::check(provider_id))
             .await
     }
 
@@ -165,9 +168,11 @@ impl<'a> ProvidersApi<'a> {
                 }
 
                 if query_params.is_empty() {
-                    client.get("v1/providers/").await
+                    client.get(endpoints::providers::LIST).await
                 } else {
-                    client.get_with_query("v1/providers/", &query_params).await
+                    client
+                        .get_with_query(endpoints::providers::LIST, &query_params)
+                        .await
                 }
             }
         };
