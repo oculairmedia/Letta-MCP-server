@@ -272,10 +272,17 @@ async fn handle_list_agents(
     }
 
     let offset = pagination.offset.unwrap_or(0);
+    let effective_limit = pagination.limit.unwrap_or(15);
 
-    // Use Letta SDK's cursor-based pagination
+    // LMS-165: Fetch offset + limit items so we can apply client-side offset
+    // (SDK uses cursor-based pagination, not offset-based)
+    let fetch_count = (offset + effective_limit) as u32;
+
+    // LMS-169: Forward name/tag filters to SDK for server-side filtering
     let params = letta::types::ListAgentsParams {
-        limit: pagination.limit.map(|l| l as u32),
+        limit: Some(fetch_count),
+        name: request.name.clone(),
+        tags: request.tags.clone(),
         ..Default::default()
     };
 
@@ -287,30 +294,21 @@ async fn handle_list_agents(
         .map_err(|e| McpError::internal(format!("Failed to list agents: {}", e)))?;
 
     // Optimization: only call count() if we got a full page (more pages likely exist).
-    // If returned < limit, we already know the total = offset + returned.
-    let effective_limit = pagination.limit.unwrap_or(15) as u32;
-    let returned_count = agents.len() as u32;
-    let total = if returned_count < effective_limit {
-        // No more pages — total is exactly what we've seen so far
-        offset as u32 + returned_count
+    // If returned < fetch_count, we already know the total = fetched count.
+    let all_count = agents.len() as u32;
+    let total = if all_count < fetch_count {
+        all_count
     } else {
-        // Full page returned — there may be more, so fetch the count
-        client
-            .agents()
-            .count()
-            .await
-            .unwrap_or(offset as u32 + returned_count)
+        client.agents().count().await.unwrap_or(all_count)
     };
 
-    // LMS-48: Create optimized agent summaries
-    // Exclude: system, tools (full objects), memory, llm_config (full), embedding_config
+    // LMS-165: Apply client-side offset (SDK uses cursor, not offset)
     let agent_summaries: Vec<serde_json::Value> = agents
         .iter()
+        .skip(offset)
+        .take(effective_limit)
         .map(|agent| {
-            // Extract just the model name from llm_config
             let model = agent.llm_config.as_ref().map(|config| config.model.clone());
-
-            // Truncate description to 100 chars
             let description = agent
                 .description
                 .as_ref()
@@ -330,11 +328,13 @@ async fn handle_list_agents(
     let returned = agent_summaries.len() as u32;
     let has_more = total > (offset as u32 + returned);
 
-    // Create pagination metadata with helpful hints
     let mut hints = vec!["Use 'get' with agent_id for full details".to_string()];
     if has_more {
         let next_offset = offset + (returned as usize);
         hints.push(format!("Use offset={} for next page", next_offset));
+    }
+    if request.name.is_some() || request.tags.is_some() {
+        hints.push("Results filtered by name/tags".to_string());
     }
 
     let response_data = serde_json::json!({
@@ -548,16 +548,65 @@ async fn handle_get_agent(
 }
 
 async fn handle_update_agent(
-    _client: &LettaClient,
-    _request: AgentAdvancedRequest,
+    client: &LettaClient,
+    request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    // TODO: The Letta SDK v0.1.2 doesn't expose an agent update method.
-    // Updates are typically done through specific endpoints (memory, tools, etc.)
-    // For now, return a not implemented error
-    Err(McpError::internal(
-        "Agent update operation not yet implemented in SDK v0.1.2. \
-         Please use specific update operations (memory, tools, etc.)"
-            .to_string(),
+    let agent_id = request.agent_id.ok_or_else(|| {
+        McpError::invalid_request("agent_id is required for update operation".to_string())
+    })?;
+
+    let letta_id: letta::types::LettaId = agent_id
+        .parse()
+        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+
+    // Build update request from provided fields
+    let mut update_request = letta::types::UpdateAgentRequest::default();
+
+    // Direct field mappings
+    if let Some(name) = request.name {
+        update_request.name = Some(name);
+    }
+    if let Some(description) = request.description {
+        update_request.description = Some(description);
+    }
+    if let Some(system) = request.system {
+        update_request.system = Some(system);
+    }
+    if let Some(tags) = request.tags {
+        update_request.tags = Some(tags);
+    }
+
+    // LMS-168: tool_ids support (replaces all agent tools)
+    if let Some(tool_ids_value) = request.tool_ids {
+        let tool_ids: Vec<letta::types::LettaId> = serde_json::from_value(tool_ids_value)
+            .map_err(|e| McpError::invalid_request(format!("Invalid tool_ids: {}", e)))?;
+        update_request.tool_ids = Some(tool_ids);
+    }
+
+    // Complex type mappings
+    if let Some(llm_config_value) = request.llm_config {
+        let llm_config: letta::types::LLMConfig = serde_json::from_value(llm_config_value)
+            .map_err(|e| McpError::invalid_request(format!("Invalid llm_config: {}", e)))?;
+        update_request.llm_config = Some(llm_config);
+    }
+    if let Some(embedding_config_value) = request.embedding_config {
+        let embedding_config: letta::types::EmbeddingConfig =
+            serde_json::from_value(embedding_config_value).map_err(|e| {
+                McpError::invalid_request(format!("Invalid embedding_config: {}", e))
+            })?;
+        update_request.embedding_config = Some(embedding_config);
+    }
+
+    let agent = client
+        .agents()
+        .update(&letta_id, update_request)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to update agent: {}", e)))?;
+
+    Ok(StandardResponse::success(
+        "update",
+        serde_json::to_value(agent)?,
+        "Agent updated successfully",
     ))
 }
 

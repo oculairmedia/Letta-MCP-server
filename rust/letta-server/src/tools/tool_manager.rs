@@ -133,15 +133,15 @@ async fn handle_list_tools(
     client: &LettaClient,
     request: ToolManagerRequest,
 ) -> Result<ToolManagerResponse, McpError> {
-    // LMS-50 optimization: Pagination with default limit=25, max=100
+    // LMS-166: Pagination with default limit=25, max=100
     const DEFAULT_LIMIT: u32 = 25;
     const MAX_LIMIT: u32 = 100;
 
     let limit = request.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
     let offset = request.offset.unwrap_or(0);
 
-    // Use SDK server-side limit to avoid fetching all tools into memory.
-    // We request offset + limit so we can skip client-side, since SDK uses cursor pagination.
+    // Fetch offset + limit items so we can apply client-side offset
+    // (SDK uses cursor-based pagination, not offset-based)
     let fetch_count = (offset + limit) as u32;
     let params = letta::types::ListToolsParams {
         limit: Some(fetch_count),
@@ -154,7 +154,13 @@ async fn handle_list_tools(
         .await
         .map_err(|e| McpError::internal(format!("Failed to list tools: {}", e)))?;
 
-    let total = tools.len();
+    // Determine true total: if we got a full fetch, there may be more
+    let fetched_count = tools.len() as u32;
+    let total = if fetched_count < fetch_count {
+        fetched_count
+    } else {
+        client.tools().count().await.unwrap_or(fetched_count)
+    };
 
     // Apply client-side offset (SDK uses cursor, not offset)
     let paginated_tools: Vec<_> = tools
@@ -163,10 +169,17 @@ async fn handle_list_tools(
         .take(limit as usize)
         .collect();
 
-    // LMS-50: Convert to summaries (exclude source_code, json_schema, args_json_schema)
     let summaries: Vec<ToolSummary> = paginated_tools.iter().map(|t| tool_to_summary(t)).collect();
-
     let returned = summaries.len();
+    let has_more = total > (offset + returned as u32);
+
+    let mut hints = vec!["Use 'get' with tool_id for full source code and schema".to_string()];
+    if has_more {
+        hints.push(format!(
+            "Use offset={} for next page",
+            offset + returned as u32
+        ));
+    }
 
     Ok(ToolManagerResponse {
         success: true,
@@ -177,8 +190,9 @@ async fn handle_list_tools(
             "returned": returned,
             "offset": offset,
             "limit": limit,
+            "has_more": has_more,
             "tools": summaries,
-            "hints": vec!["Use 'get' with tool_id for full source code and schema"]
+            "hints": hints
         })),
         count: Some(returned),
     })

@@ -1338,6 +1338,9 @@ pub struct UpdateAgentRequest {
     /// Agent metadata.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Metadata>,
+    /// Tool IDs to set on the agent (replaces all existing tools).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_ids: Option<Vec<LettaId>>,
 }
 
 /// Request parameters for importing an agent from file.

@@ -282,42 +282,55 @@ async fn handle_test_server(
 }
 
 async fn handle_connect_server(
-    _client: &LettaClient,
+    client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let server_name = request
+    let server_id_str = request
         .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
+        .ok_or_else(|| McpError::invalid_request("mcp_server_id required"))?;
 
-    // TODO: Implement when SDK adds connect_mcp_server support
-    Ok(McpOpsResponse {
-        success: false,
-        operation: "connect".into(),
-        message: "Connect operation not yet implemented in Rust SDK".into(),
-        server_name: Some(server_name),
-        ..Default::default()
-    })
+    let server_id: letta::types::LettaId = server_id_str
+        .parse()
+        .map_err(|e| McpError::invalid_request(format!("Invalid mcp_server_id: {}", e)))?;
+
+    // LMS-170: Use v2 MCP server API for connect
+    let result = client
+        .mcp_servers()
+        .connect(&server_id)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to connect MCP server: {}", e)))?;
+
+    Ok(
+        McpOpsResponse::success("connect", "MCP server connected successfully")
+            .with_data(result)
+            .with_server_name(server_id_str),
+    )
 }
 
 async fn handle_resync_server(
-    _client: &LettaClient,
+    client: &LettaClient,
     request: McpOpsRequest,
 ) -> Result<McpOpsResponse, McpError> {
-    let server_name = request
+    let server_id_str = request
         .server_name
-        .ok_or_else(|| McpError::invalid_request("server_name required"))?;
+        .ok_or_else(|| McpError::invalid_request("mcp_server_id required"))?;
 
-    // TODO: Implement when SDK adds resync support
-    Ok(McpOpsResponse {
-        success: false,
-        operation: "resync".into(),
-        message: "Resync operation not yet implemented in Rust SDK".into(),
-        server_name: Some(server_name),
-        hints: Some(vec![
-            "This operation will return summary with counts when implemented".into(),
-        ]),
-        ..Default::default()
-    })
+    let server_id: letta::types::LettaId = server_id_str
+        .parse()
+        .map_err(|e| McpError::invalid_request(format!("Invalid mcp_server_id: {}", e)))?;
+
+    // LMS-170: Use v2 MCP server API for refresh/resync
+    let result = client
+        .mcp_servers()
+        .refresh(&server_id)
+        .await
+        .map_err(|e| McpError::internal(format!("Failed to resync MCP server: {}", e)))?;
+
+    Ok(
+        McpOpsResponse::success("resync", "MCP server resynced successfully")
+            .with_data(result)
+            .with_server_name(server_id_str),
+    )
 }
 
 async fn handle_execute_tool(
@@ -510,14 +523,16 @@ async fn handle_list_tools(
     let returned_count = paginated_tools.len();
     let has_more = offset + returned_count < total_count;
 
-    let hints = if has_more {
-        Some(vec![format!(
+    // LMS-171: Clarify discovered vs registered tool lifecycle
+    let mut hints = Vec::new();
+    if has_more {
+        hints.push(format!(
             "Showing {} of {} tools. Use pagination to see more.",
             returned_count, total_count
-        )])
-    } else {
-        None
-    };
+        ));
+    }
+    hints.push("These are tools discovered on the MCP server (not yet in Letta registry)".into());
+    hints.push("Use 'register_tool' to add a discovered tool to the Letta tool registry".into());
 
     Ok(McpOpsResponse {
         success: true,
@@ -527,7 +542,7 @@ async fn handle_list_tools(
         server_name: Some(server_name),
         total: Some(total_count),
         returned: Some(returned_count),
-        hints,
+        hints: Some(hints),
         ..Default::default()
     })
 }
