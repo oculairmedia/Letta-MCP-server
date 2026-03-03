@@ -28,32 +28,44 @@ pub enum SourceOperation {
     // Note: ListFolders and GetFolderContents have been moved to letta_file_folder_ops tool
 }
 
+/// Source manager request - all parameters are optional except operation
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct SourceManagerRequest {
+    /// The operation to perform (list, get, create, update, delete, count, attach, detach, list_attached, upload, delete_files, list_files, list_agents_using)
     pub operation: SourceOperation,
+    /// Source ID (required for get, update, delete, attach, detach, upload, delete_files, list_files, list_agents_using)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_id: Option<String>,
+    /// Agent ID (required for attach, detach, list_attached)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
+    /// Source name (required for create)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Source description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// File ID (required for delete_files)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_id: Option<String>,
+    /// File name (required for upload)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_name: Option<String>,
+    /// Base64-encoded file data (required for upload)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_data: Option<String>, // Base64 encoded
+    pub file_data: Option<String>,
+    /// MIME content type for upload
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_type: Option<String>,
+    /// Maximum number of results to return (for list operations)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
+    /// Include full content in response
     #[serde(skip_serializing_if = "Option::is_none")]
     pub include_content: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
-
+    /// When false (default), returns minimal confirmation; when true, returns full state
     #[serde(default)]
     pub verbose: Option<bool>,
 }

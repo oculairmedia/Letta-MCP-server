@@ -61,13 +61,75 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "Advanced agent operations hub - Supports 27 operations including CRUD (list, create, get, update, delete), tools (list_tools), messaging (send_message, send_conversation_message), management (export, import, clone, get_config, bulk_delete), advanced (context, reset_messages, summarize, stream), async (async_message, cancel_message), conversation lifecycle (list_conversations, get_conversation, cancel_conversation, compact_conversation), and utility (preview_payload, search_messages, get_message, count) operations."
+        description = "Advanced agent operations hub - Supports 27 operations including CRUD (list, create, get, update, delete), tools (list_tools), messaging (send_message, send_conversation_message), management (export, import, clone, get_config, bulk_delete), advanced (context, reset_messages, summarize, stream), async (async_message, cancel_message), conversation lifecycle (list_conversations, get_conversation, cancel_conversation, compact_conversation), and utility (preview_payload, search_messages, get_message, count) operations. Required params by operation: (none)=list; agent_id=get,update,delete,list_tools,export,clone,get_config,context,reset_messages,summarize,cancel_message,count,search_messages,get_message,list_conversations; agent_id+messages=send_message,stream,async_message,preview_payload; agent_id+conversation_id=get_conversation,cancel_conversation,compact_conversation; agent_id+conversation_id+messages=send_conversation_message; name=create; query=search; export_data=import; filters=bulk_delete."
     )]
     async fn letta_agent_advanced(
         &self,
-        request: agent_advanced::AgentAdvancedRequest,
+        operation: String,
+        agent_id: Option<String>,
+        name: Option<String>,
+        description: Option<String>,
+        system: Option<String>,
+        llm_config: Option<Value>,
+        embedding_config: Option<Value>,
+        tool_ids: Option<Value>,
+        pagination: Option<Value>,
+        messages: Option<Value>,
+        stream: Option<bool>,
+        filters: Option<Value>,
+        query: Option<String>,
+        tags: Option<Vec<String>>,
+        search_filters: Option<Value>,
+        export_data: Option<Value>,
+        update_data: Option<Value>,
+        conversation_id: Option<String>,
+        verbose: Option<bool>,
     ) -> McpResult<String> {
-        // Call handler directly - TurboMCP will auto-detect flattening and use schemars schema
+        // Parse operation from string
+        let op: agent_advanced::AgentOperation = serde_json::from_value(serde_json::Value::String(operation))
+            .map_err(|e| McpError::invalid_request(format!("Invalid operation: {}", e)))?;
+
+        // Parse complex types from Value
+        let pagination: Option<letta_types::Pagination> = pagination
+            .map(|v| serde_json::from_value(v))
+            .transpose()
+            .map_err(|e| McpError::invalid_request(format!("Invalid pagination: {}", e)))?;
+        let messages: Option<Vec<letta_types::Message>> = messages
+            .map(|v| serde_json::from_value(v))
+            .transpose()
+            .map_err(|e| McpError::invalid_request(format!("Invalid messages: {}", e)))?;
+        let filters: Option<agent_advanced::BulkDeleteFilters> = filters
+            .map(|v| serde_json::from_value(v))
+            .transpose()
+            .map_err(|e| McpError::invalid_request(format!("Invalid filters: {}", e)))?;
+        let search_filters: Option<agent_advanced::SearchFilters> = search_filters
+            .map(|v| serde_json::from_value(v))
+            .transpose()
+            .map_err(|e| McpError::invalid_request(format!("Invalid search_filters: {}", e)))?;
+
+        // Create request from individual parameters
+        let request = agent_advanced::AgentAdvancedRequest {
+            operation: op,
+            agent_id,
+            name,
+            description,
+            system,
+            llm_config,
+            embedding_config,
+            tool_ids,
+            pagination,
+            messages,
+            stream,
+            filters,
+            query,
+            tags,
+            search_filters,
+            export_data,
+            update_data,
+            conversation_id,
+            verbose,
+        };
+
         agent_advanced::handle_agent_advanced(&self.client, request).await
     }
 
@@ -76,7 +138,7 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "Unified Memory Operations Hub - Provides unified interface for all memory operations. Supports 24 operations including core memory (get_core_memory, update_core_memory), blocks (get_block_by_label, list_blocks, create_block, get_block, update_block, attach_block, detach_block, list_agents_using_block), archival memory (search_archival, list_passages, create_passage, update_passage, delete_passage), archives (list_archives, get_archive, create_archive, update_archive, delete_archive, attach_archive, detach_archive, list_agents_using_archive), and unified search (search_memory)."
+        description = "Unified Memory Operations Hub - Provides unified interface for all memory operations. Supports 24 operations including core memory (get_core_memory, update_core_memory), blocks (get_block_by_label, list_blocks, create_block, get_block, update_block, attach_block, detach_block, list_agents_using_block), archival memory (search_archival, list_passages, create_passage, update_passage, delete_passage), archives (list_archives, get_archive, create_archive, update_archive, delete_archive, attach_archive, detach_archive, list_agents_using_archive), and unified search (search_memory). Required params by operation: agent_id=get_core_memory,search_archival,list_passages,create_passage,search_memory; agent_id+block_label=get_block_by_label; agent_id+block_label+value=update_core_memory; agent_id+block_id=attach_block,detach_block; agent_id+text=create_passage; agent_id+query=search_archival,search_memory; agent_id+archive_id=attach_archive,detach_archive; block_id=get_block,update_block,list_agents_using_block; label+value=create_block; passage_id=update_passage,delete_passage; archive_id=get_archive,update_archive,delete_archive,list_agents_using_archive; label=create_archive; (none)=list_blocks,list_archives,list_passages."
     )]
     async fn letta_memory_unified(
         &self,
@@ -147,7 +209,7 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "Tool Manager Operations Hub - Provides unified interface for tool management operations. Supports 13 operations including CRUD (list, get, create, update, delete, upsert), agent operations (attach, detach, bulk_attach), and advanced operations (generate_from_prompt, generate_schema, run_from_source, add_base_tools)."
+        description = "Tool Manager Operations Hub - Provides unified interface for tool management operations. Supports 13 operations including CRUD (list, get, create, update, delete, upsert), agent operations (attach, detach, bulk_attach), and advanced operations (generate_from_prompt, generate_schema, run_from_source, add_base_tools). Required params by operation: (none/optional: tags,limit,offset)=list; tool_id=get,delete; tool_id+agent_id=attach,detach; tool_id+agent_ids=bulk_attach; source_code+name=create; tool_id=update; name+source_code=upsert; description=generate_from_prompt; source_code=generate_schema,run_from_source; agent_id=add_base_tools."
     )]
     async fn letta_tool_manager(
         &self,
@@ -204,7 +266,7 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "Source Manager Operations Hub - Provides unified interface for source management operations. Supports 15 operations including CRUD (list, get, create, update, delete, count), agent operations (attach, detach, list_attached), file operations (upload, delete_files, list_files), and folder operations (list_folders, get_folder_contents, list_agents_using)."
+        description = "Source Manager Operations Hub - Provides unified interface for source management operations. Supports 15 operations including CRUD (list, get, create, update, delete, count), agent operations (attach, detach, list_attached), file operations (upload, delete_files, list_files), and folder operations (list_folders, get_folder_contents, list_agents_using). Required params by operation: (none)=list,count,list_folders; source_id=get,delete,list_files,get_folder_contents,list_agents_using; source_id+agent_id=attach,detach; agent_id=list_attached; name=create; source_id=update; source_id+file_name+file_data=upload; source_id+file_id=delete_files."
     )]
     async fn letta_source_manager(
         &self,
@@ -254,7 +316,7 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "Job Monitor Operations Hub - Provides unified interface for job monitoring operations. Supports 4 operations: list (all jobs), get (specific job), cancel (job cancellation), and list_active (active jobs only)."
+        description = "Job Monitor Operations Hub - Provides unified interface for job monitoring operations. Supports 4 operations: list (all jobs), get (specific job), cancel (job cancellation), and list_active (active jobs only). Required params by operation: (none/optional: limit)=list,list_active; job_id=get,cancel."
     )]
     async fn letta_job_monitor(
         &self,
@@ -298,7 +360,7 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "File and Folder Management Hub - Provides unified interface for file session management and folder operations. Supports 8 operations including file sessions (list_files, open_file, close_file, close_all_files) and folder operations (list_folders, attach_folder, detach_folder, list_agents_in_folder)."
+        description = "File and Folder Management Hub - Provides unified interface for file session management and folder operations. Supports 8 operations including file sessions (list_files, open_file, close_file, close_all_files) and folder operations (list_folders, attach_folder, detach_folder, list_agents_in_folder). Required params by operation: agent_id=list_files,close_all_files; agent_id+file_id=open_file,close_file; agent_id+folder_id=attach_folder,detach_folder; folder_id=list_agents_in_folder; (none/optional: limit,offset)=list_folders."
     )]
     async fn letta_file_folder_ops(
         &self,
@@ -334,7 +396,7 @@ impl LettaServer {
     // ========================================
 
     #[tool(
-        description = "MCP Server Operations Hub - Unified tool for complete MCP server lifecycle management. Supports 11 operations: add, update, delete, test, connect, resync (server management), list_servers, list_tools, register_tool, execute (tool operations), and attach_mcp_server (discover + register + attach all tools from an MCP server to an agent)."
+        description = "MCP Server Operations Hub - Unified tool for complete MCP server lifecycle management. Supports 11 operations: add, update, delete, test, connect, resync (server management), list_servers, list_tools, register_tool, execute (tool operations), and attach_mcp_server (discover + register + attach all tools from an MCP server to an agent). Required params by operation: server_name+server_config=add; mcp_server_id+server_config=update; mcp_server_id=delete,test,connect,resync,list_tools; mcp_server_id+tool_name=register_tool; mcp_server_id+agent_id=attach_mcp_server; tool_id=execute; (none/optional: pagination)=list_servers."
     )]
     async fn letta_mcp_ops(
         &self,

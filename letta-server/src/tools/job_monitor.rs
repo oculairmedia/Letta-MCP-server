@@ -19,16 +19,20 @@ pub enum JobOperation {
     ListActive,
 }
 
+/// Job monitor request - all parameters are optional except operation
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct JobMonitorRequest {
+    /// The operation to perform (list, get, cancel, list_active)
     pub operation: JobOperation,
+    /// Job ID (required for get, cancel)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub job_id: Option<String>,
+    /// Maximum number of results to return (for list, list_active)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
-
+    /// When false (default), returns minimal confirmation; when true, returns full state
     #[serde(default)]
     pub verbose: Option<bool>,
 }

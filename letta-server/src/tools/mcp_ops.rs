@@ -31,30 +31,41 @@ pub enum McpOperation {
     AttachMcpServer,
 }
 
+/// MCP operations request - all parameters are optional except operation
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct McpOpsRequest {
+    /// The operation to perform (add, update, delete, test, connect, resync, list_servers, list_tools, register_tool, execute, attach_mcp_server)
     pub operation: McpOperation,
+    /// Server name (required for add)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_name: Option<String>,
+    /// MCP server ID (required for update, delete, test, connect, resync, list_tools, register_tool, attach_mcp_server)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_server_id: Option<String>,
+    /// Server configuration object (required for add, update)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_config: Option<Value>,
+    /// Tool name (required for register_tool)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_name: Option<String>,
+    /// Tool ID (required for execute)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_id: Option<String>,
+    /// Arguments for tool execution
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_args: Option<Value>,
+    /// OAuth configuration for server authentication
     #[serde(skip_serializing_if = "Option::is_none")]
     pub oauth_config: Option<Value>,
+    /// Pagination parameters {limit, offset} for list operations
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pagination: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
+    /// Agent ID (required for attach_mcp_server)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
-
+    /// When false (default), returns minimal confirmation; when true, returns full state
     #[serde(default)]
     pub verbose: Option<bool>,
 }

@@ -30,49 +30,65 @@ pub enum ToolOperation {
     AddBaseTools,
 }
 
+/// Tool manager request - all parameters are optional except operation
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct ToolManagerRequest {
+    /// The operation to perform (list, get, create, update, delete, upsert, attach, detach, bulk_attach, generate_from_prompt, generate_schema, run_from_source, add_base_tools)
     pub operation: ToolOperation,
+    /// Tool ID (required for get, update, delete, attach, detach, bulk_attach)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_id: Option<String>,
+    /// Agent ID (required for attach, detach, add_base_tools)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
+    /// Agent IDs for bulk_attach operation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_ids: Option<Vec<String>>,
+    /// Filter agents by name pattern (for list)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_name_filter: Option<String>,
+    /// Filter agents by tag (for list)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_tag_filter: Option<String>,
+    /// Tool source code (required for create, upsert, generate_schema, run_from_source)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_code: Option<String>,
+    /// Source type: python, json_schema, etc.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_type: Option<String>,
+    /// Tags for filtering or categorizing tools
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
+    /// Tool description (required for generate_from_prompt)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// JSON schema for the tool
     #[serde(skip_serializing_if = "Option::is_none")]
     pub json_schema: Option<Value>,
+    /// JSON schema for tool arguments
     #[serde(skip_serializing_if = "Option::is_none")]
     pub args_json_schema: Option<Value>,
+    /// Maximum characters in tool return value
     #[serde(skip_serializing_if = "Option::is_none")]
     pub return_char_limit: Option<u32>,
+    /// Arguments for run_from_source operation
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub args: Option<Value>, // For run_from_source
+    pub args: Option<Value>,
+    /// Environment variables for run_from_source operation
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub env_vars: Option<std::collections::HashMap<String, String>>, // For run_from_source
+    pub env_vars: Option<std::collections::HashMap<String, String>>,
+    /// Tool name (required for create, upsert, run_from_source)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>, // For run_from_source
+    pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
-    // Pagination parameters for list operation (LMS-50)
+    /// Maximum number of results to return (for list)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<u32>,
+    /// Number of results to skip (for pagination)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offset: Option<u32>,
-    /// LMS-113: Verbose flag for attach/detach operations
-    /// When false (default), returns minimal confirmation instead of full agent state
-    /// When true, returns full agent state (legacy behavior)
+    /// When false (default), returns minimal confirmation; when true, returns full state
     #[serde(default)]
     pub verbose: Option<bool>,
 }
