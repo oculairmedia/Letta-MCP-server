@@ -22,13 +22,19 @@ pub(crate) async fn handle_list_conversations(
         .await
         .map_err(|e| sdk_err("list conversations", e))?;
 
+    // Client-side pagination (SDK does not support server-side params)
+    let total = conversations.len();
+    let limit = 50.min(total);
+    let paginated: Vec<_> = conversations.into_iter().take(limit).collect();
+
     Ok(StandardResponse::success(
         "list_conversations",
         serde_json::json!({
-            "count": conversations.len(),
-            "conversations": conversations,
+            "total": total,
+            "returned": paginated.len(),
+            "conversations": paginated,
         }),
-        "Conversations listed successfully",
+        format!("Returned {} of {} conversations", paginated.len(), total),
     ))
 }
 

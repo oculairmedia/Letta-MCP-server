@@ -293,11 +293,18 @@ async fn handle_list_folders(
 ) -> Result<ToolResponse, McpError> {
     let (limit, offset) = paginate(request.limit, request.offset, 20, 50);
 
-    // Use SDK to list folders
-    let result = client.folders().list(None).await.map_err(|e| {
-        error!(error = %e, "Failed to list folders - SDK error details");
-        sdk_err("list folders", e)
-    })?;
+    // Use SDK to list folders with server-side limit
+    let result = client
+        .folders()
+        .list(Some(letta::types::folder::ListFoldersParams {
+            limit: Some(limit as u32 + offset as u32),
+            ..Default::default()
+        }))
+        .await
+        .map_err(|e| {
+            error!(error = %e, "Failed to list folders - SDK error details");
+            sdk_err("list folders", e)
+        })?;
 
     let total = result.len();
 

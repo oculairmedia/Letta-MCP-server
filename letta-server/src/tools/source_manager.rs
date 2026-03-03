@@ -4,6 +4,7 @@
 
 use crate::tools::response_utils::{ToolResponse, paginate};
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
+use futures::stream::{self, StreamExt};
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -220,7 +221,7 @@ async fn handle_list_sources(
     )
     .with_json_data(serde_json::to_value(&summaries)?)
     .with_count(total)
-    .with_extra(serde_json::to_value(&pagination).unwrap()))
+    .with_extra(serde_json::to_value(&pagination)?))
 }
 
 async fn handle_get_source(
@@ -470,7 +471,7 @@ async fn handle_list_files(
     )
     .with_json_data(serde_json::to_value(&summaries)?)
     .with_count(total)
-    .with_extra(serde_json::to_value(&pagination).unwrap()))
+    .with_extra(serde_json::to_value(&pagination)?))
 }
 
 async fn handle_upload_file(
@@ -578,26 +579,33 @@ async fn handle_list_agents_using(
         .await
         .map_err(|e| sdk_err("list agents", e))?;
 
-    // Filter agents that have this source attached
-    let mut agents_using = Vec::new();
-    for agent in agents {
-        // Check if this agent has the source attached
-        let sources = client
-            .sources()
-            .agent_sources(agent.id.clone())
-            .list()
-            .await
-            .map_err(|e| sdk_err("check agent sources", e))?;
-
-        for source in sources {
-            if let Some(sid) = &source.id {
-                if sid == &letta_id {
-                    agents_using.push(agent.clone());
-                    break;
+    // Parallel fan-out: check each agent's sources concurrently (avoids N+1)
+    let check_results: Vec<_> = stream::iter(agents)
+        .map(|agent| {
+            let client = client;
+            let target_id = letta_id.clone();
+            async move {
+                let sources = client
+                    .sources()
+                    .agent_sources(agent.id.clone())
+                    .list()
+                    .await;
+                match sources {
+                    Ok(sources) => {
+                        let has_source = sources.iter().any(|s| {
+                            s.id.as_ref().map_or(false, |sid| *sid == target_id)
+                        });
+                        if has_source { Some(agent) } else { None }
+                    }
+                    Err(_) => None,
                 }
             }
-        }
-    }
+        })
+        .buffer_unordered(10)
+        .collect()
+        .await;
+
+    let agents_using: Vec<_> = check_results.into_iter().flatten().collect();
 
     // Return only IDs and names - not full agent objects!
     let agent_refs: Vec<AgentReference> = agents_using

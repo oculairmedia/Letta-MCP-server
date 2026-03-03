@@ -4,6 +4,7 @@
 
 use crate::tools::response_utils::{ToolResponse, paginate};
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
+use futures::stream::{self, StreamExt};
 use letta::LettaClient;
 use letta::types::ListAgentsParams;
 use letta::types::tool::ListToolsParams;
@@ -413,48 +414,55 @@ async fn handle_bulk_attach(
         agents.iter().map(|a| a.id.to_string()).collect()
     };
 
+    // Parallel fan-out: attach tool to all agents concurrently
+    let attach_results: Vec<(String, Result<_, _>)> = stream::iter(agent_ids)
+        .map(|agent_id| {
+            let client = client;
+            let letta_tool_id = &letta_tool_id;
+            async move {
+                let result = match require_id(Some(agent_id.clone()), "agent_id") {
+                    Ok(letta_agent_id) => {
+                        client
+                            .memory()
+                            .attach_tool_to_agent(&letta_agent_id, letta_tool_id)
+                            .await
+                            .map_err(|e| e.to_string())
+                    }
+                    Err(e) => Err(e.to_string()),
+                };
+                (agent_id, result)
+            }
+        })
+        .buffer_unordered(10)
+        .collect()
+        .await;
+
     let mut results = Vec::new();
     let mut errors = Vec::new();
-
-    for agent_id in agent_ids {
-        match require_id(Some(agent_id.clone()), "agent_id") {
-            Ok(letta_agent_id) => {
-                match client
-                    .memory()
-                    .attach_tool_to_agent(&letta_agent_id, &letta_tool_id)
-                    .await
-                {
-                    Ok(agent_state) => {
-                        let tool_count = agent_state.tools.len();
-                        if verbose {
-                            results.push(serde_json::json!({
-                                "agent_id": agent_id,
-                                "success": true,
-                                "tool_count": tool_count,
-                                "data": agent_state
-                            }));
-                        } else {
-                            results.push(serde_json::json!({
-                                "agent_id": agent_id,
-                                "success": true,
-                                "tool_count": tool_count
-                            }));
-                        }
-                    }
-                    Err(e) => {
-                        errors.push(serde_json::json!({
-                            "agent_id": agent_id,
-                            "success": false,
-                            "error": e.to_string()
-                        }));
-                    }
+    for (agent_id, result) in attach_results {
+        match result {
+            Ok(agent_state) => {
+                let tool_count = agent_state.tools.len();
+                if verbose {
+                    results.push(serde_json::json!({
+                        "agent_id": agent_id,
+                        "success": true,
+                        "tool_count": tool_count,
+                        "data": agent_state
+                    }));
+                } else {
+                    results.push(serde_json::json!({
+                        "agent_id": agent_id,
+                        "success": true,
+                        "tool_count": tool_count
+                    }));
                 }
             }
             Err(e) => {
                 errors.push(serde_json::json!({
                     "agent_id": agent_id,
                     "success": false,
-                    "error": e.to_string()
+                    "error": e
                 }));
             }
         }

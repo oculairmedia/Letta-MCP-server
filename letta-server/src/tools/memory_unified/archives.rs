@@ -1,35 +1,57 @@
+use crate::tools::response_utils::{ToolResponse, paginate};
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use turbomcp::McpError;
 
 use super::MemoryUnifiedRequest;
-use crate::tools::response_utils::ToolResponse;
 
 pub(crate) async fn handle_list_archives(
     client: &LettaClient,
-    _request: MemoryUnifiedRequest,
+    request: MemoryUnifiedRequest,
 ) -> Result<ToolResponse, McpError> {
+    let (limit, offset) = paginate(
+        request.limit.map(|l| l as usize),
+        request.offset.map(|o| o as usize),
+        25,
+        100,
+    );
+
     let archives = client
         .archives()
         .list()
         .await
         .map_err(|e| sdk_err("list archives", e))?;
 
-    let count = archives.len();
+    let total = archives.len();
 
-    let archive_values: Vec<serde_json::Value> = archives
-        .iter()
+    // Client-side pagination (SDK does not support server-side params)
+    let paginated: Vec<serde_json::Value> = archives
+        .into_iter()
+        .skip(offset)
+        .take(limit)
         .map(|a| serde_json::to_value(a))
         .collect::<Result<Vec<_>, _>>()?;
 
+    let returned = paginated.len();
+    let mut hints = Vec::new();
+    if total > offset + returned {
+        hints.push(format!(
+            "More archives available. Use offset={} to see next page",
+            offset + returned
+        ));
+    }
+
     Ok(
-        ToolResponse::success("list_archives", format!("Found {} archives", count))
-            .with_count(count)
+        ToolResponse::success("list_archives", format!("Returned {} of {} archives", returned, total))
+            .with_count(total)
             .with_extra(serde_json::json!({
                 "archival": {
-                    "passages": archive_values,
-                    "count": count,
+                    "passages": paginated,
+                    "count": total,
                 },
+                "returned": returned,
+                "offset": offset,
+                "hints": if hints.is_empty() { None } else { Some(hints) },
             })),
     )
 }
