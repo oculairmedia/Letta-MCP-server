@@ -11,12 +11,10 @@
 //! - open_file: Returns minimal confirmation (content retrieval via separate API)
 //! - All list operations include pagination metadata
 
-use crate::tools::response_utils::paginate;
-use crate::tools::validation_utils::{require_field, sdk_err};
+use crate::tools::response_utils::{paginate, ToolResponse};
+use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::str::FromStr;
 use tracing::{error, info};
 use turbomcp::McpError;
 
@@ -99,71 +97,12 @@ pub struct AgentReference {
     pub id: String,
 }
 
-/// File/folder operation response
-#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct FileFolderResponse {
-    pub success: bool,
-    pub operation: String,
-    pub message: String,
-
-    // Common fields
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub folder_id: Option<String>,
-
-    // Pagination metadata
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub returned: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub offset: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hints: Option<Vec<String>>,
-
-    // Operation-specific fields
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub files: Option<Vec<FileMetadata>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub opened: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub evicted_files: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub closed: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub closed_count: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub closed_files: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub folders: Option<Vec<FolderMetadata>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub attached: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub detached: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_state: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_ids: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub agents: Option<Vec<AgentReference>>,
-
-    // For open_file operation (if content retrieval is added in future)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_content: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub content_length: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub truncated: Option<bool>,
-}
 
 /// Handle letta_file_folder_ops tool requests
 pub async fn handle_file_folder_ops(
     client: &LettaClient,
     request: FileFolderRequest,
-) -> Result<FileFolderResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let operation = request.operation.as_str();
     info!(operation = %operation, "Executing file/folder operation");
 
@@ -190,11 +129,10 @@ pub async fn handle_file_folder_ops(
 async fn handle_list_files(
     client: &LettaClient,
     request: FileFolderRequest,
-) -> Result<FileFolderResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id, "agent_id is required")?;
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+    let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
 
     let (limit, offset) = paginate(request.limit, request.offset, 25, 100);
 
@@ -234,47 +172,27 @@ async fn handle_list_files(
         ));
     }
 
-    Ok(FileFolderResponse {
-        success: true,
-        operation: "list_files".to_string(),
-        message: format!("Returned {} of {} files", returned, total),
-        agent_id: Some(agent_id),
-        total: Some(total),
-        returned: Some(returned),
-        offset: Some(offset),
-        hints: Some(hints),
-        files: Some(files),
-        file_id: None,
-        folder_id: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    })
+    Ok(ToolResponse::success("list_files", format!("Returned {} of {} files", returned, total))
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "total": total,
+            "returned": returned,
+            "offset": offset,
+            "hints": hints,
+            "files": files,
+        })))
 }
 
 /// Open a file for an agent
 async fn handle_open_file(
     client: &LettaClient,
     request: FileFolderRequest,
-) -> Result<FileFolderResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id, "agent_id is required")?;
     let file_id = require_field(request.file_id, "file_id is required")?;
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
-    let letta_file_id = letta::types::LettaId::from_str(&file_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid file_id: {}", e)))?;
+    let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
+    let letta_file_id = require_id(Some(file_id.clone()), "file_id")?;
 
     // Use SDK to open file - returns array of evicted file IDs
     let evicted = client
@@ -291,47 +209,26 @@ async fn handle_open_file(
             .to_string(),
     ];
 
-    Ok(FileFolderResponse {
-        success: true,
-        operation: "open_file".to_string(),
-        message: "File opened successfully".to_string(),
-        agent_id: Some(agent_id),
-        file_id: Some(file_id),
-        opened: Some(true),
-        evicted_files: Some(evicted),
-        hints: Some(hints),
-        folder_id: None,
-        files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        total: None,
-        returned: None,
-        offset: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    })
+    Ok(ToolResponse::success("open_file", "File opened successfully")
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "file_id": file_id,
+            "opened": true,
+            "evicted_files": evicted,
+            "hints": hints,
+        })))
 }
 
 /// Close a specific file
 async fn handle_close_file(
     client: &LettaClient,
     request: FileFolderRequest,
-) -> Result<FileFolderResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id, "agent_id is required")?;
     let file_id = require_field(request.file_id, "file_id is required")?;
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
-    let letta_file_id = letta::types::LettaId::from_str(&file_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid file_id: {}", e)))?;
+    let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
+    let letta_file_id = require_id(Some(file_id.clone()), "file_id")?;
 
     // Use SDK to close file
     client
@@ -342,44 +239,22 @@ async fn handle_close_file(
         .map_err(|e| sdk_err("close file", e))?;
 
     // Minimal response as per LMS-54 requirements
-    Ok(FileFolderResponse {
-        success: true,
-        operation: "close_file".to_string(),
-        message: "File closed successfully".to_string(),
-        agent_id: Some(agent_id),
-        file_id: Some(file_id),
-        closed: Some(true),
-        folder_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        total: None,
-        returned: None,
-        offset: None,
-        hints: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    })
+    Ok(ToolResponse::success("close_file", "File closed successfully")
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "file_id": file_id,
+            "closed": true,
+        })))
 }
 
 /// Close all files for an agent
 async fn handle_close_all_files(
     client: &LettaClient,
     request: FileFolderRequest,
-) -> Result<FileFolderResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id, "agent_id is required")?;
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+    let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
 
     // Use SDK to close all files - returns array of closed file IDs
     let closed = client
@@ -392,46 +267,25 @@ async fn handle_close_all_files(
     let count = closed.len();
 
     // Minimal response - just file IDs, not full metadata (LMS-54)
-    Ok(FileFolderResponse {
-        success: true,
-        operation: "close_all_files".to_string(),
-        message: format!("Closed {} files", count),
-        agent_id: Some(agent_id),
-        closed_count: Some(count),
-        closed_files: Some(closed),
-        file_id: None,
-        folder_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        folders: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        total: None,
-        returned: None,
-        offset: None,
-        hints: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    })
+    Ok(ToolResponse::success("close_all_files", format!("Closed {} files", count))
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "closed_count": count,
+            "closed_files": closed,
+        })))
 }
 
 /// List all folders
 async fn handle_list_folders(
     client: &LettaClient,
     request: FileFolderRequest,
-) -> Result<FileFolderResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let (limit, offset) = paginate(request.limit, request.offset, 20, 50);
 
     // Use SDK to list folders
     let result = client.folders().list(None).await.map_err(|e| {
         error!(error = %e, "Failed to list folders - SDK error details");
-        McpError::internal(format!("Failed to list folders: {}", e))
+        sdk_err("list folders", e)
     })?;
 
     let total = result.len();
@@ -463,47 +317,26 @@ async fn handle_list_folders(
         ));
     }
 
-    Ok(FileFolderResponse {
-        success: true,
-        operation: "list_folders".to_string(),
-        message: format!("Returned {} of {} folders", returned, total),
-        total: Some(total),
-        returned: Some(returned),
-        offset: Some(offset),
-        hints: if hints.is_empty() { None } else { Some(hints) },
-        folders: Some(folders),
-        agent_id: None,
-        file_id: None,
-        folder_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        agent_ids: None,
-        agents: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    })
+    Ok(ToolResponse::success("list_folders", format!("Returned {} of {} folders", returned, total))
+        .with_extra(serde_json::json!({
+            "total": total,
+            "returned": returned,
+            "offset": offset,
+            "hints": if hints.is_empty() { None } else { Some(hints) },
+            "folders": folders,
+        })))
 }
 
 /// Attach folder to agent
 async fn handle_attach_folder(
     client: &LettaClient,
     request: FileFolderRequest,
-) -> Result<FileFolderResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id, "agent_id is required")?;
     let folder_id = require_field(request.folder_id, "folder_id is required")?;
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
-    let letta_folder_id = letta::types::LettaId::from_str(&folder_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid folder_id: {}", e)))?;
+    let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
+    let letta_folder_id = require_id(Some(folder_id.clone()), "folder_id")?;
 
     // Use SDK to attach folder - returns AgentState
     let _agent_state = client
@@ -514,47 +347,24 @@ async fn handle_attach_folder(
         .map_err(|e| sdk_err("attach folder", e))?;
 
     // Minimal response - don't include full agent state (LMS-54)
-    Ok(FileFolderResponse {
-        success: true,
-        operation: "attach_folder".to_string(),
-        message: "Folder attached to agent successfully".to_string(),
-        agent_id: Some(agent_id),
-        folder_id: Some(folder_id),
-        attached: Some(true),
-        file_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        detached: None,
-        agent_state: None, // Excluded to reduce response size
-        agent_ids: None,
-        agents: None,
-        total: None,
-        returned: None,
-        offset: None,
-        hints: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    })
+    Ok(ToolResponse::success("attach_folder", "Folder attached to agent successfully")
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "folder_id": folder_id,
+            "attached": true,
+        })))
 }
 
 /// Detach folder from agent
 async fn handle_detach_folder(
     client: &LettaClient,
     request: FileFolderRequest,
-) -> Result<FileFolderResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id, "agent_id is required")?;
     let folder_id = require_field(request.folder_id, "folder_id is required")?;
 
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
-    let letta_folder_id = letta::types::LettaId::from_str(&folder_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid folder_id: {}", e)))?;
+    let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
+    let letta_folder_id = require_id(Some(folder_id.clone()), "folder_id")?;
 
     // Use SDK to detach folder - returns AgentState
     let _agent_state = client
@@ -565,44 +375,22 @@ async fn handle_detach_folder(
         .map_err(|e| sdk_err("detach folder", e))?;
 
     // Minimal response - don't include full agent state (LMS-54)
-    Ok(FileFolderResponse {
-        success: true,
-        operation: "detach_folder".to_string(),
-        message: "Folder detached from agent successfully".to_string(),
-        agent_id: Some(agent_id),
-        folder_id: Some(folder_id),
-        detached: Some(true),
-        file_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        attached: None,
-        agent_state: None, // Excluded to reduce response size
-        agent_ids: None,
-        agents: None,
-        total: None,
-        returned: None,
-        offset: None,
-        hints: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    })
+    Ok(ToolResponse::success("detach_folder", "Folder detached from agent successfully")
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "folder_id": folder_id,
+            "detached": true,
+        })))
 }
 
 /// List agents in a specific folder
 async fn handle_list_agents_in_folder(
     client: &LettaClient,
     request: FileFolderRequest,
-) -> Result<FileFolderResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let folder_id = require_field(request.folder_id, "folder_id is required")?;
 
-    let letta_folder_id = letta::types::LettaId::from_str(&folder_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid folder_id: {}", e)))?;
+    let letta_folder_id = require_id(Some(folder_id.clone()), "folder_id")?;
 
     // Use SDK to list agents in folder - returns Vec<String>
     let agent_ids = client
@@ -619,31 +407,10 @@ async fn handle_list_agents_in_folder(
 
     let count = agent_ids.len();
 
-    Ok(FileFolderResponse {
-        success: true,
-        operation: "list_agents_in_folder".to_string(),
-        message: format!("Found {} agents in folder", count),
-        folder_id: Some(folder_id),
-        agent_ids: Some(agent_ids),
-        agents: Some(agents),
-        agent_id: None,
-        file_id: None,
-        files: None,
-        opened: None,
-        evicted_files: None,
-        closed: None,
-        closed_count: None,
-        closed_files: None,
-        folders: None,
-        attached: None,
-        detached: None,
-        agent_state: None,
-        total: None,
-        returned: None,
-        offset: None,
-        hints: None,
-        file_content: None,
-        content_length: None,
-        truncated: None,
-    })
+    Ok(ToolResponse::success("list_agents_in_folder", format!("Found {} agents in folder", count))
+        .with_extra(serde_json::json!({
+            "folder_id": folder_id,
+            "agent_ids": agent_ids,
+            "agents": agents,
+        })))
 }

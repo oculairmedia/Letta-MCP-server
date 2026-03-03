@@ -444,10 +444,15 @@ async fn handle_list_folders(
         .min(MAX_FOLDER_LIMIT);
     let offset = request.offset.unwrap_or(0);
 
-    // Use SDK to list folders
+    // Use SDK server-side limit to avoid loading all folders into memory
+    let fetch_count = (offset + limit) as u32;
+    let params = letta::types::ListFoldersParams {
+        limit: Some(fetch_count),
+        ..Default::default()
+    };
     let result = client
         .folders()
-        .list(None)
+        .list(Some(params))
         .await
         .map_err(|e| McpError::internal(format!("Failed to list folders: {}", e)))?;
 
@@ -464,7 +469,7 @@ async fn handle_list_folders(
             description: f
                 .description
                 .as_ref()
-                .map(|d| truncate_with_suffix(d, MAX_DESCRIPTION_LENGTH)),
+                .map(|d| truncate_with_suffix(d, MAX_DESCRIPTION_LENGTH).into_owned()),
             file_count: None,  // Not included in SDK response
             agent_count: None, // Not included in SDK response
         })

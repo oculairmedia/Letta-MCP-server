@@ -471,8 +471,8 @@ async fn handle_list_tools(
 
                     // Truncate description if needed
                     let (desc, was_truncated) = match description {
-                        Some(d) => truncate_with_flag(&d, MAX_DESCRIPTION_LENGTH),
-                        None => (String::new(), false),
+                        Some(ref d) => truncate_with_flag(d, MAX_DESCRIPTION_LENGTH),
+                        None => (std::borrow::Cow::Borrowed(""), false),
                     };
 
                     // Use json! macro for cleaner code

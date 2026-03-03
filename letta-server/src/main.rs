@@ -1,4 +1,5 @@
 use letta_server::LettaServer;
+use turbomcp::prelude::*; // v3: McpHandlerExt for run_stdio/run_http
 use std::env;
 
 #[tokio::main]

@@ -5,22 +5,18 @@ members = [
 ]
 resolver = "2"
 
-# Patch turbomcp to use our fork (based on upstream v2.3.7) with $defs support and flatten-structs
-[patch.crates-io]
-turbomcp = { git = "https://github.com/oculairmedia/turbomcp.git", branch = "feature/flatten-structs" }
-turbomcp-macros = { git = "https://github.com/oculairmedia/turbomcp.git", branch = "feature/flatten-structs" }
-turbomcp-protocol = { git = "https://github.com/oculairmedia/turbomcp.git", branch = "feature/flatten-structs" }
-turbomcp-server = { git = "https://github.com/oculairmedia/turbomcp.git", branch = "feature/flatten-structs" }
-turbomcp-transport = { git = "https://github.com/oculairmedia/turbomcp.git", branch = "feature/flatten-structs" }
+# TurboMCP v3: Use our fork's v3-test branch (upstream v3.0.0-beta.5)
+# No [patch.crates-io] needed — using direct git dependency.
+# Internal sub-crates (turbomcp-core, turbomcp-types, etc.) are resolved
+# via path deps within the git clone automatically.
 
 [workspace.dependencies]
 # Core async runtime
-tokio = { version = "1.47", features = ["full"] }
-tokio-util = { version = "0.7", features = ["full"] }
+tokio = { version = "1.49", features = ["macros", "rt-multi-thread", "io-util", "sync", "time", "fs"] }
 futures = "0.3"
 
-# TurboMCP (fork: oculairmedia/turbomcp, branch: feature/flatten-structs, base: upstream v2.3.7)
-turbomcp = { version = "2.3", features = ["http"] }
+# TurboMCP v3 (fork: oculairmedia/turbomcp, branch: v3-test, base: upstream v3.0.0-beta.5)
+turbomcp = { git = "https://github.com/oculairmedia/turbomcp.git", branch = "v3-test", features = ["http"] }
 
 # HTTP client
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "http2"] }
@@ -50,9 +46,12 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 # Time
 chrono = { version = "0.4", features = ["serde"] }
 
+# Filesystem utilities
+tempfile = "3.15"
+
 [profile.release]
 opt-level = 3
-lto = "fat"
+lto = "thin"
 codegen-units = 1
 panic = "abort"
 strip = true

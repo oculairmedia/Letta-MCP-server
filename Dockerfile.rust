@@ -4,6 +4,8 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     git \
+    clang \
+    mold \
     && rm -rf /var/lib/apt/lists/*
 RUN git config --global url."https://github.com/".insteadOf git@github.com:
 WORKDIR /build
@@ -16,6 +18,8 @@ COPY rust/vendor ./rust/vendor
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
+COPY .cargo/config.toml /build/.cargo/config.toml
+
 COPY --from=planner /build/recipe.json recipe.json
 RUN rm -rf ~/.cargo/git
 RUN cargo chef cook --release --recipe-path recipe.json

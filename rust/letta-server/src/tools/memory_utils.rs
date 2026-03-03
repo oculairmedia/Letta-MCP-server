@@ -45,12 +45,12 @@ impl BlockSummary {
         let description = block
             .get("description")
             .and_then(|v| v.as_str())
-            .map(|s| truncate_preview(s, 100));
+            .map(|s| truncate_preview(s, 100).into_owned());
 
         let value = block.get("value").and_then(|v| v.as_str()).unwrap_or("");
 
         let value_length = value.len();
-        let value_preview = truncate_preview(value, 100);
+        let value_preview = truncate_preview(value, 100).into_owned();
 
         let is_template = block.get("is_template").and_then(|v| v.as_bool());
 
@@ -96,7 +96,7 @@ impl PassageSummary {
         let text = passage.get("text").and_then(|v| v.as_str()).unwrap_or("");
 
         let text_length = text.len();
-        let text_preview = truncate_preview(text, 200);
+        let text_preview = truncate_preview(text, 200).into_owned();
 
         let created_at = passage
             .get("created_at")
@@ -133,7 +133,7 @@ pub fn truncate_block_value(block: &mut Value, max_len: usize) -> bool {
         if value_len > max_len {
             let truncated = truncate_with_indicator(&value_str, max_len);
             if let Some(obj) = block.as_object_mut() {
-                obj.insert("value".to_string(), Value::String(truncated));
+                obj.insert("value".to_string(), Value::String(truncated.into_owned()));
                 obj.insert("value_length".to_string(), Value::Number(value_len.into()));
                 obj.insert("truncated".to_string(), Value::Bool(true));
                 return true;
@@ -155,7 +155,7 @@ pub fn truncate_passage_text(passage: &mut Value, max_len: usize) -> bool {
         if text_len > max_len {
             let truncated = truncate_with_indicator(&text_str, max_len);
             if let Some(obj) = passage.as_object_mut() {
-                obj.insert("text".to_string(), Value::String(truncated));
+                obj.insert("text".to_string(), Value::String(truncated.into_owned()));
                 obj.insert("text_length".to_string(), Value::Number(text_len.into()));
                 obj.insert("truncated".to_string(), Value::Bool(true));
                 return true;

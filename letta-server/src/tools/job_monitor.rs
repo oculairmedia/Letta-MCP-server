@@ -3,10 +3,10 @@
 //! Consolidated tool for job monitoring operations with response size optimizations.
 
 use letta::LettaClient;
-use crate::tools::validation_utils::{require_field, sdk_err};
+use crate::tools::response_utils::ToolResponse;
+use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::str::FromStr;
 use tracing::info;
 use turbomcp::McpError;
 
@@ -19,36 +19,24 @@ pub enum JobOperation {
     ListActive,
 }
 
+/// Job monitor request - all parameters are optional except operation
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct JobMonitorRequest {
+    /// The operation to perform (list, get, cancel, list_active)
     pub operation: JobOperation,
+    /// Job ID (required for get, cancel)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub job_id: Option<String>,
+    /// Maximum number of results to return (for list, list_active)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
-
+    /// When false (default), returns minimal confirmation; when true, returns full state
     #[serde(default)]
     pub verbose: Option<bool>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct JobMonitorResponse {
-    pub success: bool,
-    pub operation: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub count: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub returned: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hints: Option<Vec<String>>,
-}
 
 /// Simplified job summary for list operations
 #[derive(Debug, Serialize)]
@@ -101,7 +89,7 @@ const MAX_METADATA_LENGTH: usize = 2000;
 pub async fn handle_job_monitor(
     client: &LettaClient,
     request: JobMonitorRequest,
-) -> Result<JobMonitorResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let operation_str = format!("{:?}", request.operation).to_lowercase();
     info!(operation = %operation_str, "Executing job operation");
 
@@ -116,7 +104,7 @@ pub async fn handle_job_monitor(
 async fn handle_list_jobs(
     client: &LettaClient,
     request: JobMonitorRequest,
-) -> Result<JobMonitorResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let limit = request.limit.unwrap_or(DEFAULT_LIST_LIMIT);
 
     let jobs = client
@@ -146,27 +134,21 @@ async fn handle_list_jobs(
 
     let returned = summaries.len();
 
-    Ok(JobMonitorResponse {
-        success: true,
-        operation: "list".to_string(),
-        message: format!("Returned {} jobs", returned),
-        data: Some(serde_json::to_value(&summaries)?),
-        count: Some(returned),
-        total: None, // API doesn't provide total count
-        returned: Some(returned),
-        hints: Some(vec![
-            "Use 'get' operation with job_id for full details".to_string()
-        ]),
-    })
+    Ok(ToolResponse::success("list", format!("Returned {} jobs", returned))
+        .with_json_data(serde_json::to_value(&summaries)?)
+        .with_count(returned)
+        .with_extra(serde_json::json!({
+            "returned": returned,
+            "hints": vec!["Use 'get' operation with job_id for full details"]
+        })))
 }
 
 async fn handle_get_job(
     client: &LettaClient,
     request: JobMonitorRequest,
-) -> Result<JobMonitorResponse, McpError> {
-    let job_id = require_field(request.job_id, "job_id required".to_string())?;
-    let letta_id = letta::types::LettaId::from_str(&job_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid job_id: {}", e)))?;
+) -> Result<ToolResponse, McpError> {
+    let job_id = require_field(request.job_id, "job_id required")?;
+    let letta_id = require_id(Some(job_id), "job_id")?;
 
     let job = client
         .jobs()
@@ -210,25 +192,20 @@ async fn handle_get_job(
         hints.push("Error details truncated; use direct API for full error".to_string());
     }
 
-    Ok(JobMonitorResponse {
-        success: true,
-        operation: "get".to_string(),
-        message: "Job retrieved successfully".to_string(),
-        data: Some(serde_json::to_value(details)?),
-        count: None,
-        total: None,
-        returned: None,
-        hints: if hints.is_empty() { None } else { Some(hints) },
-    })
+    let mut resp = ToolResponse::success("get", "Job retrieved successfully")
+        .with_json_data(serde_json::to_value(details)?);
+    if !hints.is_empty() {
+        resp = resp.with_extra(serde_json::json!({ "hints": hints }));
+    }
+    Ok(resp)
 }
 
 async fn handle_cancel_job(
     client: &LettaClient,
     request: JobMonitorRequest,
-) -> Result<JobMonitorResponse, McpError> {
-    let job_id = require_field(request.job_id, "job_id required".to_string())?;
-    let letta_id = letta::types::LettaId::from_str(&job_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid job_id: {}", e)))?;
+) -> Result<ToolResponse, McpError> {
+    let job_id = require_field(request.job_id, "job_id required")?;
+    let letta_id = require_id(Some(job_id.clone()), "job_id")?;
 
     // Get current status before canceling
     let job = client
@@ -259,22 +236,14 @@ async fn handle_cancel_job(
         ),
     };
 
-    Ok(JobMonitorResponse {
-        success: true,
-        operation: "cancel".to_string(),
-        message: cancel_response.message.clone(),
-        data: Some(serde_json::to_value(cancel_response)?),
-        count: None,
-        total: None,
-        returned: None,
-        hints: None,
-    })
+    Ok(ToolResponse::success("cancel", cancel_response.message.clone())
+        .with_json_data(serde_json::to_value(cancel_response)?))
 }
 
 async fn handle_list_active_jobs(
     client: &LettaClient,
     request: JobMonitorRequest,
-) -> Result<JobMonitorResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let limit = request.limit.unwrap_or(DEFAULT_LIST_LIMIT);
 
     let jobs = client
@@ -304,19 +273,16 @@ async fn handle_list_active_jobs(
 
     let returned = summaries.len();
 
-    Ok(JobMonitorResponse {
-        success: true,
-        operation: "list_active".to_string(),
-        message: format!("Found {} active jobs", returned),
-        data: Some(serde_json::to_value(&summaries)?),
-        count: Some(returned),
-        total: None,
-        returned: Some(returned),
-        hints: Some(vec![
-            "Active jobs are those with status 'pending' or 'running'".to_string(),
-            "Use 'get' operation with job_id for full details".to_string(),
-        ]),
-    })
+    Ok(ToolResponse::success("list_active", format!("Found {} active jobs", returned))
+        .with_json_data(serde_json::to_value(&summaries)?)
+        .with_count(returned)
+        .with_extra(serde_json::json!({
+            "returned": returned,
+            "hints": [
+                "Active jobs are those with status 'pending' or 'running'",
+                "Use 'get' operation with job_id for full details"
+            ]
+        })))
 }
 
 /// Truncate a JSON field if it exceeds max_length when serialized

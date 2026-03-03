@@ -13,7 +13,6 @@ use letta_types::{Message, Pagination};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use turbomcp::McpError;
-use turbomcp_macros::FlattenTool;
 
 // ===================================================
 // Shared Types
@@ -55,22 +54,39 @@ pub enum AgentOperation {
     CompactConversation,
 }
 
-/// Truncate text with indicator showing how many chars were truncated
 pub(crate) fn truncate_text(text: &str, max_chars: usize) -> String {
-    if text.len() <= max_chars {
-        text.to_string()
-    } else {
-        let remaining = text.len() - max_chars;
-        format!(
-            "{}...[truncated, {} more chars]",
-            &text[..max_chars],
-            remaining
-        )
+    crate::tools::response_utils::truncate_with_indicator(text, max_chars)
+}
+
+/// Agent summary for list operations (consistent with ToolSummary, JobSummary, SourceSummary)
+#[derive(Debug, Serialize)]
+pub(crate) struct AgentSummary {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    pub tool_count: usize,
+}
+
+impl AgentSummary {
+    pub fn from_agent(agent: &letta::types::AgentState) -> Self {
+        Self {
+            id: agent.id.to_string(),
+            name: agent.name.clone(),
+            description: agent.description.as_ref().map(|d| truncate_text(d, 100)),
+            model: agent.llm_config.as_ref().map(|c| c.model.clone()),
+            created_at: agent.created_at.map(|ts| ts.to_string()),
+            tool_count: agent.tools.len(),
+        }
     }
 }
 
 /// Bulk delete filters
-#[derive(Debug, Deserialize, schemars::JsonSchema, FlattenTool)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct BulkDeleteFilters {
     /// Filter agents by name pattern
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -86,7 +102,7 @@ pub struct BulkDeleteFilters {
 }
 
 /// Search filters for messages
-#[derive(Debug, Deserialize, schemars::JsonSchema, FlattenTool)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct SearchFilters {
     /// Filter messages after this date (ISO 8601 format)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -102,7 +118,7 @@ pub struct SearchFilters {
 }
 
 /// Agent advanced request - all parameters are optional except operation
-#[derive(Debug, Deserialize, schemars::JsonSchema, FlattenTool)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct AgentAdvancedRequest {
     /// The operation to perform (list, create, get, update, delete, send_message, etc.)
     #[schemars(schema_with = "operation_schema")]

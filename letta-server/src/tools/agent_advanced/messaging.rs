@@ -1,4 +1,4 @@
-use crate::tools::validation_utils::sdk_err;
+use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use letta_types::StandardResponse;
 use turbomcp::McpError;
@@ -9,17 +9,15 @@ pub(crate) async fn handle_send_message(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for send_message operation".to_string())
-    })?;
-
-    let messages = request.messages.ok_or_else(|| {
-        McpError::invalid_request("messages is required for send_message operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for send_message operation",
+    )?;
+    let messages = require_field(
+        request.messages,
+        "messages is required for send_message operation",
+    )?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let message_creates: Vec<letta::types::MessageCreate> = messages
         .into_iter()
@@ -81,16 +79,15 @@ pub(crate) async fn handle_async_message(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for async_message operation".to_string())
-    })?;
-    let messages = request.messages.ok_or_else(|| {
-        McpError::invalid_request("messages are required for async_message operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for async_message operation",
+    )?;
+    let messages = require_field(
+        request.messages,
+        "messages are required for async_message operation",
+    )?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let message_creates: Vec<letta::types::MessageCreate> = messages
         .into_iter()
@@ -119,13 +116,11 @@ pub(crate) async fn handle_cancel_message(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for cancel_message operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for cancel_message operation",
+    )?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     client
         .messages()
@@ -143,9 +138,10 @@ pub(crate) async fn handle_search_messages(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let query = request.query.ok_or_else(|| {
-        McpError::invalid_request("query is required for search_messages operation".to_string())
-    })?;
+    let query = require_field(
+        request.query,
+        "query is required for search_messages operation",
+    )?;
 
     let search_request = letta::types::MessageSearchRequest {
         query: Some(query),
@@ -226,13 +222,11 @@ pub(crate) async fn handle_get_message(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for get_message operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for get_message operation",
+    )?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let messages = client
         .messages()
@@ -268,16 +262,15 @@ pub(crate) async fn handle_preview_payload(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for preview_payload operation".to_string())
-    })?;
-    let messages = request.messages.ok_or_else(|| {
-        McpError::invalid_request("messages are required for preview_payload operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(
+        request.agent_id,
+        "agent_id is required for preview_payload operation",
+    )?;
+    let messages = require_field(
+        request.messages,
+        "messages are required for preview_payload operation",
+    )?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let message_creates: Vec<letta::types::MessageCreate> = messages
         .into_iter()

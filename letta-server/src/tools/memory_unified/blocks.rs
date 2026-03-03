@@ -1,27 +1,22 @@
 use crate::tools::memory_utils::{truncate_block_value, BlockSummary};
-use crate::tools::validation_utils::sdk_err;
+use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
-use std::str::FromStr;
 use turbomcp::McpError;
 
-use super::{MemoryUnifiedRequest, MemoryUnifiedResponse};
+use super::{MemoryUnifiedRequest};
+use crate::tools::response_utils::ToolResponse;
 
 const BLOCK_VALUE_TRUNCATE_LEN: usize = 500;
 
 pub(crate) async fn handle_get_block_by_label(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for get_block_by_label".to_string())
-    })?;
-    let block_label = request.block_label.ok_or_else(|| {
-        McpError::invalid_request("block_label is required for get_block_by_label".to_string())
-    })?;
+) -> Result<ToolResponse, McpError> {
+    let agent_id = require_field(request.agent_id, "agent_id is required for get_block_by_label")?;
+    let block_label =
+        require_field(request.block_label, "block_label is required for get_block_by_label")?;
     let verbose = request.verbose.unwrap_or(false);
-
-    let letta_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+    let letta_id = require_id(Some(agent_id.clone()), "agent_id")?;
 
     let block = client
         .memory()
@@ -34,35 +29,18 @@ pub(crate) async fn handle_get_block_by_label(
         truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
     }
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "get_block_by_label".to_string(),
-        message: format!("Block '{}' retrieved successfully", block_label),
-        agent_id: Some(agent_id),
-        data: Some(block_value),
-        block_id: None,
-        passage_id: None,
-        archive_id: None,
-        core_memory: None,
-        blocks: None,
-        passages: None,
-        count: None,
-        archival: None,
-        messages: None,
-    })
+    Ok(ToolResponse::success("get_block_by_label", format!("Block '{}' retrieved successfully", block_label))
+        .with_json_data(block_value)
+        .with_extra(serde_json::json!({ "agent_id": agent_id })))
 }
 
 pub(crate) async fn handle_list_blocks(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for list_blocks".to_string())
-    })?;
+) -> Result<ToolResponse, McpError> {
+    let agent_id = require_field(request.agent_id, "agent_id is required for list_blocks")?;
     let verbose = request.verbose.unwrap_or(false);
-
-    let letta_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
+    let letta_id = require_id(Some(agent_id.clone()), "agent_id")?;
 
     let blocks = client
         .memory()
@@ -83,38 +61,24 @@ pub(crate) async fn handle_list_blocks(
         serde_json::to_value(&summaries)?
     };
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "list_blocks".to_string(),
-        message: format!(
+    Ok(ToolResponse::success("list_blocks", format!(
             "Found {} blocks{}",
             count,
             if verbose { "" } else { " (compact, use verbose=true for full values)" }
-        ),
-        agent_id: Some(agent_id),
-        blocks: Some(blocks_data),
-        count: Some(count),
-        archival: None,
-        messages: None,
-        block_id: None,
-        passage_id: None,
-        archive_id: None,
-        core_memory: None,
-        data: None,
-        passages: None,
-    })
+        ))
+        .with_count(count)
+        .with_extra(serde_json::json!({
+            "agent_id": agent_id,
+            "blocks": blocks_data,
+        })))
 }
 
 pub(crate) async fn handle_create_block(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let label = request.label.ok_or_else(|| {
-        McpError::invalid_request("label is required for create_block".to_string())
-    })?;
-    let value = request.value.ok_or_else(|| {
-        McpError::invalid_request("value is required for create_block".to_string())
-    })?;
+) -> Result<ToolResponse, McpError> {
+    let label = require_field(request.label, "label is required for create_block")?;
+    let value = require_field(request.value, "value is required for create_block")?;
     let verbose = request.verbose.unwrap_or(false);
 
     let create_request = letta::types::memory::CreateBlockRequest {
@@ -141,35 +105,18 @@ pub(crate) async fn handle_create_block(
         truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
     }
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "create_block".to_string(),
-        message: "Block created successfully".to_string(),
-        agent_id: None,
-        block_id,
-        data: Some(block_value),
-        passage_id: None,
-        archive_id: None,
-        core_memory: None,
-        blocks: None,
-        passages: None,
-        count: None,
-        archival: None,
-        messages: None,
-    })
+    Ok(ToolResponse::success("create_block", "Block created successfully")
+        .with_json_data(block_value)
+        .with_extra(serde_json::json!({ "block_id": block_id })))
 }
 
 pub(crate) async fn handle_get_block(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let block_id = request.block_id.ok_or_else(|| {
-        McpError::invalid_request("block_id is required for get_block".to_string())
-    })?;
+) -> Result<ToolResponse, McpError> {
+    let block_id = require_field(request.block_id, "block_id is required for get_block")?;
     let verbose = request.verbose.unwrap_or(false);
-
-    let letta_id = letta::types::LettaId::from_str(&block_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid block_id: {}", e)))?;
+    let letta_id = require_id(Some(block_id.clone()), "block_id")?;
 
     let block = client
         .blocks()
@@ -182,35 +129,18 @@ pub(crate) async fn handle_get_block(
         truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
     }
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "get_block".to_string(),
-        message: "Block retrieved successfully".to_string(),
-        agent_id: None,
-        block_id: Some(block_id),
-        data: Some(block_value),
-        passage_id: None,
-        archive_id: None,
-        core_memory: None,
-        blocks: None,
-        passages: None,
-        count: None,
-        archival: None,
-        messages: None,
-    })
+    Ok(ToolResponse::success("get_block", "Block retrieved successfully")
+        .with_json_data(block_value)
+        .with_extra(serde_json::json!({ "block_id": block_id })))
 }
 
 pub(crate) async fn handle_update_block(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let block_id = request.block_id.ok_or_else(|| {
-        McpError::invalid_request("block_id is required for update_block".to_string())
-    })?;
+) -> Result<ToolResponse, McpError> {
+    let block_id = require_field(request.block_id, "block_id is required for update_block")?;
     let verbose = request.verbose.unwrap_or(false);
-
-    let letta_id = letta::types::LettaId::from_str(&block_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid block_id: {}", e)))?;
+    let letta_id = require_id(Some(block_id.clone()), "block_id")?;
 
     let update_request = letta::types::memory::UpdateBlockRequest {
         value: request.value,
@@ -235,39 +165,19 @@ pub(crate) async fn handle_update_block(
         truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
     }
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "update_block".to_string(),
-        message: "Block updated successfully".to_string(),
-        agent_id: None,
-        block_id: Some(block_id),
-        data: Some(block_value),
-        passage_id: None,
-        archive_id: None,
-        core_memory: None,
-        blocks: None,
-        passages: None,
-        count: None,
-        archival: None,
-        messages: None,
-    })
+    Ok(ToolResponse::success("update_block", "Block updated successfully")
+        .with_json_data(block_value)
+        .with_extra(serde_json::json!({ "block_id": block_id })))
 }
 
 pub(crate) async fn handle_attach_block(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for attach_block".to_string())
-    })?;
-    let block_id = request.block_id.ok_or_else(|| {
-        McpError::invalid_request("block_id is required for attach_block".to_string())
-    })?;
-
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
-    let letta_block_id = letta::types::LettaId::from_str(&block_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid block_id: {}", e)))?;
+) -> Result<ToolResponse, McpError> {
+    let agent_id = require_field(request.agent_id, "agent_id is required for attach_block")?;
+    let block_id = require_field(request.block_id, "block_id is required for attach_block")?;
+    let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
+    let letta_block_id = require_id(Some(block_id.clone()), "block_id")?;
 
     let _agent_state = client
         .memory()
@@ -275,42 +185,22 @@ pub(crate) async fn handle_attach_block(
         .await
         .map_err(|e| sdk_err("attach block", e))?;
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "attach_block".to_string(),
-        message: "Block attached to agent successfully".to_string(),
-        agent_id: Some(agent_id),
-        block_id: Some(block_id),
-        data: Some(serde_json::json!({
+    Ok(ToolResponse::success("attach_block", "Block attached to agent successfully")
+        .with_json_data(serde_json::json!({
             "attached": true,
             "hint": "Use get_core_memory to see updated blocks"
-        })),
-        passage_id: None,
-        archive_id: None,
-        core_memory: None,
-        blocks: None,
-        passages: None,
-        count: None,
-        archival: None,
-        messages: None,
-    })
+        }))
+        .with_extra(serde_json::json!({ "agent_id": agent_id, "block_id": block_id })))
 }
 
 pub(crate) async fn handle_detach_block(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for detach_block".to_string())
-    })?;
-    let block_id = request.block_id.ok_or_else(|| {
-        McpError::invalid_request("block_id is required for detach_block".to_string())
-    })?;
-
-    let letta_agent_id = letta::types::LettaId::from_str(&agent_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id: {}", e)))?;
-    let letta_block_id = letta::types::LettaId::from_str(&block_id)
-        .map_err(|e| McpError::invalid_request(format!("Invalid block_id: {}", e)))?;
+) -> Result<ToolResponse, McpError> {
+    let agent_id = require_field(request.agent_id, "agent_id is required for detach_block")?;
+    let block_id = require_field(request.block_id, "block_id is required for detach_block")?;
+    let letta_agent_id = require_id(Some(agent_id.clone()), "agent_id")?;
+    let letta_block_id = require_id(Some(block_id.clone()), "block_id")?;
 
     let _agent_state = client
         .memory()
@@ -318,32 +208,56 @@ pub(crate) async fn handle_detach_block(
         .await
         .map_err(|e| sdk_err("detach block", e))?;
 
-    Ok(MemoryUnifiedResponse {
-        success: true,
-        operation: "detach_block".to_string(),
-        message: "Block detached from agent successfully".to_string(),
-        agent_id: Some(agent_id),
-        block_id: Some(block_id),
-        data: Some(serde_json::json!({
+    Ok(ToolResponse::success("detach_block", "Block detached from agent successfully")
+        .with_json_data(serde_json::json!({
             "detached": true,
             "hint": "Use get_core_memory to see updated blocks"
-        })),
-        passage_id: None,
-        archive_id: None,
-        core_memory: None,
-        blocks: None,
-        passages: None,
-        count: None,
-        archival: None,
-        messages: None,
-    })
+        }))
+        .with_extra(serde_json::json!({ "agent_id": agent_id, "block_id": block_id })))
 }
 
 pub(crate) async fn handle_list_agents_using_block(
-    _client: &LettaClient,
-    _request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
-    Err(McpError::internal(
-        "list_agents_using_block not yet implemented - requires custom query".to_string(),
-    ))
+    client: &LettaClient,
+    request: MemoryUnifiedRequest,
+) -> Result<ToolResponse, McpError> {
+    let block_id = require_field(
+        request.block_id,
+        "block_id is required for list_agents_using_block",
+    )?;
+    let letta_block_id = require_id(Some(block_id.clone()), "block_id")?;
+
+    let limit = request
+        .limit
+        .and_then(|l| u32::try_from(l).ok());
+
+    let agents = client
+        .blocks()
+        .list_agents(&letta_block_id, limit)
+        .await
+        .map_err(|e| sdk_err("list agents using block", e))?;
+
+    let count = agents.len();
+    let verbose = request.verbose.unwrap_or(false);
+
+    let agents_data = if verbose {
+        serde_json::to_value(&agents)?
+    } else {
+        let summaries: Vec<serde_json::Value> = agents
+            .iter()
+            .map(|agent| {
+                serde_json::json!({
+                    "id": agent.id.to_string(),
+                    "name": agent.name,
+                    "description": agent.description,
+                    "model": agent.llm_config.as_ref().map(|c| &c.model),
+                })
+            })
+            .collect();
+        serde_json::to_value(&summaries)?
+    };
+
+    Ok(ToolResponse::success("list_agents_using_block", format!("Found {} agents using block {}", count, block_id))
+        .with_json_data(agents_data)
+        .with_count(count)
+        .with_extra(serde_json::json!({ "block_id": block_id })))
 }

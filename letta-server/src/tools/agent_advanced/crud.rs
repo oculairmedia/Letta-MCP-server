@@ -1,30 +1,25 @@
-use crate::tools::validation_utils::sdk_err;
+use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use letta_types::StandardResponse;
 use turbomcp::McpError;
 
-use super::{truncate_text, AgentAdvancedRequest};
+use super::{AgentAdvancedRequest, AgentSummary, truncate_text};
+use crate::tools::response_utils::paginate;
 
 pub(crate) async fn handle_list_agents(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let mut pagination = request.pagination.unwrap_or_default();
-
-    if pagination.limit.is_none() || pagination.limit == Some(50) {
-        pagination.limit = Some(15);
-    }
-
-    if let Some(limit) = pagination.limit {
-        if limit > 50 {
-            pagination.limit = Some(50);
-        }
-    }
-
-    let offset = pagination.offset.unwrap_or(0);
+    let pagination = request.pagination.unwrap_or_default();
+    let (limit, offset) = paginate(
+        pagination.limit.map(|l| l as usize),
+        pagination.offset.map(|o| o as usize),
+        15,  // agent lists default smaller
+        50,
+    );
 
     let params = letta::types::ListAgentsParams {
-        limit: pagination.limit.map(|l| l as u32),
+        limit: Some(limit as u32),
         ..Default::default()
     };
 
@@ -36,21 +31,9 @@ pub(crate) async fn handle_list_agents(
 
     let total = client.agents().count().await.unwrap_or(agents.len() as u32);
 
-    let agent_summaries: Vec<serde_json::Value> = agents
+    let agent_summaries: Vec<AgentSummary> = agents
         .iter()
-        .map(|agent| {
-            let model = agent.llm_config.as_ref().map(|config| config.model.clone());
-            let description = agent.description.as_ref().map(|d| truncate_text(d, 100));
-
-            serde_json::json!({
-                "id": agent.id.to_string(),
-                "name": agent.name,
-                "description": description,
-                "model": model,
-                "created_at": agent.created_at.map(|ts| ts.to_string()),
-                "tool_count": agent.tools.len(),
-            })
-        })
+        .map(AgentSummary::from_agent)
         .collect();
 
     let returned = agent_summaries.len() as u32;
@@ -114,21 +97,9 @@ pub(crate) async fn handle_search_agents(
     }
     let criteria_str = criteria.join(", ");
 
-    let agent_summaries: Vec<serde_json::Value> = agents
+    let agent_summaries: Vec<AgentSummary> = agents
         .iter()
-        .map(|agent| {
-            let model = agent.llm_config.as_ref().map(|config| config.model.clone());
-            let description = agent.description.as_ref().map(|d| truncate_text(d, 100));
-
-            serde_json::json!({
-                "id": agent.id.to_string(),
-                "name": agent.name,
-                "description": description,
-                "model": model,
-                "created_at": agent.created_at.map(|ts| ts.to_string()),
-                "tool_count": agent.tools.len(),
-            })
-        })
+        .map(AgentSummary::from_agent)
         .collect();
 
     let count = agent_summaries.len();
@@ -155,9 +126,7 @@ pub(crate) async fn handle_create_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let name = request.name.ok_or_else(|| {
-        McpError::invalid_request("name is required for create operation".to_string())
-    })?;
+    let name = require_field(request.name, "name is required for create operation")?;
 
     let mut agent_request = letta::types::CreateAgentRequest {
         name: Some(name),
@@ -218,13 +187,8 @@ pub(crate) async fn handle_get_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for get operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required for get operation")?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     let verbose = request.verbose.unwrap_or(false);
 
@@ -293,13 +257,76 @@ pub(crate) async fn handle_get_agent(
 }
 
 pub(crate) async fn handle_update_agent(
-    _client: &LettaClient,
-    _request: AgentAdvancedRequest,
+    client: &LettaClient,
+    request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    Err(McpError::internal(
-        "Agent update operation not yet implemented in SDK v0.1.2. \
-         Please use specific update operations (memory, tools, etc.)"
-            .to_string(),
+    let agent_id = require_field(request.agent_id, "agent_id is required for update operation")?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
+
+    let mut update_request = letta::types::UpdateAgentRequest::default();
+
+    // Two modes: flat fields (name, system, etc.) or update_data object.
+    // Flat fields override update_data when both are provided.
+    if let Some(update_data) = request.update_data {
+        let parsed: letta::types::UpdateAgentRequest =
+            serde_json::from_value(update_data).map_err(|e| {
+                McpError::invalid_request(format!("Invalid update_data: {}", e))
+            })?;
+        update_request = parsed;
+    }
+    if let Some(name) = request.name {
+        update_request.name = Some(name);
+    }
+    if let Some(description) = request.description {
+        update_request.description = Some(description);
+    }
+    if let Some(system) = request.system {
+        update_request.system = Some(system);
+    }
+    if let Some(tags) = request.tags {
+        update_request.tags = Some(tags);
+    }
+    if let Some(llm_config_value) = request.llm_config {
+        let llm_config: letta::types::LLMConfig =
+            serde_json::from_value(llm_config_value).map_err(|e| {
+                McpError::invalid_request(format!("Invalid llm_config: {}", e))
+            })?;
+        update_request.llm_config = Some(llm_config);
+    }
+    if let Some(embedding_config_value) = request.embedding_config {
+        let embedding_config: letta::types::EmbeddingConfig =
+            serde_json::from_value(embedding_config_value).map_err(|e| {
+                McpError::invalid_request(format!("Invalid embedding_config: {}", e))
+            })?;
+        update_request.embedding_config = Some(embedding_config);
+    }
+
+    let verbose = request.verbose.unwrap_or(false);
+
+    let agent = client
+        .agents()
+        .update(&letta_id, update_request)
+        .await
+        .map_err(|e| sdk_err("update agent", e))?;
+
+    let data = if verbose {
+        serde_json::to_value(&agent)?
+    } else {
+        serde_json::json!({
+            "id": agent.id.to_string(),
+            "name": agent.name,
+            "agent_type": agent.agent_type,
+            "description": agent.description,
+            "model": agent.llm_config.as_ref().map(|c| &c.model),
+            "tags": agent.tags,
+            "updated_at": agent.updated_at.map(|ts| ts.to_string()),
+        })
+    };
+
+    Ok(StandardResponse::success(
+        "update",
+        data,
+        format!("Agent {} updated successfully", letta_id),
     ))
 }
 
@@ -307,13 +334,8 @@ pub(crate) async fn handle_delete_agent(
     client: &LettaClient,
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
-    let agent_id = request.agent_id.ok_or_else(|| {
-        McpError::invalid_request("agent_id is required for delete operation".to_string())
-    })?;
-
-    let letta_id: letta::types::LettaId = agent_id
-        .parse()
-        .map_err(|e| McpError::invalid_request(format!("Invalid agent_id format: {}", e)))?;
+    let agent_id = require_field(request.agent_id, "agent_id is required for delete operation")?;
+    let letta_id = require_id(Some(agent_id), "agent_id")?;
 
     client
         .agents()

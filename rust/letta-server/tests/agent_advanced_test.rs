@@ -217,6 +217,12 @@ fn test_all_operations_parse() {
         "search_messages",
         "get_message",
         "count",
+        // Conversation operations
+        "list_conversations",
+        "get_conversation",
+        "send_conversation_message",
+        "cancel_conversation",
+        "compact_conversation",
     ];
 
     for op in operations {
@@ -234,6 +240,46 @@ fn test_invalid_operation_fails() {
 
     let result: Result<AgentAdvancedRequest, _> = serde_json::from_value(json_input);
     assert!(result.is_err(), "Should fail on invalid operation");
+}
+
+#[test]
+fn test_parse_conversation_operations() {
+    // list_conversations requires agent_id
+    let json_input = json!({
+        "operation": "list_conversations",
+        "agent_id": "agent-12345678-1234-1234-1234-123456789012"
+    });
+    let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(
+        request.operation,
+        AgentOperation::ListConversations
+    ));
+    assert!(request.agent_id.is_some());
+
+    // get_conversation requires conversation_id
+    let json_input = json!({
+        "operation": "get_conversation",
+        "conversation_id": "conv-12345678-1234-1234-1234-123456789012"
+    });
+    let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(
+        request.operation,
+        AgentOperation::GetConversation
+    ));
+    assert!(request.conversation_id.is_some());
+
+    // send_conversation_message with simple text
+    let json_input = json!({
+        "operation": "send_conversation_message",
+        "conversation_id": "conv-12345678-1234-1234-1234-123456789012",
+        "message": "Hello from conversation"
+    });
+    let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(
+        request.operation,
+        AgentOperation::SendConversationMessage
+    ));
+    assert_eq!(request.message.unwrap(), "Hello from conversation");
 }
 
 // ============================================================

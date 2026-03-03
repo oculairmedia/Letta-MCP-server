@@ -88,11 +88,11 @@ services:
 
 ## Available Tools
 
-The server provides **7 consolidated tools** with **102 operations**:
+The server provides **7 consolidated tools** with **103 operations**:
 
 | Tool | Operations | Description |
 |------|------------|-------------|
-| `letta_agent_advanced` | 27 | Agent lifecycle, messaging, conversations, context, export/import |
+| `letta_agent_advanced` | 28 | Agent lifecycle, messaging, conversations, context, export/import |
 | `letta_memory_unified` | 24 | Core memory, blocks, archival passages, archives, search |
 | `letta_tool_manager` | 13 | Tool CRUD, attach/detach, bulk operations |
 | `letta_source_manager` | 15 | Data sources, files, passages, attachments |
@@ -102,7 +102,7 @@ The server provides **7 consolidated tools** with **102 operations**:
 
 ### Tool Operations
 
-#### letta_agent_advanced (27 operations)
+#### letta_agent_advanced (28 operations)
 
 ```
 list, create, get, update, delete, search, list_tools, send_message,

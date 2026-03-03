@@ -5,6 +5,7 @@
 //! maintaining useful information.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 // ===================================================
 // Response Size Limits (configurable defaults)
@@ -36,8 +37,22 @@ pub mod limits {
 // String Truncation Functions
 // ===================================================
 
+/// Find the nearest valid UTF-8 char boundary at or before `index`.
+/// Returns 0 if no valid boundary is found (should not happen for valid UTF-8).
+fn floor_char_boundary(text: &str, index: usize) -> usize {
+    if index >= text.len() {
+        return text.len();
+    }
+    let mut end = index;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    end
+}
+
 /// Truncate text with indicator showing how many chars were truncated.
 /// Use this for content that the user might want to know the full length of.
+/// Safe for multi-byte UTF-8 characters (emoji, CJK, etc.).
 ///
 /// # Example
 /// ```
@@ -49,17 +64,15 @@ pub fn truncate_with_indicator(text: &str, max_chars: usize) -> String {
     if text.len() <= max_chars {
         text.to_string()
     } else {
-        let remaining = text.len() - max_chars;
-        format!(
-            "{}...[truncated, {} more chars]",
-            &text[..max_chars],
-            remaining
-        )
+        let end = floor_char_boundary(text, max_chars);
+        let remaining = text.len() - end;
+        format!("{}...[truncated, {} more chars]", &text[..end], remaining)
     }
 }
 
 /// Truncate text with simple ellipsis.
 /// Use this for previews where exact length isn't important.
+/// Safe for multi-byte UTF-8 characters (emoji, CJK, etc.).
 ///
 /// # Example
 /// ```
@@ -71,17 +84,20 @@ pub fn truncate_preview(text: &str, max_chars: usize) -> String {
     if text.len() <= max_chars {
         text.to_string()
     } else {
-        format!("{}...", &text[..max_chars])
+        let end = floor_char_boundary(text, max_chars);
+        format!("{}...", &text[..end])
     }
 }
 
 /// Truncate text without any indicator (for internal use).
 /// Returns the original if shorter than max_chars.
+/// Safe for multi-byte UTF-8 characters.
 pub fn truncate_silent(text: &str, max_chars: usize) -> &str {
     if text.len() <= max_chars {
         text
     } else {
-        &text[..max_chars]
+        let end = floor_char_boundary(text, max_chars);
+        &text[..end]
     }
 }
 
@@ -179,6 +195,94 @@ pub trait Summarize {
 }
 
 // ===================================================
+// Unified Tool Response
+// ===================================================
+
+/// Unified response struct for all tool handlers.
+///
+/// Replaces per-tool response structs (ToolManagerResponse, JobMonitorResponse,
+/// SourceManagerResponse, McpOpsResponse, MemoryUnifiedResponse, FileFolderResponse)
+/// with a single generic struct + builder pattern.
+///
+/// Core fields (success/operation/message) are always present.
+/// Optional fields are skipped when None to keep JSON compact.
+/// The `extra` field with `#[serde(flatten)]` allows tool-specific
+/// fields to appear at the top level of the JSON output.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ToolResponse {
+    pub success: bool,
+    pub operation: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pagination: Option<PaginationMeta>,
+    /// Additional tool-specific fields, flattened into the response.
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub extra: Option<Value>,
+}
+
+impl ToolResponse {
+    /// Create a success response.
+    pub fn success(operation: &str, message: impl Into<String>) -> Self {
+        Self {
+            success: true,
+            operation: operation.to_string(),
+            message: message.into(),
+            data: None,
+            count: None,
+            pagination: None,
+            extra: None,
+        }
+    }
+
+    /// Create an error response.
+    pub fn error(operation: &str, message: impl Into<String>) -> Self {
+        Self {
+            success: false,
+            operation: operation.to_string(),
+            message: message.into(),
+            data: None,
+            count: None,
+            pagination: None,
+            extra: None,
+        }
+    }
+
+    /// Attach serializable data (converts via serde_json::to_value).
+    pub fn with_data(mut self, data: impl Serialize) -> Result<Self, serde_json::Error> {
+        self.data = Some(serde_json::to_value(data)?);
+        Ok(self)
+    }
+
+    /// Attach a pre-built JSON Value as data.
+    pub fn with_json_data(mut self, data: Value) -> Self {
+        self.data = Some(data);
+        self
+    }
+
+    /// Set the count field.
+    pub fn with_count(mut self, count: usize) -> Self {
+        self.count = Some(count);
+        self
+    }
+
+    /// Attach pagination metadata.
+    pub fn with_pagination(mut self, pagination: PaginationMeta) -> Self {
+        self.pagination = Some(pagination);
+        self
+    }
+
+    /// Attach extra fields that will be flattened into the top-level JSON.
+    pub fn with_extra(mut self, extra: Value) -> Self {
+        self.extra = Some(extra);
+        self
+    }
+}
+
+// ===================================================
 // Response Hints
 // ===================================================
 
@@ -199,13 +303,9 @@ mod tests {
 
     #[test]
     fn test_truncate_with_indicator() {
-        // Short text - no truncation
         assert_eq!(truncate_with_indicator("Hello", 10), "Hello");
-
-        // Exact length - no truncation
         assert_eq!(truncate_with_indicator("Hello", 5), "Hello");
 
-        // Long text - truncated with indicator
         let result = truncate_with_indicator("Hello, World!", 5);
         assert!(result.starts_with("Hello"));
         assert!(result.contains("truncated"));
@@ -214,11 +314,29 @@ mod tests {
 
     #[test]
     fn test_truncate_preview() {
-        // Short text - no truncation
         assert_eq!(truncate_preview("Hello", 10), "Hello");
-
-        // Long text - truncated with ellipsis
         assert_eq!(truncate_preview("Hello, World!", 5), "Hello...");
+    }
+
+    #[test]
+    fn test_truncate_utf8_multibyte_safety() {
+        // Emoji: each is 4 bytes. "😀😁😂" = 12 bytes
+        let emoji_text = "😀😁😂 hello";
+        // Cutting at byte 5 would land mid-emoji; should snap back to byte 4
+        let result = truncate_preview(emoji_text, 5);
+        assert!(result.starts_with("😀"));
+        assert!(result.ends_with("..."));
+
+        // CJK: each char is 3 bytes. "你好世界" = 12 bytes
+        let cjk_text = "你好世界abcdef";
+        let result = truncate_with_indicator(cjk_text, 7);
+        // byte 7 lands mid-char (世 starts at 6), should snap to 6
+        assert!(result.starts_with("你好"));
+        assert!(result.contains("truncated"));
+
+        // Exact boundary should work fine
+        let result = truncate_preview("abc", 3);
+        assert_eq!(result, "abc");
     }
 
     #[test]

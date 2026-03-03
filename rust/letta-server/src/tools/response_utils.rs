@@ -8,6 +8,7 @@
 //! making them safe for multi-byte UTF-8 strings (emoji, CJK, etc.).
 
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 // ===================================================
 // Response Size Limits (configurable defaults)
@@ -49,17 +50,17 @@ pub mod limits {
 /// let result = truncate_with_indicator("Hello, World!", 5);
 /// assert_eq!(result, "Hello...[truncated, 8 more chars]");
 /// ```
-pub fn truncate_with_indicator(text: &str, max_chars: usize) -> String {
+pub fn truncate_with_indicator(text: &str, max_chars: usize) -> Cow<'_, str> {
     let char_count = text.chars().count();
     if char_count <= max_chars {
-        text.to_string()
+        Cow::Borrowed(text)
     } else {
         let truncated: String = text.chars().take(max_chars).collect();
         let remaining = char_count - max_chars;
-        format!(
+        Cow::Owned(format!(
             "{}...[truncated, {} more chars]",
             truncated, remaining
-        )
+        ))
     }
 }
 
@@ -73,13 +74,13 @@ pub fn truncate_with_indicator(text: &str, max_chars: usize) -> String {
 /// let result = truncate_preview("Hello, World!", 5);
 /// assert_eq!(result, "Hello...");
 /// ```
-pub fn truncate_preview(text: &str, max_chars: usize) -> String {
+pub fn truncate_preview(text: &str, max_chars: usize) -> Cow<'_, str> {
     let char_count = text.chars().count();
     if char_count <= max_chars {
-        text.to_string()
+        Cow::Borrowed(text)
     } else {
         let truncated: String = text.chars().take(max_chars).collect();
-        format!("{}...", truncated)
+        Cow::Owned(format!("{}...", truncated))
     }
 }
 
@@ -93,13 +94,13 @@ pub fn truncate_preview(text: &str, max_chars: usize) -> String {
 /// let result = truncate_with_suffix("Hello, World!", 5);
 /// assert_eq!(result, "Hello...[truncated]");
 /// ```
-pub fn truncate_with_suffix(text: &str, max_chars: usize) -> String {
+pub fn truncate_with_suffix(text: &str, max_chars: usize) -> Cow<'_, str> {
     let char_count = text.chars().count();
     if char_count <= max_chars {
-        text.to_string()
+        Cow::Borrowed(text)
     } else {
         let truncated: String = text.chars().take(max_chars).collect();
-        format!("{}...[truncated]", truncated)
+        Cow::Owned(format!("{}...[truncated]", truncated))
     }
 }
 
@@ -118,13 +119,13 @@ pub fn truncate_with_suffix(text: &str, max_chars: usize) -> String {
 /// assert_eq!(text, "Hello...[truncated]");
 /// assert!(truncated);
 /// ```
-pub fn truncate_with_flag(text: &str, max_chars: usize) -> (String, bool) {
+pub fn truncate_with_flag(text: &str, max_chars: usize) -> (Cow<'_, str>, bool) {
     let char_count = text.chars().count();
     if char_count <= max_chars {
-        (text.to_string(), false)
+        (Cow::Borrowed(text), false)
     } else {
         let truncated: String = text.chars().take(max_chars).collect();
-        (format!("{}...[truncated]", truncated), true)
+        (Cow::Owned(format!("{}...[truncated]", truncated)), true)
     }
 }
 

@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
 use turbomcp::McpError;
+use crate::tools::response_utils::ToolResponse;
 
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -54,83 +55,69 @@ impl Default for SearchSource {
     }
 }
 
+/// Memory unified request - all parameters are optional except operation
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct MemoryUnifiedRequest {
+    /// The operation to perform (get_core_memory, update_core_memory, get_block_by_label, list_blocks, create_block, get_block, update_block, attach_block, detach_block, list_agents_using_block, search_archival, list_passages, create_passage, update_passage, delete_passage, search_memory, list_archives, get_archive, create_archive, update_archive, delete_archive, attach_archive, detach_archive, list_agents_using_archive)
     pub operation: MemoryOperation,
 
+    /// Agent ID (required for core memory, archival, passage, search, attach/detach operations)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
+    /// Block ID (required for get_block, update_block, attach_block, detach_block, list_agents_using_block)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub block_id: Option<String>,
+    /// Block label (required for get_block_by_label, update_core_memory)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub block_label: Option<String>,
+    /// Passage ID (required for update_passage, delete_passage)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub passage_id: Option<String>,
+    /// Archive ID (required for get_archive, update_archive, delete_archive, attach_archive, detach_archive, list_agents_using_archive)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub archive_id: Option<String>,
 
+    /// Label for block or archive (required for create_block, create_archive)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    /// Value for block or archive (required for create_block, update_core_memory, update_block)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
+    /// Text content (required for create_passage, update_passage)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    /// Search query (required for search_archival, search_memory)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub query: Option<String>,
 
+    /// Maximum number of results to return
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
+    /// Number of results to skip (for pagination)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offset: Option<i32>,
 
+    /// Whether block is a template (for create_block, list_blocks)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_template: Option<bool>,
 
+    /// Search source filter (archival, recall, etc.)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SearchSource>,
+    /// Filter results after this date (ISO 8601 format)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start_date: Option<DateTime<Utc>>,
+    /// Filter results before this date (ISO 8601 format)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_date: Option<DateTime<Utc>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
-
+    /// When false (default), returns minimal confirmation; when true, returns full state
     #[serde(default)]
     pub verbose: Option<bool>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct MemoryUnifiedResponse {
-    pub success: bool,
-    pub operation: String,
-    pub message: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub block_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub passage_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub archive_id: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub blocks: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub passages: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub core_memory: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub count: Option<usize>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub archival: Option<ArchivalSearchResult>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub messages: Option<MessageSearchResult>,
-}
 
 #[derive(Debug, Serialize)]
 pub struct ArchivalSearchResult {
@@ -155,7 +142,7 @@ pub struct MessageMatch {
 pub async fn handle_memory_unified(
     client: &LettaClient,
     request: MemoryUnifiedRequest,
-) -> Result<MemoryUnifiedResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let operation_str = format!("{:?}", request.operation).to_lowercase();
     info!(operation = %operation_str, "Executing memory operation");
 

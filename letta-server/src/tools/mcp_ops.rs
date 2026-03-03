@@ -9,6 +9,7 @@ use letta::{
 };
 use crate::tools::id_utils::parse_letta_id;
 use crate::tools::validation_utils::{require_field, sdk_err};
+use crate::tools::response_utils::ToolResponse;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -30,104 +31,45 @@ pub enum McpOperation {
     AttachMcpServer,
 }
 
+/// MCP operations request - all parameters are optional except operation
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct McpOpsRequest {
+    /// The operation to perform (add, update, delete, test, connect, resync, list_servers, list_tools, register_tool, execute, attach_mcp_server)
     pub operation: McpOperation,
+    /// Server name (required for add)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_name: Option<String>,
+    /// MCP server ID (required for update, delete, test, connect, resync, list_tools, register_tool, attach_mcp_server)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_server_id: Option<String>,
+    /// Server configuration object (required for add, update)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_config: Option<Value>,
+    /// Tool name (required for register_tool)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_name: Option<String>,
+    /// Tool ID (required for execute)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_id: Option<String>,
+    /// Arguments for tool execution
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_args: Option<Value>,
+    /// OAuth configuration for server authentication
     #[serde(skip_serializing_if = "Option::is_none")]
     pub oauth_config: Option<Value>,
+    /// Pagination parameters {limit, offset} for list operations
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pagination: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_heartbeat: Option<bool>,
+    /// Agent ID (required for attach_mcp_server)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
-
+    /// When false (default), returns minimal confirmation; when true, returns full state
     #[serde(default)]
     pub verbose: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Default)]
-pub struct McpOpsResponse {
-    pub success: bool,
-    pub operation: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub servers: Option<Vec<Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<Vec<Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub server_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mcp_server_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub returned: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub truncated: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub output_length: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hints: Option<Vec<String>>,
-}
-
-impl McpOpsResponse {
-    /// Create a success response with operation and message
-    fn success(operation: &str, message: &str) -> Self {
-        Self {
-            success: true,
-            operation: operation.to_string(),
-            message: message.to_string(),
-            data: None,
-            servers: None,
-            tools: None,
-            server_name: None,
-            mcp_server_id: None,
-            tool_name: None,
-            tool_id: None,
-            total: None,
-            returned: None,
-            truncated: None,
-            output_length: None,
-            hints: None,
-        }
-    }
-
-    fn with_data(mut self, data: Value) -> Self {
-        self.data = Some(data);
-        self
-    }
-
-    fn with_server_name(mut self, name: String) -> Self {
-        self.server_name = Some(name);
-        self
-    }
-
-    fn with_hint(mut self, hint: &str) -> Self {
-        self.hints
-            .get_or_insert_with(Vec::new)
-            .push(hint.to_string());
-        self
-    }
-}
 
 // Constants for response size optimization
 const DEFAULT_SERVERS_LIMIT: usize = 20;
@@ -145,7 +87,7 @@ mod hints {
 pub async fn handle_mcp_ops(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let operation_str = format!("{:?}", request.operation).to_lowercase();
     info!(operation = %operation_str, "Executing MCP operation");
 
@@ -164,12 +106,11 @@ pub async fn handle_mcp_ops(
     }
 }
 
-/// Truncate a string to max_length characters, adding "..." if truncated
 fn truncate_string(s: &str, max_length: usize) -> (String, bool) {
     if s.len() <= max_length {
         (s.to_string(), false)
     } else {
-        let truncated = format!("{}...", &s[..max_length.saturating_sub(3)]);
+        let truncated = crate::tools::response_utils::truncate_preview(s, max_length.saturating_sub(3));
         (truncated, true)
     }
 }
@@ -201,7 +142,7 @@ fn get_pagination_params(
 async fn handle_add_server(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let server_config_value = require_field(request.server_config, "server_config required")?;
 
     // Deserialize Value to McpServerConfig
@@ -228,16 +169,16 @@ async fn handle_add_server(
     });
 
     Ok(
-        McpOpsResponse::success("add", "MCP server added successfully")
-            .with_data(summary)
-            .with_hint(hints::TEST_CONNECTION),
+        ToolResponse::success("add", "MCP server added successfully")
+            .with_json_data(summary)
+            .with_extra(serde_json::json!({ "hints": [hints::TEST_CONNECTION] })),
     )
 }
 
 async fn handle_update_server(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let server_name = require_field(request.server_name, "server_name required")?;
     let server_config_value = require_field(request.server_config, "server_config required")?;
 
@@ -254,17 +195,19 @@ async fn handle_update_server(
     let summary = serde_json::json!({ "server_name": &server_name });
 
     Ok(
-        McpOpsResponse::success("update", "MCP server updated successfully")
-            .with_data(summary)
-            .with_server_name(server_name)
-            .with_hint(hints::TEST_CONNECTION),
+        ToolResponse::success("update", "MCP server updated successfully")
+            .with_json_data(summary)
+            .with_extra(serde_json::json!({
+                "server_name": server_name,
+                "hints": [hints::TEST_CONNECTION]
+            })),
     )
 }
 
 async fn handle_delete_server(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let server_name = require_field(request.server_name, "server_name required")?;
 
     client
@@ -274,15 +217,15 @@ async fn handle_delete_server(
         .map_err(|e| sdk_err("delete MCP server", e))?;
 
     Ok(
-        McpOpsResponse::success("delete", "MCP server deleted successfully")
-            .with_server_name(server_name),
+        ToolResponse::success("delete", "MCP server deleted successfully")
+            .with_extra(serde_json::json!({ "server_name": server_name })),
     )
 }
 
 async fn handle_test_server(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let server_config_value = require_field(request.server_config, "server_config required")?;
 
     // Deserialize Value to McpServerConfig for the flattened TestMcpServerRequest
@@ -320,13 +263,13 @@ async fn handle_test_server(
         "tool_names": tool_names,
     });
 
-    Ok(McpOpsResponse::success("test", "MCP server connection successful").with_data(test_result))
+    Ok(ToolResponse::success("test", "MCP server connection successful").with_json_data(test_result))
 }
 
 async fn handle_connect_server(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let mcp_server_id =
         require_field(request.mcp_server_id, "mcp_server_id required for connect")?;
     let letta_mcp_server_id = parse_letta_id(&mcp_server_id, "mcp_server_id")?;
@@ -337,20 +280,15 @@ async fn handle_connect_server(
         .await
         .map_err(|e| sdk_err("connect MCP server", e))?;
 
-    Ok(McpOpsResponse {
-        success: true,
-        operation: "connect".into(),
-        message: "MCP server connected successfully".into(),
-        data: Some(result),
-        mcp_server_id: Some(mcp_server_id),
-        ..Default::default()
-    })
+    Ok(ToolResponse::success("connect", "MCP server connected successfully")
+        .with_json_data(result)
+        .with_extra(serde_json::json!({ "mcp_server_id": mcp_server_id })))
 }
 
 async fn handle_resync_server(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let mcp_server_id = require_field(request.mcp_server_id, "mcp_server_id required for resync")?;
     let letta_mcp_server_id = parse_letta_id(&mcp_server_id, "mcp_server_id")?;
 
@@ -360,20 +298,15 @@ async fn handle_resync_server(
         .await
         .map_err(|e| sdk_err("refresh MCP server tools", e))?;
 
-    Ok(McpOpsResponse {
-        success: true,
-        operation: "resync".into(),
-        message: "MCP server tools refreshed successfully".into(),
-        data: Some(result),
-        mcp_server_id: Some(mcp_server_id),
-        ..Default::default()
-    })
+    Ok(ToolResponse::success("resync", "MCP server tools refreshed successfully")
+        .with_json_data(result)
+        .with_extra(serde_json::json!({ "mcp_server_id": mcp_server_id })))
 }
 
 async fn handle_execute_tool(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let mcp_server_id = require_field(request.mcp_server_id, "mcp_server_id required for execute")?;
     let tool_id = require_field(request.tool_id, "tool_id required for execute")?;
 
@@ -407,7 +340,7 @@ async fn handle_execute_tool(
             let len = serialized.len();
             output_length = Some(len);
             if len > MAX_OUTPUT_LENGTH {
-                let preview = &serialized[..MAX_OUTPUT_LENGTH];
+                let preview = crate::tools::response_utils::truncate_silent(&serialized, MAX_OUTPUT_LENGTH);
                 *func_return = serde_json::json!({
                     "truncated": true,
                     "original_length": len,
@@ -418,31 +351,26 @@ async fn handle_execute_tool(
         }
     }
 
-    Ok(McpOpsResponse {
-        success: true,
-        operation: "execute".into(),
-        message: "MCP tool executed successfully".into(),
-        data: Some(output),
-        mcp_server_id: Some(mcp_server_id),
-        tool_id: Some(tool_id),
-        truncated: Some(truncated),
-        output_length,
-        hints: if truncated {
-            Some(vec![format!(
-                "Output truncated to {} characters",
-                MAX_OUTPUT_LENGTH
-            )])
-        } else {
-            None
-        },
-        ..Default::default()
-    })
+    let mut extra = serde_json::json!({
+        "mcp_server_id": mcp_server_id,
+        "tool_id": tool_id,
+        "truncated": truncated,
+    });
+    if let Some(len) = output_length {
+        extra["output_length"] = serde_json::json!(len);
+    }
+    if truncated {
+        extra["hints"] = serde_json::json!([format!("Output truncated to {} characters", MAX_OUTPUT_LENGTH)]);
+    }
+    Ok(ToolResponse::success("execute", "MCP tool executed successfully")
+        .with_json_data(output)
+        .with_extra(extra))
 }
 
 async fn handle_list_servers(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let result = client
         .mcp_servers()
         .list()
@@ -483,22 +411,19 @@ async fn handle_list_servers(
     }
     hints.push("Use 'test' operation with server_name for full config".into());
 
-    Ok(McpOpsResponse {
-        success: true,
-        operation: "list_servers".into(),
-        message: format!("Found {} MCP servers", total_count),
-        servers: Some(paginated_servers),
-        total: Some(total_count),
-        returned: Some(returned_count),
-        hints: Some(hints),
-        ..Default::default()
-    })
+    Ok(ToolResponse::success("list_servers", format!("Found {} MCP servers", total_count))
+        .with_extra(serde_json::json!({
+            "servers": paginated_servers,
+            "total": total_count,
+            "returned": returned_count,
+            "hints": hints
+        })))
 }
 
 async fn handle_list_tools(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let (all_tools, used_server_name, used_mcp_server_id) =
         if let Some(mcp_server_id) = request.mcp_server_id {
             let letta_mcp_server_id = parse_letta_id(&mcp_server_id, "mcp_server_id")?;
@@ -600,24 +525,28 @@ async fn handle_list_tools(
         None
     };
 
-    Ok(McpOpsResponse {
-        success: true,
-        operation: "list_tools".into(),
-        message: format!("Found {} MCP tools", total_count),
-        tools: Some(paginated_tools),
-        server_name: used_server_name,
-        mcp_server_id: used_mcp_server_id,
-        total: Some(total_count),
-        returned: Some(returned_count),
-        hints,
-        ..Default::default()
-    })
+    let mut extra = serde_json::json!({
+        "tools": paginated_tools,
+        "total": total_count,
+        "returned": returned_count,
+    });
+    if let Some(sn) = used_server_name {
+        extra["server_name"] = serde_json::json!(sn);
+    }
+    if let Some(sid) = used_mcp_server_id {
+        extra["mcp_server_id"] = serde_json::json!(sid);
+    }
+    if let Some(h) = hints {
+        extra["hints"] = serde_json::json!(h);
+    }
+    Ok(ToolResponse::success("list_tools", format!("Found {} MCP tools", total_count))
+        .with_extra(extra))
 }
 
 async fn handle_register_tool(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let server_name = require_field(request.server_name, "server_name required")?;
     let tool_name = require_field(request.tool_name, "tool_name required")?;
 
@@ -627,24 +556,21 @@ async fn handle_register_tool(
         .await
         .map_err(|e| sdk_err("register MCP tool", e))?;
 
-    Ok(McpOpsResponse {
-        success: true,
-        operation: "register_tool".into(),
-        message: format!(
+    Ok(ToolResponse::success("register_tool", format!(
             "Tool {} from {} registered successfully in Letta",
             tool_name, server_name
-        ),
-        data: Some(serde_json::to_value(&result)?),
-        server_name: Some(server_name),
-        tool_name: Some(tool_name),
-        ..Default::default()
-    })
+        ))
+        .with_json_data(serde_json::to_value(&result)?)
+        .with_extra(serde_json::json!({
+            "server_name": server_name,
+            "tool_name": tool_name
+        })))
 }
 
 async fn handle_attach_mcp_server(
     client: &LettaClient,
     request: McpOpsRequest,
-) -> Result<McpOpsResponse, McpError> {
+) -> Result<ToolResponse, McpError> {
     let server_name = require_field(request.server_name, "server_name required")?;
     let agent_id = require_field(request.agent_id, "agent_id required for attach_mcp_server")?;
 
@@ -658,11 +584,11 @@ async fn handle_attach_mcp_server(
 
     let total_discovered = mcp_tools.len();
     if total_discovered == 0 {
-        return Ok(McpOpsResponse::success(
+        return Ok(ToolResponse::success(
             "attach_mcp_server",
             &format!("No tools found on MCP server '{}'", server_name),
         )
-        .with_data(serde_json::json!({
+        .with_json_data(serde_json::json!({
             "agent_id": agent_id,
             "total_discovered": 0,
             "registered": 0,
@@ -670,7 +596,7 @@ async fn handle_attach_mcp_server(
             "failed": 0,
             "tools": []
         }))
-        .with_server_name(server_name));
+        .with_extra(serde_json::json!({ "server_name": server_name })));
     }
 
     let mut tools_results = Vec::new();
@@ -737,20 +663,22 @@ async fn handle_attach_mcp_server(
         attached_count, total_discovered, server_name
     );
 
-    Ok(McpOpsResponse {
-        success: failed_count == 0,
-        operation: "attach_mcp_server".into(),
-        message,
-        data: Some(serde_json::json!({
+    let resp = if failed_count == 0 {
+        ToolResponse::success("attach_mcp_server", message)
+    } else {
+        ToolResponse::error("attach_mcp_server", message)
+    };
+    Ok(resp
+        .with_json_data(serde_json::json!({
             "agent_id": agent_id,
             "total_discovered": total_discovered,
             "registered": registered_count,
             "attached": attached_count,
             "failed": failed_count,
             "tools": tools_results
-        })),
-        server_name: Some(server_name),
-        hints: Some(vec!["Use 'list_tools' to verify attached tools".into()]),
-        ..Default::default()
-    })
+        }))
+        .with_extra(serde_json::json!({
+            "server_name": server_name,
+            "hints": ["Use 'list_tools' to verify attached tools"]
+        })))
 }

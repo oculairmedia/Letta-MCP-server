@@ -1,8 +1,26 @@
 //! Run and job execution management API endpoints.
 
 use crate::client::LettaClient;
-use crate::error::LettaResult;
+use crate::error::{LettaError, LettaResult};
 use crate::types::{LettaId, LettaMessageUnion, Run, RunMetrics, Step, UsageStatistics};
+use eventsource_stream::Eventsource;
+use futures::stream::{Stream, StreamExt};
+use reqwest::header::HeaderMap;
+use serde::{Deserialize, Serialize};
+use std::pin::Pin;
+
+/// Streaming event types for run streaming.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RunStreamingEvent {
+    /// A run message payload.
+    Message(LettaMessageUnion),
+    /// Unstructured stream event payload.
+    Raw(serde_json::Value),
+}
+
+/// Run stream type.
+pub type RunStream = Pin<Box<dyn Stream<Item = LettaResult<RunStreamingEvent>> + Send>>;
 
 /// Run API operations.
 #[derive(Debug)]
@@ -106,14 +124,76 @@ impl<'a> RunApi<'a> {
         self.client.get(&format!("v1/runs/{}/trace", run_id)).await
     }
 
-    /// Request run stream payload.
-    pub async fn stream(&self, run_id: &LettaId) -> LettaResult<serde_json::Value> {
-        self.client
-            .post(
-                &format!("v1/runs/{}/stream", run_id),
-                &serde_json::json!({}),
-            )
-            .await
+    /// Stream run events via Server-Sent Events.
+    pub async fn stream(&self, run_id: &LettaId) -> LettaResult<RunStream> {
+        let url = self
+            .client
+            .base_url()
+            .join(&format!("v1/runs/{}/stream", run_id))?;
+
+        let mut headers = HeaderMap::new();
+        self.client.auth().apply_to_headers(&mut headers)?;
+        headers.insert(
+            "Content-Type",
+            "application/json"
+                .parse::<reqwest::header::HeaderValue>()
+                .map_err(|e| LettaError::config(e.to_string()))?,
+        );
+        headers.insert(
+            "Accept",
+            "text/event-stream"
+                .parse::<reqwest::header::HeaderValue>()
+                .map_err(|e| LettaError::config(e.to_string()))?,
+        );
+
+        let response = self
+            .client
+            .http()
+            .post(url)
+            .headers(headers)
+            .json(&serde_json::json!({}))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let body = response.text().await?;
+            return Err(LettaError::from_response(status, body));
+        }
+
+        let stream = response
+            .bytes_stream()
+            .eventsource()
+            .filter_map(|result| async move {
+                match result {
+                    Ok(event) => {
+                        if event.data.is_empty() || event.data == "[DONE]" {
+                            return None;
+                        }
+
+                        let parsed = serde_json::from_str::<LettaMessageUnion>(&event.data)
+                            .map(RunStreamingEvent::Message)
+                            .or_else(|_| {
+                                serde_json::from_str::<serde_json::Value>(&event.data)
+                                    .map(RunStreamingEvent::Raw)
+                            })
+                            .map_err(|e| {
+                                LettaError::config(format!(
+                                    "Failed to parse run stream event: {}",
+                                    e
+                                ))
+                            });
+
+                        Some(parsed)
+                    }
+                    Err(e) => Some(Err(LettaError::config(format!(
+                        "Run stream error: {}",
+                        e
+                    )))),
+                }
+            });
+
+        Ok(Box::pin(stream))
     }
 }
 
