@@ -9,14 +9,15 @@ A high-performance [Model Context Protocol](https://modelcontextprotocol.io) (MC
 
 ## Features
 
-- **7 Consolidated Tools** covering 102 operations using the discriminator pattern
-- **High Performance** - Rust implementation (~10-30MB memory, <500ms startup)
-- **Dual Transport** - stdio (for Claude Desktop, Cursor, etc.) and HTTP (for production)
-- **Response Size Optimization** - 68-96% reduction in response sizes for LLM context efficiency
-- **Multi-Platform** - macOS, Linux, Windows (x64 and arm64)
-- **Letta 0.16.x Compatible** - Full support for current Letta API including archives, conversations, and MCP servers v2
-- **MCP 2025-11-25 Compliant** - Streamable HTTP transport with SSE support
-- **Type-Safe** - Compile-time validation with Rust's type system
+- **7 Consolidated Tools** covering 103 operations using the discriminator pattern
+- **High Performance** -- Rust, ~10-30MB memory, <500ms startup, parallel fan-out via `tokio::join!` and `buffer_unordered`
+- **Dual Transport** -- stdio (Claude Desktop, Cursor, etc.) and HTTP (production deployments)
+- **Response Size Optimization** -- 68-96% reduction in response sizes for LLM context efficiency
+- **Type-Narrowed Schemas** -- specific `object`/`array` types with per-parameter descriptions (no generic `Value` params)
+- **Multi-Platform** -- macOS, Linux, Windows (x64 and arm64)
+- **Letta 0.16.x Compatible** -- archives, conversations, MCP servers v2
+- **MCP 2025-11-25 Compliant** -- streamable HTTP transport with SSE
+- **Compile-Time Routing** -- zero runtime overhead for tool dispatch via TurboMCP v3 macros
 
 ## Quick Start
 
@@ -260,7 +261,7 @@ List operations return summary data by default. Use `get` operation with specifi
 
 ### Prerequisites
 
-- Rust 1.75+ (nightly recommended)
+- Rust nightly (edition 2024)
 - Docker (for containerized builds)
 
 ### Local Build
@@ -294,28 +295,40 @@ docker run -d \
 ```
 letta-server/
 ├── src/
-│   ├── main.rs              # Entry point, transport selection
-│   ├── lib.rs               # Library exports, server initialization
+│   ├── main.rs                        # Entry point, transport selection
+│   ├── lib.rs                         # Server init, compile-time tool registration
 │   └── tools/
-│       ├── mod.rs           # Tool registration
-│       ├── agent_advanced.rs    # Agent + conversation operations (27 ops)
-│       ├── memory_unified.rs    # Memory + archive operations (24 ops)
-│       ├── tool_manager.rs      # Tool operations (13 ops)
-│       ├── source_manager.rs    # Source operations (15 ops)
-│       ├── job_monitor.rs       # Job operations (4 ops)
-│       ├── file_folder_ops.rs   # File operations (8 ops)
-│       └── mcp_ops.rs           # MCP server v2 operations (11 ops)
-├── tests/                   # Integration tests
-└── Cargo.toml              # Dependencies
+│       ├── mod.rs                     # Tool module exports
+│       ├── response_utils.rs          # Unified ToolResponse, pagination helpers
+│       ├── validation_utils.rs        # require_field, require_id, sdk_err
+│       ├── id_utils.rs               # ID parsing utilities
+│       ├── agent_advanced/            # Agent operations (28 ops)
+│       │   ├── crud.rs               #   list, create, get, update, delete, search
+│       │   ├── messaging.rs           #   send_message, stream, async, preview
+│       │   ├── conversations.rs       #   list, get, send, cancel, compact
+│       │   └── management.rs          #   export, import, clone, config, bulk_delete
+│       ├── memory_unified/            # Memory operations (24 ops)
+│       │   ├── core.rs               #   get/update core memory
+│       │   ├── blocks.rs             #   block CRUD, attach/detach
+│       │   ├── passages.rs           #   archival passage CRUD
+│       │   ├── archives.rs           #   archive CRUD, attach/detach
+│       │   └── search.rs             #   search_archival, search_memory
+│       ├── tool_manager.rs            # Tool operations (13 ops)
+│       ├── source_manager.rs          # Source operations (15 ops)
+│       ├── job_monitor.rs             # Job operations (4 ops)
+│       ├── file_folder_ops.rs         # File/folder operations (8 ops)
+│       └── mcp_ops.rs                # MCP server v2 operations (11 ops)
+├── tests/                             # Integration tests
+└── Cargo.toml
 ```
 
 ### Key Dependencies
 
-- [TurboMCP](https://github.com/oculairmedia/turbomcp) - MCP protocol framework with streamable HTTP
-- [letta-rs](https://github.com/oculairmedia/letta-rs) - Rust Letta API client
-- **Tokio** - Async runtime
-- **Serde** - Serialization/deserialization
-- **Reqwest** - HTTP client
+- [TurboMCP v3](https://github.com/oculairmedia/turbomcp) -- MCP framework with compile-time routing and streamable HTTP
+- [letta-rs](https://github.com/oculairmedia/letta-rs) -- Vendored Rust Letta API client (0.16.x)
+- **Tokio** -- Async runtime
+- **Futures** -- Stream combinators (`buffer_unordered` for parallel fan-out)
+- **Serde** -- Serialization/deserialization
 
 ## Troubleshooting
 
