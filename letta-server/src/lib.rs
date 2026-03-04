@@ -81,13 +81,13 @@ impl LettaServer {
         #[description("Embedding model configuration object (for create/update operations)")]
         embedding_config: Option<Map<String, Value>>,
         #[description("Tool IDs to attach (for create/update operations)")] tool_ids: Option<
-            Vec<Value>,
+            Vec<String>,
         >,
         #[description("Pagination config {limit, offset} for list operations")] pagination: Option<
             Map<String, Value>,
         >,
         #[description("Messages array for send_message, stream, async_message operations")]
-        messages: Option<Vec<Value>>,
+        messages: Option<Vec<std::collections::HashMap<String, String>>>,
         #[description("Enable streaming response (for stream operation)")] stream: Option<bool>,
         #[description("Bulk delete filters {agent_name_filter, agent_tag_filter, agent_ids}")]
         filters: Option<Map<String, Value>>,
@@ -118,9 +118,22 @@ impl LettaServer {
             .transpose()
             .map_err(|e| McpError::invalid_request(format!("Invalid pagination: {}", e)))?;
         let messages: Option<Vec<letta_types::Message>> = messages
-            .map(|v| serde_json::from_value(Value::Array(v)))
+            .map(|msgs| {
+                let arr: Vec<Value> = msgs
+                    .into_iter()
+                    .map(|msg| {
+                        Value::Object(
+                            msg.into_iter()
+                                .map(|(k, v)| (k, Value::String(v)))
+                                .collect(),
+                        )
+                    })
+                    .collect();
+                serde_json::from_value(Value::Array(arr))
+            })
             .transpose()
             .map_err(|e| McpError::invalid_request(format!("Invalid messages: {}", e)))?;
+
         let filters: Option<agent_advanced::BulkDeleteFilters> = filters
             .map(|v| serde_json::from_value(Value::Object(v)))
             .transpose()
@@ -139,7 +152,8 @@ impl LettaServer {
             system,
             llm_config: llm_config.map(Value::Object),
             embedding_config: embedding_config.map(Value::Object),
-            tool_ids: tool_ids.map(Value::Array),
+            tool_ids: tool_ids
+                .map(|ids| Value::Array(ids.into_iter().map(Value::String).collect())),
             pagination,
             messages,
             stream,
