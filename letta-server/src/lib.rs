@@ -152,7 +152,8 @@ impl LettaServer {
             system,
             llm_config: llm_config.map(Value::Object),
             embedding_config: embedding_config.map(Value::Object),
-            tool_ids: tool_ids.map(|ids| Value::Array(ids.into_iter().map(Value::String).collect())),
+            tool_ids: tool_ids
+                .map(|ids| Value::Array(ids.into_iter().map(Value::String).collect())),
             pagination,
             messages,
             stream,
