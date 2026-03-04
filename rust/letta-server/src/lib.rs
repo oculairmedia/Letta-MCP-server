@@ -78,9 +78,9 @@ impl LettaServer {
         system: Option<String>,
         llm_config: Option<Value>,
         embedding_config: Option<Value>,
-        tool_ids: Option<Value>,
+        tool_ids: Option<Vec<String>>,
         pagination: Option<Value>,
-        messages: Option<Value>,
+        messages: Option<Vec<std::collections::HashMap<String, String>>>,
         stream: Option<bool>,
         filters: Option<Value>,
         query: Option<String>,
@@ -115,9 +115,22 @@ impl LettaServer {
             system,
             llm_config,
             embedding_config,
-            tool_ids,
+            tool_ids: tool_ids
+                .map(|ids| Value::Array(ids.into_iter().map(Value::String).collect())),
             pagination: pagination.and_then(|v| serde_json::from_value(v).ok()),
-            messages: messages.and_then(|v| serde_json::from_value(v).ok()),
+            messages: messages.and_then(|msgs| {
+                let arr: Vec<Value> = msgs
+                    .into_iter()
+                    .map(|msg| {
+                        Value::Object(
+                            msg.into_iter()
+                                .map(|(k, v)| (k, Value::String(v)))
+                                .collect(),
+                        )
+                    })
+                    .collect();
+                serde_json::from_value(Value::Array(arr)).ok()
+            }),
             stream,
             filters: filters.and_then(|v| serde_json::from_value(v).ok()),
             query,

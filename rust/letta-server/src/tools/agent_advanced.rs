@@ -116,7 +116,7 @@ pub struct AgentAdvancedRequest {
 
     /// Tool IDs to attach to agent (for create/update operations)
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(schema_with = "value_array_schema")]
+    #[schemars(schema_with = "tool_ids_schema")]
     pub tool_ids: Option<Value>,
 
     /// Pagination settings (for list operations)
@@ -178,8 +178,11 @@ fn value_object_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema
     schemars::json_schema!({ "type": "object" })
 }
 
-fn value_array_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    schemars::json_schema!({ "type": "array" })
+fn tool_ids_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "type": "array",
+        "items": { "type": "string" }
+    })
 }
 
 /// Schema helper for Pagination - adds explicit type to $ref
