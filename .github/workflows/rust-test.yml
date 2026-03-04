@@ -2,7 +2,7 @@ name: Rust Tests
 
 on:
     push:
-        branches: [rust-implementation, main, master]
+        branches: [rust-implementation, main, master, 'fork/**']
         paths:
             - 'rust/**'
             - 'letta-server/**'
