@@ -106,6 +106,23 @@ impl LettaServer {
                 ))
             })?;
 
+        let messages = messages
+            .map(|msgs| {
+                let arr: Vec<Value> = msgs
+                    .into_iter()
+                    .map(|msg| {
+                        Value::Object(
+                            msg.into_iter()
+                                .map(|(k, v)| (k, Value::String(v)))
+                                .collect(),
+                        )
+                    })
+                    .collect();
+                serde_json::from_value(Value::Array(arr))
+            })
+            .transpose()
+            .map_err(|e| McpError::invalid_request(format!("Invalid messages: {}", e)))?;
+
         // Create request from individual parameters
         let request = agent_advanced::AgentAdvancedRequest {
             operation: op,
@@ -118,19 +135,7 @@ impl LettaServer {
             tool_ids: tool_ids
                 .map(|ids| Value::Array(ids.into_iter().map(Value::String).collect())),
             pagination: pagination.and_then(|v| serde_json::from_value(v).ok()),
-            messages: messages.and_then(|msgs| {
-                let arr: Vec<Value> = msgs
-                    .into_iter()
-                    .map(|msg| {
-                        Value::Object(
-                            msg.into_iter()
-                                .map(|(k, v)| (k, Value::String(v)))
-                                .collect(),
-                        )
-                    })
-                    .collect();
-                serde_json::from_value(Value::Array(arr)).ok()
-            }),
+            messages,
             stream,
             filters: filters.and_then(|v| serde_json::from_value(v).ok()),
             query,
