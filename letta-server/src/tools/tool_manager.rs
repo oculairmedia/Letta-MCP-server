@@ -321,7 +321,10 @@ async fn handle_attach_tool(
     let tool_count = agent_state.as_ref().map(|s| s.tools.len()).unwrap_or(0);
 
     let data = if verbose {
-        agent_state.as_ref().map(|s| serde_json::to_value(s)).transpose()?
+        agent_state
+            .as_ref()
+            .map(|s| serde_json::to_value(s))
+            .transpose()?
     } else {
         Some(create_compact_attach_response(
             &agent_id, &tool_id, tool_count,
@@ -594,7 +597,10 @@ async fn handle_detach_tool(
     let tool_count = agent_state.as_ref().map(|s| s.tools.len()).unwrap_or(0);
 
     let data = if verbose {
-        agent_state.as_ref().map(|s| serde_json::to_value(s)).transpose()?
+        agent_state
+            .as_ref()
+            .map(|s| serde_json::to_value(s))
+            .transpose()?
     } else {
         Some(create_compact_detach_response(
             &agent_id, &tool_id, tool_count,
