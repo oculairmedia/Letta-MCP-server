@@ -318,10 +318,10 @@ async fn handle_attach_tool(
         .await
         .map_err(|e| sdk_err("attach tool", e))?;
 
-    let tool_count = agent_state.tools.len();
+    let tool_count = agent_state.as_ref().map(|s| s.tools.len()).unwrap_or(0);
 
     let data = if verbose {
-        Some(serde_json::to_value(&agent_state)?)
+        agent_state.as_ref().map(|s| serde_json::to_value(s)).transpose()?
     } else {
         Some(create_compact_attach_response(
             &agent_id, &tool_id, tool_count,
@@ -440,7 +440,7 @@ async fn handle_bulk_attach(
     for (agent_id, result) in attach_results {
         match result {
             Ok(agent_state) => {
-                let tool_count = agent_state.tools.len();
+                let tool_count = agent_state.as_ref().map(|s| s.tools.len()).unwrap_or(0);
                 if verbose {
                     results.push(serde_json::json!({
                         "agent_id": agent_id,
@@ -591,10 +591,10 @@ async fn handle_detach_tool(
         .await
         .map_err(|e| sdk_err("detach tool", e))?;
 
-    let tool_count = agent_state.tools.len();
+    let tool_count = agent_state.as_ref().map(|s| s.tools.len()).unwrap_or(0);
 
     let data = if verbose {
-        Some(serde_json::to_value(&agent_state)?)
+        agent_state.as_ref().map(|s| serde_json::to_value(s)).transpose()?
     } else {
         Some(create_compact_detach_response(
             &agent_id, &tool_id, tool_count,
