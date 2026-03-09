@@ -37,3 +37,4 @@ node_modules/
 *.rej
 .git-rewrite/
 coverage/
+mutants.out/

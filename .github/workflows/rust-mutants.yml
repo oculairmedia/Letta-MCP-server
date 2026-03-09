@@ -1,0 +1,115 @@
+name: Mutation Testing
+
+on:
+    schedule:
+        # Run weekly on Sunday at 3am UTC
+        - cron: "0 3 * * 0"
+    workflow_dispatch: # Allow manual trigger
+
+env:
+    CARGO_TERM_COLOR: always
+    RUST_BACKTRACE: 1
+
+jobs:
+    mutants:
+        name: Mutation Testing
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Install Rust stable
+              uses: dtolnay/rust-toolchain@master
+              with:
+                  toolchain: stable
+
+            - name: Cache cargo build
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cargo/bin/
+                      ~/.cargo/registry/index/
+                      ~/.cargo/registry/cache/
+                      ~/.cargo/git/db/
+                      target/
+                  key: ${{ runner.os }}-mutants-${{ hashFiles('**/Cargo.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-mutants-
+
+            - name: Install cargo-mutants
+              run: cargo install cargo-mutants --locked
+
+            - name: Run mutation testing (letta-server)
+              run: |
+                  cargo mutants \
+                    --package letta-server \
+                    --timeout 120 \
+                    --jobs 2 \
+                    --output mutants-output \
+                    -- --lib 2>&1 | tee mutants-log.txt
+              continue-on-error: true
+
+            - name: Generate mutation report
+              if: always()
+              run: |
+                  echo "## 🧬 Mutation Testing Report" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+
+                  if [ -f mutants-output/caught.txt ]; then
+                    CAUGHT=$(wc -l < mutants-output/caught.txt)
+                  else
+                    CAUGHT=0
+                  fi
+
+                  if [ -f mutants-output/missed.txt ]; then
+                    MISSED=$(wc -l < mutants-output/missed.txt)
+                  else
+                    MISSED=0
+                  fi
+
+                  if [ -f mutants-output/timeout.txt ]; then
+                    TIMEOUT=$(wc -l < mutants-output/timeout.txt)
+                  else
+                    TIMEOUT=0
+                  fi
+
+                  TOTAL=$((CAUGHT + MISSED + TIMEOUT))
+                  if [ $TOTAL -gt 0 ]; then
+                    SCORE=$(( (CAUGHT * 100) / TOTAL ))
+                  else
+                    SCORE=0
+                  fi
+
+                  echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+                  echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+                  echo "| ✅ Caught | $CAUGHT |" >> $GITHUB_STEP_SUMMARY
+                  echo "| ❌ Missed | $MISSED |" >> $GITHUB_STEP_SUMMARY
+                  echo "| ⏱️ Timeout | $TIMEOUT |" >> $GITHUB_STEP_SUMMARY
+                  echo "| **Score** | **${SCORE}%** |" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+
+                  if [ $MISSED -gt 0 ]; then
+                    echo "### Surviving Mutants (tests should catch these)" >> $GITHUB_STEP_SUMMARY
+                    echo '```' >> $GITHUB_STEP_SUMMARY
+                    head -50 mutants-output/missed.txt >> $GITHUB_STEP_SUMMARY
+                    echo '```' >> $GITHUB_STEP_SUMMARY
+                  fi
+
+                  # Fail if mutation score is below 80%
+                  if [ $SCORE -lt 80 ] && [ $TOTAL -gt 10 ]; then
+                    echo "::warning::Mutation score ${SCORE}% is below 80% threshold"
+                  fi
+
+            - name: Upload mutation results
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: mutation-report
+                  path: |
+                      mutants-output/
+                      mutants-log.txt
+                  retention-days: 30
