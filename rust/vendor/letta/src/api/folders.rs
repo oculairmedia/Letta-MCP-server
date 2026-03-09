@@ -254,7 +254,7 @@ impl<'a> AgentFolderApi<'a> {
     /// # Errors
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
-    pub async fn attach(&self, folder_id: &LettaId) -> LettaResult<AgentState> {
+    pub async fn attach(&self, folder_id: &LettaId) -> LettaResult<Option<AgentState>> {
         self.client
             .patch_no_body(&endpoints::agents::folders::attach(
                 &self.agent_id,
@@ -272,7 +272,7 @@ impl<'a> AgentFolderApi<'a> {
     /// # Errors
     ///
     /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
-    pub async fn detach(&self, folder_id: &LettaId) -> LettaResult<AgentState> {
+    pub async fn detach(&self, folder_id: &LettaId) -> LettaResult<Option<AgentState>> {
         self.client
             .patch_no_body(&endpoints::agents::folders::detach(
                 &self.agent_id,

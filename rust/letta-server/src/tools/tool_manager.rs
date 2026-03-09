@@ -325,7 +325,7 @@ async fn handle_attach_tool(
         success: true,
         operation: "attach".to_string(),
         message: "Tool attached successfully".to_string(),
-        data: Some(serde_json::to_value(agent_state)?),
+        data: agent_state.map(|s| serde_json::to_value(s)).transpose()?,
         count: None,
     })
 }
@@ -540,7 +540,7 @@ async fn handle_detach_tool(
         success: true,
         operation: "detach".to_string(),
         message: "Tool detached successfully".to_string(),
-        data: Some(serde_json::to_value(agent_state)?),
+        data: agent_state.map(|s| serde_json::to_value(s)).transpose()?,
         count: None,
     })
 }

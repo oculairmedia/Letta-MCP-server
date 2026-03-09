@@ -62,7 +62,7 @@ impl<'a> MemoryApi<'a> {
         &self,
         agent_id: &LettaId,
         block_id: &LettaId,
-    ) -> LettaResult<crate::types::agent::AgentState> {
+    ) -> LettaResult<Option<crate::types::agent::AgentState>> {
         let url = endpoints::agents::core_memory::attach_block(agent_id, block_id);
         self.client.patch_no_body(&url).await
     }
@@ -72,7 +72,7 @@ impl<'a> MemoryApi<'a> {
         &self,
         agent_id: &LettaId,
         block_id: &LettaId,
-    ) -> LettaResult<crate::types::agent::AgentState> {
+    ) -> LettaResult<Option<crate::types::agent::AgentState>> {
         let url = endpoints::agents::core_memory::detach_block(agent_id, block_id);
         self.client.patch_no_body(&url).await
     }
@@ -143,7 +143,7 @@ impl<'a> MemoryApi<'a> {
         &self,
         agent_id: &LettaId,
         tool_id: &LettaId,
-    ) -> LettaResult<crate::types::agent::AgentState> {
+    ) -> LettaResult<Option<crate::types::agent::AgentState>> {
         let url = endpoints::agents::tools::attach(agent_id, tool_id);
         self.client.patch_no_body(&url).await
     }
@@ -153,7 +153,7 @@ impl<'a> MemoryApi<'a> {
         &self,
         agent_id: &LettaId,
         tool_id: &LettaId,
-    ) -> LettaResult<crate::types::agent::AgentState> {
+    ) -> LettaResult<Option<crate::types::agent::AgentState>> {
         let url = endpoints::agents::tools::detach(agent_id, tool_id);
         self.client.patch_no_body(&url).await
     }
