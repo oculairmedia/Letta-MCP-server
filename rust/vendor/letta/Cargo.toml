@@ -203,6 +203,10 @@ path = "tests/tags_api_test.rs"
 required-features = ["integration-tests"]
 
 [[test]]
+name = "proptest_roundtrip"
+path = "tests/proptest_roundtrip.rs"
+
+[[test]]
 name = "telemetry_api_test"
 path = "tests/telemetry_api_test.rs"
 required-features = ["integration-tests"]
