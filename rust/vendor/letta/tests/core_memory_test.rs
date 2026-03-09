@@ -176,19 +176,23 @@ async fn test_attach_detach_memory_block() -> LettaResult<()> {
     let blocks = client.memory().list_core_memory_blocks(&agent_id).await?;
     if let Some(block) = blocks.first() {
         if let Some(block_id) = &block.id {
-            // Detach block
+            // Detach block (returns Option<AgentState> since API may return null)
             let agent_after_detach = client
                 .memory()
                 .detach_memory_block(&agent_id, block_id)
                 .await?;
-            assert_eq!(agent_after_detach.id, agent_id);
+            if let Some(agent) = agent_after_detach {
+                assert_eq!(agent.id, agent_id);
+            }
 
-            // Re-attach block
+            // Re-attach block (returns Option<AgentState> since API may return null)
             let agent_after_attach = client
                 .memory()
                 .attach_memory_block(&agent_id, block_id)
                 .await?;
-            assert_eq!(agent_after_attach.id, agent_id);
+            if let Some(agent) = agent_after_attach {
+                assert_eq!(agent.id, agent_id);
+            }
         }
     }
 

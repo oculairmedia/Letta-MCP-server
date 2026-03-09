@@ -314,12 +314,14 @@ async fn test_agent_tools() -> LettaResult<()> {
         .collect();
     assert_eq!(initial_custom_tools.len(), 0);
 
-    // Attach tool to agent
+    // Attach tool to agent (returns Option<AgentState> since API may return null)
     let updated_agent = client
         .memory()
         .attach_tool_to_agent(&agent_id, tool_id)
         .await?;
-    assert_eq!(updated_agent.id, agent_id);
+    if let Some(agent) = updated_agent {
+        assert_eq!(agent.id, agent_id);
+    }
 
     // Verify tool is attached
     let tools_after_attach = client.memory().list_agent_tools(&agent_id).await?;
