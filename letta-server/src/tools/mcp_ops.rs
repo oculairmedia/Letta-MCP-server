@@ -342,20 +342,20 @@ async fn handle_execute_tool(
     let mut truncated = false;
     let mut output_length = None;
 
-    if let Some(func_return) = output.get_mut("func_return") {
-        if let Ok(serialized) = serde_json::to_string(func_return) {
-            let len = serialized.len();
-            output_length = Some(len);
-            if len > MAX_OUTPUT_LENGTH {
-                let preview =
-                    crate::tools::response_utils::truncate_silent(&serialized, MAX_OUTPUT_LENGTH);
-                *func_return = serde_json::json!({
-                    "truncated": true,
-                    "original_length": len,
-                    "preview": preview,
-                });
-                truncated = true;
-            }
+    if let Some(func_return) = output.get_mut("func_return")
+        && let Ok(serialized) = serde_json::to_string(func_return)
+    {
+        let len = serialized.len();
+        output_length = Some(len);
+        if len > MAX_OUTPUT_LENGTH {
+            let preview =
+                crate::tools::response_utils::truncate_silent(&serialized, MAX_OUTPUT_LENGTH);
+            *func_return = serde_json::json!({
+                "truncated": true,
+                "original_length": len,
+                "preview": preview,
+            });
+            truncated = true;
         }
     }
 
@@ -606,7 +606,7 @@ async fn handle_attach_mcp_server(
     if total_discovered == 0 {
         return Ok(ToolResponse::success(
             "attach_mcp_server",
-            &format!("No tools found on MCP server '{}'", server_name),
+            format!("No tools found on MCP server '{}'", server_name),
         )
         .with_json_data(serde_json::json!({
             "agent_id": agent_id,

@@ -12,8 +12,8 @@ pub(crate) async fn handle_list_agents(
 ) -> Result<StandardResponse, McpError> {
     let pagination = request.pagination.unwrap_or_default();
     let (limit, offset) = paginate(
-        pagination.limit.map(|l| l as usize),
-        pagination.offset.map(|o| o as usize),
+        pagination.limit,
+        pagination.offset,
         15, // agent lists default smaller
         50,
     );

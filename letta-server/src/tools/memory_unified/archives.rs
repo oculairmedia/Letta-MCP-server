@@ -29,7 +29,7 @@ pub(crate) async fn handle_list_archives(
         .into_iter()
         .skip(offset)
         .take(limit)
-        .map(|a| serde_json::to_value(a))
+        .map(serde_json::to_value)
         .collect::<Result<Vec<_>, _>>()?;
 
     let returned = paginated.len();

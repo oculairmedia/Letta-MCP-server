@@ -89,19 +89,19 @@ async fn search_archival_memory(
     for passage in passages {
         let passage_value = serde_json::to_value(&passage)?;
 
-        if let Some(created_at) = passage_value.get("created_at").and_then(|v| v.as_str()) {
-            if let Ok(passage_date) = DateTime::parse_from_rfc3339(created_at) {
-                let passage_date_utc = passage_date.with_timezone(&Utc);
-                if let Some(ref start) = start_date {
-                    if passage_date_utc < *start {
-                        continue;
-                    }
-                }
-                if let Some(ref end) = end_date {
-                    if passage_date_utc > *end {
-                        continue;
-                    }
-                }
+        if let Some(created_at) = passage_value.get("created_at").and_then(|v| v.as_str())
+            && let Ok(passage_date) = DateTime::parse_from_rfc3339(created_at)
+        {
+            let passage_date_utc = passage_date.with_timezone(&Utc);
+            if let Some(ref start) = start_date
+                && passage_date_utc < *start
+            {
+                continue;
+            }
+            if let Some(ref end) = end_date
+                && passage_date_utc > *end
+            {
+                continue;
             }
         }
 
@@ -164,19 +164,18 @@ async fn search_messages(
             if let Ok(msg_date) = DateTime::parse_from_rfc3339(&date) {
                 let msg_date_utc = msg_date.with_timezone(&Utc);
 
-                if let Some(ref start) = start_date {
-                    if msg_date_utc < *start {
-                        continue;
-                    }
+                if let Some(ref start) = start_date
+                    && msg_date_utc < *start
+                {
+                    continue;
                 }
-                if let Some(ref end) = end_date {
-                    if msg_date_utc > *end {
-                        has_more = false;
-                        break;
-                    }
+                if let Some(ref end) = end_date
+                    && msg_date_utc > *end
+                {
+                    has_more = false;
+                    break;
                 }
             }
-
             if content.to_lowercase().contains(&query_lower) {
                 let truncated_content = if content.len() > 500 {
                     crate::tools::response_utils::truncate_preview(&content, 500)

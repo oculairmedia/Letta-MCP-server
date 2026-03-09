@@ -41,18 +41,13 @@ pub enum MemoryOperation {
     SearchMemory,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, schemars::JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchSource {
+    #[default]
     Archival,
     Messages,
     Both,
-}
-
-impl Default for SearchSource {
-    fn default() -> Self {
-        SearchSource::Both
-    }
 }
 
 /// Memory unified request - all parameters are optional except operation

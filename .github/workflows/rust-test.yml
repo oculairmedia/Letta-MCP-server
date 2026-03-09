@@ -78,10 +78,7 @@ jobs:
               run: cargo fmt --all -- --check
 
             - name: Run clippy
-              # Skip clippy for now - vendored SDK has many upstream warnings that cause -D warnings to fail
-              # TODO: Re-enable after fixing vendored crate warnings or excluding vendor from workspace
-              if: false
-              run: cargo clippy -p letta-server -p letta-types --all-targets -- -D warnings
+              run: cargo clippy -p letta-server -p letta-types --all-targets --no-deps -- -D warnings
 
             - name: Build
               run: cargo build --verbose
@@ -132,7 +129,7 @@ jobs:
         name: Code Coverage
         runs-on: ubuntu-latest
         needs: test
-        if: github.event_name == 'push' && github.ref == 'refs/heads/rust-implementation'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/rust-implementation')
 
         steps:
             - name: Checkout code
@@ -196,7 +193,7 @@ jobs:
         name: Performance Benchmarks
         runs-on: ubuntu-latest
         needs: test
-        if: github.event_name == 'push' && github.ref == 'refs/heads/rust-implementation'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/rust-implementation')
 
         steps:
             - name: Checkout code

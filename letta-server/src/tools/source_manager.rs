@@ -217,7 +217,7 @@ async fn handle_list_sources(
 
     Ok(ToolResponse::success(
         "list",
-        &format!("Found {} sources, returning {}", total, returned),
+        format!("Found {} sources, returning {}", total, returned),
     )
     .with_json_data(serde_json::to_value(&summaries)?)
     .with_count(total)
@@ -582,7 +582,6 @@ async fn handle_list_agents_using(
     // Parallel fan-out: check each agent's sources concurrently (avoids N+1)
     let check_results: Vec<_> = stream::iter(agents)
         .map(|agent| {
-            let client = client;
             let target_id = letta_id.clone();
             async move {
                 let sources = client
@@ -594,7 +593,7 @@ async fn handle_list_agents_using(
                     Ok(sources) => {
                         let has_source = sources
                             .iter()
-                            .any(|s| s.id.as_ref().map_or(false, |sid| *sid == target_id));
+                            .any(|s| s.id.as_ref().is_some_and(|sid| *sid == target_id));
                         if has_source { Some(agent) } else { None }
                     }
                     Err(_) => None,

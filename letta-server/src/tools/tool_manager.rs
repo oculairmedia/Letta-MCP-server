@@ -321,10 +321,7 @@ async fn handle_attach_tool(
     let tool_count = agent_state.as_ref().map(|s| s.tools.len()).unwrap_or(0);
 
     let data = if verbose {
-        agent_state
-            .as_ref()
-            .map(|s| serde_json::to_value(s))
-            .transpose()?
+        agent_state.as_ref().map(serde_json::to_value).transpose()?
     } else {
         Some(create_compact_attach_response(
             &agent_id, &tool_id, tool_count,
@@ -420,7 +417,6 @@ async fn handle_bulk_attach(
     // Parallel fan-out: attach tool to all agents concurrently
     let attach_results: Vec<(String, Result<_, _>)> = stream::iter(agent_ids)
         .map(|agent_id| {
-            let client = client;
             let letta_tool_id = &letta_tool_id;
             async move {
                 let result = match require_id(Some(agent_id.clone()), "agent_id") {
@@ -597,10 +593,7 @@ async fn handle_detach_tool(
     let tool_count = agent_state.as_ref().map(|s| s.tools.len()).unwrap_or(0);
 
     let data = if verbose {
-        agent_state
-            .as_ref()
-            .map(|s| serde_json::to_value(s))
-            .transpose()?
+        agent_state.as_ref().map(serde_json::to_value).transpose()?
     } else {
         Some(create_compact_detach_response(
             &agent_id, &tool_id, tool_count,
@@ -659,18 +652,18 @@ async fn handle_run_from_source(
     let mut response_json = serde_json::to_value(response)?;
 
     // Check if output exists and truncate if needed
-    if let Some(obj) = response_json.as_object_mut() {
-        if let Some(output) = obj.get("output").and_then(|v| v.as_str()) {
-            let output_length = output.len();
-            let (truncated_output, is_truncated) = truncate_string(output, MAX_OUTPUT_LENGTH);
+    if let Some(obj) = response_json.as_object_mut()
+        && let Some(output) = obj.get("output").and_then(|v| v.as_str())
+    {
+        let output_length = output.len();
+        let (truncated_output, is_truncated) = truncate_string(output, MAX_OUTPUT_LENGTH);
 
-            obj.insert("output".to_string(), serde_json::json!(truncated_output));
-            obj.insert(
-                "output_length".to_string(),
-                serde_json::json!(output_length),
-            );
-            obj.insert("truncated".to_string(), serde_json::json!(is_truncated));
-        }
+        obj.insert("output".to_string(), serde_json::json!(truncated_output));
+        obj.insert(
+            "output_length".to_string(),
+            serde_json::json!(output_length),
+        );
+        obj.insert("truncated".to_string(), serde_json::json!(is_truncated));
     }
 
     Ok(

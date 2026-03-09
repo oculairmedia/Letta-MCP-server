@@ -185,12 +185,11 @@ async fn handle_get_job(
     };
 
     let mut hints = Vec::new();
-    if let Some(ref meta) = details.metadata {
-        if let Some(obj) = meta.as_object() {
-            if obj.contains_key("truncated") {
-                hints.push("Some fields were truncated due to size limits".to_string());
-            }
-        }
+    if let Some(ref meta) = details.metadata
+        && let Some(obj) = meta.as_object()
+        && obj.contains_key("truncated")
+    {
+        hints.push("Some fields were truncated due to size limits".to_string());
     }
     if details.callback_error.as_ref().is_some_and(|e| e.truncated) {
         hints.push("Error details truncated; use direct API for full error".to_string());

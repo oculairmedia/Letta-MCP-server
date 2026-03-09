@@ -168,15 +168,15 @@ pub fn truncate_block_value(block: &mut Value, max_len: usize) -> bool {
         .and_then(|v| v.as_str())
         .map(|s| (s.to_string(), s.len()));
 
-    if let Some((value_str, value_len)) = value_info {
-        if value_len > max_len {
-            let truncated = truncate_string(&value_str, max_len);
-            if let Some(obj) = block.as_object_mut() {
-                obj.insert("value".to_string(), Value::String(truncated));
-                obj.insert("value_length".to_string(), Value::Number(value_len.into()));
-                obj.insert("truncated".to_string(), Value::Bool(true));
-                return true;
-            }
+    if let Some((value_str, value_len)) = value_info
+        && value_len > max_len
+    {
+        let truncated = truncate_string(&value_str, max_len);
+        if let Some(obj) = block.as_object_mut() {
+            obj.insert("value".to_string(), Value::String(truncated));
+            obj.insert("value_length".to_string(), Value::Number(value_len.into()));
+            obj.insert("truncated".to_string(), Value::Bool(true));
+            return true;
         }
     }
     false
@@ -190,15 +190,15 @@ pub fn truncate_passage_text(passage: &mut Value, max_len: usize) -> bool {
         .and_then(|v| v.as_str())
         .map(|s| (s.to_string(), s.len()));
 
-    if let Some((text_str, text_len)) = text_info {
-        if text_len > max_len {
-            let truncated = truncate_string(&text_str, max_len);
-            if let Some(obj) = passage.as_object_mut() {
-                obj.insert("text".to_string(), Value::String(truncated));
-                obj.insert("text_length".to_string(), Value::Number(text_len.into()));
-                obj.insert("truncated".to_string(), Value::Bool(true));
-                return true;
-            }
+    if let Some((text_str, text_len)) = text_info
+        && text_len > max_len
+    {
+        let truncated = truncate_string(&text_str, max_len);
+        if let Some(obj) = passage.as_object_mut() {
+            obj.insert("text".to_string(), Value::String(truncated));
+            obj.insert("text_length".to_string(), Value::Number(text_len.into()));
+            obj.insert("truncated".to_string(), Value::Bool(true));
+            return true;
         }
     }
     false
