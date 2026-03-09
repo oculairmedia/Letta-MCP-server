@@ -31,7 +31,7 @@ jobs:
     docker-build:
         name: Build Docker Image
         needs: test
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/rust-implementation' || startsWith(github.ref, 'refs/heads/fork/'))
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/rust-implementation' || startsWith(github.ref, 'refs/heads/fork/'))
         uses: ./.github/workflows/rust-docker-build.yml
         secrets: inherit
 
