@@ -148,6 +148,35 @@ This project's PM agent has a `codebase_ast` memory block with live structural d
 Ask the PM agent for architectural guidance before making significant changes.
 <!-- VIBESYNC:codebase-context:END -->
 
+## Development Rules
+
+### Resource Constraints
+
+This server has limited memory. Heavy compilation tasks will crash the system.
+
+- **NEVER** run `cargo test --workspace` locally — it compiles all crates including vendored dependencies and exhausts system memory
+- **NEVER** run `cargo bench` locally
+- Local validation is limited to lightweight commands only:
+  - `cargo fmt --all -- --check`
+  - `cargo clippy -p letta-server -p letta-types --all-targets --no-deps -- -D warnings`
+  - `cargo check`
+- Full test suite runs on GitHub Actions CI where memory is not constrained
+- Push to a branch and let CI handle tests
+
+### Linting and Formatting
+
+- **rustfmt**: Configured via `.rustfmt.toml` at repo root. Runs in CI and pre-commit hook.
+- **clippy**: Scoped to `letta-server` and `letta-types` crates with `--no-deps` to exclude vendored `letta` SDK. Uses `-D warnings` (all warnings are errors).
+- **Pre-commit hook**: `.git/hooks/pre-commit` runs `cargo fmt`, `cargo check`, and `cargo clippy` automatically. Re-stages formatted files.
+
+### CI Pipeline
+
+- **Rust Tests**: Runs on `master`, `rust-implementation`, and `fork/**` branches
+- **Clippy**: Re-enabled with `--no-deps` flag to skip vendored crate warnings
+- **Code Coverage**: Runs on pushes to `master` and `rust-implementation` via `cargo-tarpaulin`
+- **Performance Benchmarks**: Runs on pushes to `master` and `rust-implementation`
+- **Docker Build**: Triggers on `rust-implementation` and `fork/**` branches; publishes to GHCR as `ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest`
+
 # Agent Instructions
 
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.

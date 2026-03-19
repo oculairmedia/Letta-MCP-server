@@ -126,11 +126,9 @@ pub(crate) async fn handle_create_passage(
         .map_err(|e| sdk_err("create passage", e))?;
 
     let mut passages_value = serde_json::to_value(&passages)?;
-    if !verbose {
-        if let Some(arr) = passages_value.as_array_mut() {
-            for p in arr.iter_mut() {
-                truncate_passage_text(p, PASSAGE_TEXT_TRUNCATE_LEN);
-            }
+    if !verbose && let Some(arr) = passages_value.as_array_mut() {
+        for p in arr.iter_mut() {
+            truncate_passage_text(p, PASSAGE_TEXT_TRUNCATE_LEN);
         }
     }
 
