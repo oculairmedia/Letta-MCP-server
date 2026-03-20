@@ -107,6 +107,9 @@ pub mod agents {
         pub fn list(agent_id: &impl std::fmt::Display) -> String {
             format!("v1/agents/{agent_id}/archival-memory")
         }
+        pub fn search(agent_id: &impl std::fmt::Display) -> String {
+            format!("v1/agents/{agent_id}/archival-memory/search")
+        }
         pub fn create(agent_id: &impl std::fmt::Display) -> String {
             format!("v1/agents/{agent_id}/archival-memory")
         }

@@ -78,6 +78,10 @@ name = "api_contract_tests"
 path = "tests/api_contract_tests.rs"
 
 [[test]]
+name = "archival_search_endpoint_repro_test"
+path = "tests/archival_search_endpoint_repro_test.rs"
+
+[[test]]
 name = "archival_memory_test"
 path = "tests/archival_memory_test.rs"
 required-features = ["integration-tests"]

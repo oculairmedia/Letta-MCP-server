@@ -85,7 +85,17 @@ impl<'a> MemoryApi<'a> {
         agent_id: &LettaId,
         params: Option<ArchivalMemoryQueryParams>,
     ) -> LettaResult<Vec<Passage>> {
-        let url = endpoints::agents::archival::list(agent_id);
+        let has_search_query = params
+            .as_ref()
+            .and_then(|p| p.search.as_ref())
+            .is_some_and(|search| !search.trim().is_empty());
+
+        let url = if has_search_query {
+            endpoints::agents::archival::search(agent_id)
+        } else {
+            endpoints::agents::archival::list(agent_id)
+        };
+
         if let Some(params) = params {
             let query = serde_urlencoded::to_string(&params)?;
             if !query.is_empty() {
