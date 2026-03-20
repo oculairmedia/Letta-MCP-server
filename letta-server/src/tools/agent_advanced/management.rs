@@ -2,9 +2,34 @@ use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use futures::stream::{self, StreamExt};
 use letta::LettaClient;
 use letta_types::StandardResponse;
+use std::collections::HashSet;
 use turbomcp::McpError;
 
-use super::{AgentAdvancedRequest, truncate_text};
+use super::{truncate_text, AgentAdvancedRequest};
+
+fn build_bulk_delete_list_params(
+    cursor: Option<String>,
+    page_size: u32,
+) -> letta::types::ListAgentsParams {
+    letta::types::ListAgentsParams {
+        limit: Some(page_size),
+        after: cursor,
+        ..Default::default()
+    }
+}
+
+fn resolve_get_config_results<T, U, E1, E2>(
+    agent_result: Result<T, E1>,
+    tools_result: Result<U, E2>,
+) -> Result<(T, U), McpError>
+where
+    E1: std::fmt::Display,
+    E2: std::fmt::Display,
+{
+    let agent = agent_result.map_err(|e| sdk_err("get agent", e))?;
+    let tools = tools_result.map_err(|e| sdk_err("list agent tools", e))?;
+    Ok((agent, tools))
+}
 
 pub(crate) async fn handle_list_tools(
     client: &LettaClient,
@@ -189,8 +214,7 @@ pub(crate) async fn handle_get_config(
         memory_api.list_agent_tools(&letta_id)
     );
 
-    let agent = agent_result.map_err(|e| sdk_err("get agent", e))?;
-    let tools = tools_result.ok();
+    let (agent, tools) = resolve_get_config_results(agent_result, tools_result)?;
 
     Ok(StandardResponse::success(
         "get_config",
@@ -200,7 +224,7 @@ pub(crate) async fn handle_get_config(
             "system": agent.system,
             "llm_config": agent.llm_config,
             "embedding_config": agent.embedding_config,
-            "tools": tools.unwrap_or_default(),
+            "tools": tools,
             "created_at": agent.created_at,
         }),
         "Agent configuration retrieved successfully",
@@ -225,14 +249,16 @@ pub(crate) async fn handle_bulk_delete(
         ));
     }
 
+    let id_filter: Option<HashSet<String>> = filters
+        .agent_ids
+        .clone()
+        .map(|ids| ids.into_iter().collect());
+
     let mut all_agents = Vec::new();
     let page_size = 50u32;
-    let mut offset = 0u32;
+    let mut cursor: Option<String> = None;
     loop {
-        let list_params = letta::types::ListAgentsParams {
-            limit: Some(page_size),
-            ..Default::default()
-        };
+        let list_params = build_bulk_delete_list_params(cursor.clone(), page_size);
         let page = client
             .agents()
             .list(Some(list_params))
@@ -245,9 +271,9 @@ pub(crate) async fn handle_bulk_delete(
         if page_len < page_size {
             break;
         }
-        offset += page_len;
+        cursor = all_agents.last().map(|agent| agent.id.to_string());
         // Safety cap to prevent infinite loops
-        if offset > 10_000 {
+        if all_agents.len() > 10_000 {
             break;
         }
     }
@@ -262,7 +288,7 @@ pub(crate) async fn handle_bulk_delete(
             None => true,
         };
 
-        let id_matches = match &filters.agent_ids {
+        let id_matches = match &id_filter {
             Some(ids) => ids.contains(&agent.id.to_string()),
             None => true,
         };
@@ -362,4 +388,51 @@ pub(crate) async fn handle_summarize(
         serde_json::to_value(agent_state)?,
         "Conversation summarized successfully",
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_bulk_delete_list_params, resolve_get_config_results};
+
+    #[test]
+    fn bulk_delete_list_params_start_without_cursor() {
+        let params = build_bulk_delete_list_params(None, 50);
+
+        assert_eq!(params.limit, Some(50));
+        assert_eq!(params.after, None);
+        assert_eq!(params.before, None);
+    }
+
+    #[test]
+    fn bulk_delete_list_params_advance_with_cursor() {
+        let params = build_bulk_delete_list_params(
+            Some("agent-12345678-1234-1234-1234-123456789012".to_string()),
+            50,
+        );
+
+        assert_eq!(params.limit, Some(50));
+        assert_eq!(
+            params.after,
+            Some("agent-12345678-1234-1234-1234-123456789012".to_string())
+        );
+        assert_eq!(params.before, None);
+    }
+
+    #[test]
+    fn resolve_get_config_results_returns_both_values() {
+        let result = resolve_get_config_results::<_, _, &str, &str>(Ok("agent"), Ok(vec![1, 2]));
+
+        let (agent, tools) = result.expect("parallel results should succeed");
+        assert_eq!(agent, "agent");
+        assert_eq!(tools, vec![1, 2]);
+    }
+
+    #[test]
+    fn resolve_get_config_results_propagates_tool_failures() {
+        let result =
+            resolve_get_config_results::<_, Vec<i32>, &str, &str>(Ok("agent"), Err("boom"));
+
+        let err = result.expect_err("tool failures must be surfaced");
+        assert!(err.to_string().contains("Failed to list agent tools: boom"));
+    }
 }
