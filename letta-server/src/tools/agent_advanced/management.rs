@@ -5,7 +5,7 @@ use letta_types::StandardResponse;
 use std::collections::HashSet;
 use turbomcp::McpError;
 
-use super::{truncate_text, AgentAdvancedRequest};
+use super::{AgentAdvancedRequest, truncate_text};
 
 fn build_bulk_delete_list_params(
     cursor: Option<String>,
