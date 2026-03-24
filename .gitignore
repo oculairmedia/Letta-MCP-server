@@ -38,3 +38,8 @@ node_modules/
 .git-rewrite/
 coverage/
 mutants.out/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
