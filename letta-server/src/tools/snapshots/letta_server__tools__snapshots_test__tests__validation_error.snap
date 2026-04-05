@@ -1,0 +1,9 @@
+---
+source: letta-server/src/tools/snapshots_test.rs
+expression: response
+---
+{
+  "success": false,
+  "operation": "attach",
+  "message": "Missing required field: agent_id"
+}

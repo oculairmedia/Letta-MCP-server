@@ -1,0 +1,19 @@
+---
+source: letta-server/src/tools/snapshots_test.rs
+expression: response
+---
+{
+  "success": true,
+  "operation": "list",
+  "message": "Files retrieved",
+  "data": {
+    "files": [
+      {
+        "id": "file-123",
+        "name": "doc.txt",
+        "size": 1024
+      }
+    ]
+  },
+  "count": 1
+}

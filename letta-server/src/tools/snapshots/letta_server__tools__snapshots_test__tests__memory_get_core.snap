@@ -1,0 +1,13 @@
+---
+source: letta-server/src/tools/snapshots_test.rs
+expression: response
+---
+{
+  "success": true,
+  "operation": "get_core_memory",
+  "message": "Memory retrieved",
+  "data": {
+    "human": "User is a developer",
+    "persona": "I am a helpful assistant"
+  }
+}

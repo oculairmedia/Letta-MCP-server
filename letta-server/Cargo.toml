@@ -43,6 +43,7 @@ mockall = "0.13"
 async-trait = "0.1"
 wiremock = "0.6"
 pretty_assertions = "1.4"
+insta = { version = "1.47.2", features = ["json"] }
 
 [features]
 default = ["http"]

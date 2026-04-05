@@ -1,0 +1,13 @@
+---
+source: letta-server/src/tools/snapshots_test.rs
+expression: response
+---
+{
+  "success": true,
+  "operation": "attach",
+  "message": "Tool attached successfully",
+  "data": {
+    "tool_id": "tool-123",
+    "agent_id": "agent-456"
+  }
+}

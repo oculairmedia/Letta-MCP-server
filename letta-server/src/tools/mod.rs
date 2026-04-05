@@ -17,3 +17,6 @@ pub mod validation_utils;
 
 #[cfg(test)]
 pub mod test_helpers;
+
+#[cfg(test)]
+mod snapshots_test;

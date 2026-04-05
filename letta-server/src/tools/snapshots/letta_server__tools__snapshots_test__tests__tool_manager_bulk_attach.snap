@@ -1,0 +1,18 @@
+---
+source: letta-server/src/tools/snapshots_test.rs
+expression: response
+---
+{
+  "success": true,
+  "operation": "bulk_attach",
+  "message": "Bulk attach completed",
+  "data": {
+    "tool_id": "tool-123",
+    "successful": [
+      "agent-456",
+      "agent-789"
+    ],
+    "failed": [],
+    "total": 2
+  }
+}

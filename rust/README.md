@@ -1,81 +1,17 @@
-# Letta MCP Server — Rust Internals
+# rust/ Directory
 
-This directory contains the Rust implementation of the Letta MCP Server.
+This directory contains:
 
-> For usage, installation, and configuration, see the [main README](../README.md).
+- **`vendor/`** - Vendored Letta Rust SDK with local compatibility patches
+- **`docker-compose.yml`** - Production deployment configuration for letta-mcp-rust container
 
-## Architecture
+## Important Notes
 
-- **Rust MCP Server** on port `6507` (configurable via `PORT`)
-- **[TurboMCP](https://github.com/oculairmedia/turbomcp)** framework for MCP protocol
-- **[letta-rs](https://github.com/oculairmedia/letta-rs)** for Letta API client
-- Dual transport: stdio (default) or HTTP (`TRANSPORT=http`)
+- **DO NOT** create a Cargo workspace here - the ROOT workspace is the active one
+- **DO NOT** duplicate source code here - edit `letta-server/` and `letta-types/` at the repo root
+- The vendored SDK is referenced by the root `Cargo.toml` via `path = "rust/vendor/letta"`
 
-## Project Structure
+## Historical Context
 
-```
-letta-server/
-├── src/
-│   ├── main.rs              # Entry point, transport selection
-│   ├── lib.rs               # Server initialization, tool registration
-│   └── tools/
-│       ├── mod.rs            # Tool registration
-│       ├── agent_advanced.rs # Agent operations (28 ops)
-│       ├── memory_unified.rs # Memory operations (15 ops)
-│       ├── tool_manager.rs   # Tool operations (13 ops)
-│       ├── source_manager.rs # Source operations (15 ops)
-│       ├── mcp_ops.rs        # MCP operations (10 ops)
-│       ├── file_folder_ops.rs# File operations (8 ops)
-│       └── job_monitor.rs    # Job operations (4 ops)
-├── tests/                    # Integration tests
-└── Cargo.toml
-
-letta-types/                  # Shared type definitions
-├── src/lib.rs
-└── Cargo.toml
-
-vendor/                       # Vendored SDK patches
-```
-
-## Development
-
-```bash
-# Debug build
-cargo build
-
-# Release build (optimized)
-cargo build --release
-
-# Run tests
-cargo test
-
-# Check without building
-cargo check
-```
-
-### Build Optimizations (Release)
-
-- LTO (Link-Time Optimization)
-- Single codegen unit
-- Symbol stripping
-- opt-level 3
-
-### TurboMCP Features
-
-- `#[turbomcp(flatten)]` for auto-generated parameter schemas
-- JSON Schema 2020-12 with `$defs` support
-- Discriminator-based tool operations
-- Type-safe parameter validation via schemars
-
-## Dependencies
-
-- **turbomcp** — MCP protocol framework
-- **letta** — Rust Letta API client (vendored with patches)
-- **tokio** — Async runtime
-- **serde** / **serde_json** — Serialization
-- **schemars** — JSON Schema generation
-- **reqwest** — HTTP client
-
-## License
-
-MIT
+This directory previously contained a duplicate TurboMCP v2 workspace. That has been removed.
+The current codebase uses TurboMCP v3 defined in the root workspace.
