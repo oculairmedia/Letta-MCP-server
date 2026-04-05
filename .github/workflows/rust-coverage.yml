@@ -1,0 +1,100 @@
+name: Rust Coverage
+
+on:
+    push:
+        branches: [master, main]
+        paths:
+            - 'letta-server/**'
+            - 'letta-types/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+    pull_request:
+        branches: [master, main]
+
+env:
+    CARGO_TERM_COLOR: always
+    RUST_BACKTRACE: 1
+
+jobs:
+    coverage:
+        name: Code Coverage
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: llvm-tools-preview
+
+            - name: Install mold linker
+              run: sudo apt-get update -qq && sudo apt-get install -y -qq mold
+
+            - name: Install cargo-llvm-cov
+              uses: taiki-e/install-action@cargo-llvm-cov
+
+            - name: Cache cargo
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      target
+                  key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('**/Cargo.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-cargo-coverage-
+
+            - name: Generate coverage
+              run: |
+                  cargo llvm-cov --package letta-server --package letta-types \
+                      --lcov --output-path lcov.info
+
+            - name: Upload coverage to Codecov
+              uses: codecov/codecov-action@v4
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  files: lcov.info
+                  flags: rust-tests
+                  name: rust-codecov
+                  fail_ci_if_error: false
+
+            - name: Upload coverage artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: coverage-report
+                  path: lcov.info
+                  retention-days: 30
+
+            - name: Generate coverage summary
+              run: |
+                  echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  
+                  # Extract coverage from lcov.info
+                  TOTAL_LINES=$(grep -c "^DA:" lcov.info || echo "0")
+                  COVERED_LINES=$(grep "^DA:" lcov.info | grep -c ",1$\|,[2-9]$\|,[1-9][0-9]" || echo "0")
+                  
+                  if [ "$TOTAL_LINES" -gt 0 ]; then
+                      COVERAGE=$(awk "BEGIN {printf \"%.1f\", ($COVERED_LINES / $TOTAL_LINES) * 100}")
+                      echo "**Overall Coverage: ${COVERAGE}%**" >> $GITHUB_STEP_SUMMARY
+                      echo "" >> $GITHUB_STEP_SUMMARY
+                      echo "- Lines covered: $COVERED_LINES / $TOTAL_LINES" >> $GITHUB_STEP_SUMMARY
+                      echo "- Target: 60% (warn), 40% (fail)" >> $GITHUB_STEP_SUMMARY
+                      echo "" >> $GITHUB_STEP_SUMMARY
+                      
+                      # Check thresholds
+                      COVERAGE_INT=$(echo $COVERAGE | awk '{print int($1)}')
+                      if [ "$COVERAGE_INT" -lt 40 ]; then
+                          echo "❌ Coverage below 40% threshold - FAILING" >> $GITHUB_STEP_SUMMARY
+                          exit 1
+                      elif [ "$COVERAGE_INT" -lt 60 ]; then
+                          echo "⚠️ Coverage below 60% target" >> $GITHUB_STEP_SUMMARY
+                      else
+                          echo "✅ Coverage meets target" >> $GITHUB_STEP_SUMMARY
+                      fi
+                  else
+                      echo "⚠️ No coverage data generated" >> $GITHUB_STEP_SUMMARY
+                      exit 1
+                  fi

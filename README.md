@@ -2,6 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/letta-mcp-server.svg)](https://www.npmjs.com/package/letta-mcp-server)
 [![Rust Tests](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-test.yml/badge.svg)](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-test.yml)
+[![Coverage](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-coverage.yml/badge.svg)](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-coverage.yml)
 [![Docker Build](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-docker-build.yml/badge.svg)](https://github.com/oculairmedia/letta-MCP-server/actions/workflows/rust-docker-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
