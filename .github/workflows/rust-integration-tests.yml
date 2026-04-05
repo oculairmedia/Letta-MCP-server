@@ -1,0 +1,118 @@
+name: Rust Integration Tests
+
+on:
+    push:
+        branches: [master, main]
+        paths:
+            - 'rust/vendor/letta/**'
+            - 'letta-server/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - '.github/workflows/rust-integration-tests.yml'
+
+env:
+    CARGO_TERM_COLOR: always
+    RUST_BACKTRACE: 1
+    LETTA_BASE_URL: http://localhost:8283
+
+jobs:
+    integration-tests:
+        name: Integration Tests (with Letta server)
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+
+        services:
+            letta:
+                image: letta/letta-server:latest
+                ports:
+                    - 8283:8283
+                env:
+                    LETTA_PG_DB: letta
+                    LETTA_PG_USER: letta
+                    LETTA_PG_PASSWORD: letta
+                    LETTA_PG_HOST: postgres
+                    LETTA_PG_PORT: 5432
+                options: >-
+                    --health-cmd "curl -f http://localhost:8283/v1/health || exit 1"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+                    --health-start-period 30s
+
+            postgres:
+                image: pgvector/pgvector:0.7.0-pg16
+                ports:
+                    - 5432:5432
+                env:
+                    POSTGRES_USER: letta
+                    POSTGRES_PASSWORD: letta
+                    POSTGRES_DB: letta
+                options: >-
+                    --health-cmd "pg_isready -U letta"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Install mold linker
+              run: sudo apt-get update -qq && sudo apt-get install -y -qq mold
+
+            - name: Cache cargo
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      target
+                  key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-cargo-integration-
+
+            - name: Wait for Letta server
+              run: |
+                  echo "Waiting for Letta server to be ready..."
+                  for i in {1..30}; do
+                      if curl -f http://localhost:8283/v1/health 2>/dev/null; then
+                          echo "✅ Letta server is ready"
+                          break
+                      fi
+                      echo "Attempt $i/30: Server not ready yet..."
+                      sleep 2
+                  done
+                  
+                  # Final check
+                  if ! curl -f http://localhost:8283/v1/health; then
+                      echo "❌ Letta server failed to start"
+                      docker logs letta || true
+                      exit 1
+                  fi
+
+            - name: Run integration tests
+              run: |
+                  echo "Running integration tests against Letta server..."
+                  cargo test -p letta --features integration-tests \
+                      --test core_memory_test \
+                      --test tools_api_test \
+                      --test sources_api_test \
+                      --test agent_deserialization_test \
+                      -- --test-threads=1
+
+            - name: Generate test summary
+              if: always()
+              run: |
+                  echo "## 🧪 Integration Test Results" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "Tests ran against live Letta server (localhost:8283)" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  
+                  if [ ${{ job.status }} == 'success' ]; then
+                      echo "✅ All integration tests passed" >> $GITHUB_STEP_SUMMARY
+                  else
+                      echo "❌ Some integration tests failed" >> $GITHUB_STEP_SUMMARY
+                  fi
