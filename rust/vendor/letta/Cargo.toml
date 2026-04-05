@@ -302,3 +302,7 @@ serial_test = "3.0"
 test-case = "3.0"
 tokio-test = "0.4"
 wiremock = "0.6"
+
+[[test]]
+name = "api_fixtures_test"
+path = "tests/api_fixtures_test.rs"

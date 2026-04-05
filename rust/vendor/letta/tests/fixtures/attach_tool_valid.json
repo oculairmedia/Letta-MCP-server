@@ -1,0 +1,12 @@
+{
+  "id": "agent-11111111-2222-3333-4444-555555555555",
+  "name": "Test Agent",
+  "created_at": "2024-01-01T00:00:00Z",
+  "llm_config": {
+    "model": "claude-3-5-sonnet-20241022",
+    "model_endpoint_type": "anthropic",
+    "context_window": 200000
+  },
+  "system": "You are a helpful assistant",
+  "tools": ["send_message", "core_memory_append"]
+}
