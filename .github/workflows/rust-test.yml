@@ -184,10 +184,21 @@ jobs:
             - name: Install Rust toolchain
               uses: dtolnay/rust-toolchain@stable
 
-            - name: Run cargo audit
-              uses: actions-rs/audit-check@v1
-              with:
-                  token: ${{ secrets.GITHUB_TOKEN }}
+            - name: Verify Cargo.lock is up to date
+              run: |
+                  cargo update --dry-run
+                  if git diff --exit-code Cargo.lock; then
+                      echo "✅ Cargo.lock is up to date"
+                  else
+                      echo "❌ Cargo.lock has uncommitted changes"
+                      echo "Run 'cargo update' and commit Cargo.lock"
+                      exit 1
+                  fi
+
+            - name: Run cargo audit (blocking)
+              run: |
+                  cargo install cargo-audit
+                  cargo audit --deny warnings
 
     benchmark:
         name: Performance Benchmarks
@@ -239,3 +250,21 @@ jobs:
                   echo "" >> $GITHUB_STEP_SUMMARY
                   echo "🦀 Rust tests: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
                   echo "🔒 Security audit: ${{ needs.security.result }}" >> $GITHUB_STEP_SUMMARY
+
+    supply-chain:
+        name: Supply Chain Security
+        runs-on: ubuntu-latest
+        needs: test
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Install cargo-deny
+              run: cargo install cargo-deny
+
+            - name: Check dependencies
+              run: cargo deny check
