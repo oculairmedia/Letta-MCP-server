@@ -34,7 +34,7 @@ This project follows the [Rust Code of Conduct](https://www.rust-lang.org/polici
 
 ### Prerequisites
 
-- **Rust 1.82+** (install via [rustup](https://rustup.rs/))
+- **Rust 1.85+** (install via [rustup](https://rustup.rs/)) - required for edition 2024 support
 - **mold linker** (optional, for faster builds):
   ```bash
   # Ubuntu/Debian
