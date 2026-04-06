@@ -28,7 +28,7 @@ mod tests {
             }))
             .unwrap()
             .with_count(1);
-        
+
         insta::assert_json_snapshot!("tool_manager_list", response);
     }
 
@@ -45,7 +45,7 @@ mod tests {
                 "created_at": "2024-01-01T00:00:00Z"
             }))
             .unwrap();
-        
+
         insta::assert_json_snapshot!("tool_manager_get", response);
     }
 
@@ -57,7 +57,7 @@ mod tests {
                 "agent_id": "agent-456"
             }))
             .unwrap();
-        
+
         insta::assert_json_snapshot!("tool_manager_attach", response);
     }
 
@@ -71,7 +71,7 @@ mod tests {
                 "total": 2
             }))
             .unwrap();
-        
+
         insta::assert_json_snapshot!("tool_manager_bulk_attach", response);
     }
 
@@ -87,7 +87,7 @@ mod tests {
             }))
             .unwrap()
             .with_count(1);
-        
+
         insta::assert_json_snapshot!("agent_list", response);
     }
 
@@ -99,7 +99,7 @@ mod tests {
                 "persona": "I am a helpful assistant"
             }))
             .unwrap();
-        
+
         insta::assert_json_snapshot!("memory_get_core", response);
     }
 
@@ -115,7 +115,7 @@ mod tests {
             }))
             .unwrap()
             .with_count(1);
-        
+
         insta::assert_json_snapshot!("memory_search_archival", response);
     }
 
@@ -131,7 +131,7 @@ mod tests {
             }))
             .unwrap()
             .with_count(1);
-        
+
         insta::assert_json_snapshot!("file_list", response);
     }
 
