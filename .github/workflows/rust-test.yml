@@ -39,7 +39,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
               with:
                   fetch-depth: 0
 
@@ -53,7 +53,7 @@ jobs:
               run: sudo apt-get update -qq && sudo apt-get install -y -qq mold
 
             - name: Cache cargo registry
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                   path: ~/.cargo/registry
                   key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
@@ -61,7 +61,7 @@ jobs:
                       ${{ runner.os }}-cargo-registry-
 
             - name: Cache cargo index
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                   path: ~/.cargo/git
                   key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
@@ -69,7 +69,7 @@ jobs:
                       ${{ runner.os }}-cargo-index-
 
             - name: Cache cargo build
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                   path: target
                   key: ${{ runner.os }}-cargo-build-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
@@ -135,7 +135,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
 
             - name: Install Rust toolchain
               uses: dtolnay/rust-toolchain@stable
@@ -150,7 +150,7 @@ jobs:
               run: cargo tarpaulin --out Xml --output-dir ./coverage --verbose --packages letta-server letta-types --exclude-files "*/vendor/*"
 
             - name: Upload coverage to Codecov
-              uses: codecov/codecov-action@v4
+              uses: codecov/codecov-action@v6
               with:
                   token: ${{ secrets.CODECOV_TOKEN }}
                   files: ./coverage/cobertura.xml
@@ -181,7 +181,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
 
             - name: Install Rust toolchain
               uses: dtolnay/rust-toolchain@stable
@@ -210,7 +210,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
 
             - name: Install Rust toolchain
               uses: dtolnay/rust-toolchain@stable
@@ -260,7 +260,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
 
             - name: Install Rust toolchain
               uses: dtolnay/rust-toolchain@stable
