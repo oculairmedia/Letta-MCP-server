@@ -109,7 +109,7 @@ async fn test_cloud_source_lifecycle() -> LettaResult<()> {
     );
 
     // List sources
-    let sources = client.sources().list().await?;
+    let sources = client.sources().list(None).await?;
     let found = sources.iter().any(|s| s.id == source.id);
     assert!(found, "Created source should be in the list");
 
@@ -127,7 +127,7 @@ async fn test_cloud_source_lifecycle() -> LettaResult<()> {
     println!("Deleted cloud source: {}", source_id);
 
     // Verify deletion
-    let sources_after = client.sources().list().await?;
+    let sources_after = client.sources().list(None).await?;
     let still_exists = sources_after.iter().any(|s| s.id == source.id);
     assert!(!still_exists, "Source should be deleted");
 
@@ -366,7 +366,7 @@ async fn test_cloud_sources_quick() -> LettaResult<()> {
     let client = create_cloud_client()?;
 
     // Quick test: List sources and count
-    let sources = client.sources().list().await?;
+    let sources = client.sources().list(None).await?;
     println!("Found {} sources in cloud", sources.len());
 
     let count = client.sources().count().await?;

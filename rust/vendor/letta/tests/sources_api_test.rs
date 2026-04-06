@@ -122,7 +122,7 @@ async fn test_source_lifecycle() -> LettaResult<()> {
     );
 
     // List sources
-    let sources = client.sources().list().await?;
+    let sources = client.sources().list(None).await?;
     let found = sources.iter().any(|s| s.id == source.id);
     assert!(found, "Created source should be in the list");
 
@@ -138,7 +138,7 @@ async fn test_source_lifecycle() -> LettaResult<()> {
     let _ = client.sources().delete(source_id).await?;
 
     // Verify deletion
-    let sources_after = client.sources().list().await?;
+    let sources_after = client.sources().list(None).await?;
     let still_exists = sources_after.iter().any(|s| s.id == source.id);
     assert!(!still_exists, "Source should be deleted");
 
