@@ -32,9 +32,9 @@ jobs:
 
         strategy:
             matrix:
-                # Edition 2024 requires Rust 1.85+ (stabilized Feb 2025)
-                # Using 1.82 as CONTRIBUTING.md specifies, but 1.85+ is actually required
-                rust: ['1.85', stable, nightly]
+                # Edition 2024 requires nightly as of April 2026
+                # Once edition 2024 stabilizes, update to minimum stable version
+                rust: [stable, nightly]
             fail-fast: false
 
         steps:

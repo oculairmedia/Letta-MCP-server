@@ -262,7 +262,7 @@ List operations return summary data by default. Use `get` operation with specifi
 
 ### Prerequisites
 
-- **Rust 1.85+** (edition 2024 support) - install via [rustup](https://rustup.rs/)
+- **Rust nightly** (edition 2024 support) - install via [rustup](https://rustup.rs/)
 - Docker (optional, for containerized builds)
 
 ### Local Build
