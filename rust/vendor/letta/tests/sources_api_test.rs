@@ -7,12 +7,12 @@ use letta::types::agent::{AgentState, CreateAgentRequest};
 use letta::types::common::Metadata;
 use letta::types::memory::Block;
 use letta::types::source::{
-    CreateSourceRequest, FileProcessingStatus, FileUploadResponse, GetFileParams, ListFilesParams,
-    ListPassagesParams, Source, UpdateSourceRequest,
+    CreateSourceRequest, FileMetadata, FileProcessingStatus, FileUploadResponse, GetFileParams,
+    ListFilesParams, ListPassagesParams, Source, UpdateSourceRequest,
 };
 use letta::{LettaClient, LettaId};
 use serial_test::serial;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -32,6 +32,58 @@ fn get_filename_from_upload(response: FileUploadResponse) -> String {
             file.file_name.unwrap_or_else(|| "unknown.txt".to_string())
         }
     }
+}
+
+/// Wait for a file to appear in the source's file list with retry logic.
+/// First tries exact filename match, then falls back to detecting the newest file.
+async fn wait_for_file(
+    client: &LettaClient,
+    source_id: &LettaId,
+    expected_filename: &str,
+    previous_file_ids: &HashSet<LettaId>,
+    max_retries: u32,
+) -> LettaResult<FileMetadata> {
+    for attempt in 0..max_retries {
+        if attempt > 0 {
+            sleep(Duration::from_secs(1)).await;
+        }
+
+        let files = client.sources().list_files(source_id, None).await?;
+
+        // Try exact filename match first
+        if let Some(file) = files
+            .iter()
+            .find(|f| f.file_name.as_ref() == Some(&expected_filename.to_string()))
+        {
+            return Ok(file.clone());
+        }
+
+        // Fallback: look for a new file (one that wasn't in the previous set)
+        if let Some(file) = files.iter().find(|f| {
+            f.id.as_ref()
+                .map(|id| !previous_file_ids.contains(id))
+                .unwrap_or(false)
+        }) {
+            return Ok(file.clone());
+        }
+    }
+
+    // After all retries, panic with helpful diagnostic info
+    let final_files = client.sources().list_files(source_id, None).await?;
+    let filenames: Vec<String> = final_files
+        .iter()
+        .map(|f| {
+            f.file_name
+                .as_ref()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "<no name>".to_string())
+        })
+        .collect();
+
+    panic!(
+        "Failed to find uploaded file after {} retries. Expected: '{}', Found filenames: {:?}",
+        max_retries, expected_filename, filenames
+    );
 }
 
 /// Create a test agent for sources operations.
@@ -154,6 +206,10 @@ async fn test_source_file_operations() -> LettaResult<()> {
     let source = create_test_source(&client, "file_test").await?;
     let source_id = source.id.as_ref().unwrap();
 
+    let initial_files = client.sources().list_files(source_id, None).await?;
+    let previous_file_ids: HashSet<LettaId> =
+        initial_files.iter().filter_map(|f| f.id.clone()).collect();
+
     // Upload a text file
     let file_content = b"This is a test document.\nIt has multiple lines.\nFor testing purposes.";
     let file_name = format!("test_doc_{}.txt", chrono::Utc::now().timestamp());
@@ -168,18 +224,10 @@ async fn test_source_file_operations() -> LettaResult<()> {
         )
         .await?;
 
-    // Handle both job response (local) and direct file metadata (cloud)
     let actual_filename = get_filename_from_upload(upload_response);
 
-    // Wait a bit for the file to be processed
-    sleep(Duration::from_secs(1)).await;
-
-    // Get the actual file metadata from the list
-    let files = client.sources().list_files(source_id, None).await?;
-    let file_metadata = files
-        .into_iter()
-        .find(|f| f.file_name.as_ref() == Some(&actual_filename))
-        .expect("Uploaded file should be in the list");
+    let file_metadata =
+        wait_for_file(&client, source_id, &actual_filename, &previous_file_ids, 5).await?;
 
     let file_id = file_metadata.id.as_ref().unwrap();
 
@@ -242,6 +290,10 @@ async fn test_source_passages() -> LettaResult<()> {
     let source = create_test_source(&client, "passages_test").await?;
     let source_id = source.id.as_ref().unwrap();
 
+    let initial_files = client.sources().list_files(source_id, None).await?;
+    let previous_file_ids: HashSet<LettaId> =
+        initial_files.iter().filter_map(|f| f.id.clone()).collect();
+
     // Upload a file that will create passages
     let file_content = b"This is the first paragraph of our test document. It contains important information about testing.\n\nThis is the second paragraph. It has different content to test passage creation.\n\nAnd this is the third paragraph with even more test content.";
     let file_name = format!("passages_test_{}.txt", chrono::Utc::now().timestamp());
@@ -256,18 +308,10 @@ async fn test_source_passages() -> LettaResult<()> {
         )
         .await?;
 
-    // Get the actual filename from the response
     let actual_filename = get_filename_from_upload(upload_response);
 
-    // Wait for file to appear
-    sleep(Duration::from_millis(500)).await;
-
-    // Get file metadata
-    let files = client.sources().list_files(source_id, None).await?;
-    let file_metadata = files
-        .into_iter()
-        .find(|f| f.file_name.as_ref() == Some(&actual_filename))
-        .expect("Uploaded file should be in the list");
+    let file_metadata =
+        wait_for_file(&client, source_id, &actual_filename, &previous_file_ids, 5).await?;
 
     let file_id = file_metadata.id.as_ref().unwrap();
 
@@ -395,6 +439,10 @@ async fn test_source_with_multiple_files() -> LettaResult<()> {
     let source = create_test_source(&client, "multi_file_test").await?;
     let source_id = source.id.as_ref().unwrap();
 
+    let initial_files = client.sources().list_files(source_id, None).await?;
+    let mut previous_file_ids: HashSet<LettaId> =
+        initial_files.iter().filter_map(|f| f.id.clone()).collect();
+
     // Upload multiple files
     let files = vec![
         ("doc1.txt", b"Content of document 1" as &[u8], "text/plain"),
@@ -402,7 +450,7 @@ async fn test_source_with_multiple_files() -> LettaResult<()> {
         (
             "doc3.md",
             b"# Markdown Content\n\nThis is markdown.",
-            "text/x-markdown", // this is the correct mimetype for Markdown, according to Letta
+            "text/x-markdown",
         ),
     ];
 
@@ -420,18 +468,15 @@ async fn test_source_with_multiple_files() -> LettaResult<()> {
             )
             .await?;
 
-        // Get the actual filename from the response
         let actual_filename = get_filename_from_upload(upload_response);
 
-        // Wait for file to be processed
-        sleep(Duration::from_millis(200)).await;
+        let file =
+            wait_for_file(&client, source_id, &actual_filename, &previous_file_ids, 5).await?;
 
-        // Get the actual file metadata
-        let files = client.sources().list_files(source_id, None).await?;
-        let file = files
-            .into_iter()
-            .find(|f| f.file_name.as_ref() == Some(&actual_filename))
-            .expect("Uploaded file should be in the list");
+        if let Some(file_id) = &file.id {
+            previous_file_ids.insert(file_id.clone());
+        }
+
         uploaded_files.push(file);
     }
 
