@@ -23,7 +23,7 @@ jobs:
 
         services:
             letta:
-                image: letta/letta-server:latest
+                image: letta/letta:latest
                 ports:
                     - 8283:8283
                 env:
