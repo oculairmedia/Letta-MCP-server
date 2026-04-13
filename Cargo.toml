@@ -12,7 +12,7 @@ resolver = "2"
 
 [workspace.dependencies]
 # Core async runtime
-tokio = { version = "1.49", features = ["macros", "rt-multi-thread", "io-util", "sync", "time", "fs"] }
+tokio = { version = "1.50", features = ["macros", "rt-multi-thread", "io-util", "sync", "time", "fs"] }
 futures = "0.3"
 
 # TurboMCP v3 (fork: oculairmedia/turbomcp, branch: v3-test, base: upstream v3.0.0-beta.5)
@@ -47,7 +47,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # Filesystem utilities
-tempfile = "3.26"
+tempfile = "3.27"
 
 [profile.release]
 opt-level = 3
