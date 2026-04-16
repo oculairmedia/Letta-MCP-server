@@ -9,6 +9,7 @@ on:
             - 'letta-types/**'
             - 'Cargo.toml'
             - 'Cargo.lock'
+            - 'deny.toml'
             - '.github/workflows/rust-test.yml'
     pull_request:
         branches: [rust-implementation, main, master]
@@ -18,6 +19,7 @@ on:
             - 'letta-types/**'
             - 'Cargo.toml'
             - 'Cargo.lock'
+            - 'deny.toml'
     workflow_call:
         # Allow this workflow to be called by other workflows
 
