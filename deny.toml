@@ -43,7 +43,12 @@ workspace-default-features = "allow"
 external-default-features = "allow"
 allow = []
 deny = []
-skip = []
+# Allow duplicate versions of these crates due to transitive dependencies
+skip = [
+    { name = "core-foundation" },
+    { name = "getrandom" },
+    { name = "hashbrown" },
+]
 skip-tree = []
 
 [sources]
