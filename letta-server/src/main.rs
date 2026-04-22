@@ -55,7 +55,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tracing::info!("🚀 Starting HTTP transport");
             tracing::info!("📡 Listening on: http://{}", addr);
             tracing::info!("🔗 Endpoint: http://{}/mcp", addr);
-            tracing::info!("⚠️  CORS: Allowing all origins (development mode)");
             tracing::info!("Ready for MCP client connections");
 
             server.run_http_custom(&addr).await?;

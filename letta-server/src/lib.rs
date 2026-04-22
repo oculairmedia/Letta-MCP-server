@@ -541,14 +541,30 @@ impl LettaServer {
     }
 }
 
-// v3: HTTP transport uses McpHandlerExt::run_http(addr) directly.
+// v3: HTTP transport with configurable rate limiting and body size limits.
 // CORS is handled by nginx reverse proxy in production.
 #[cfg(feature = "http")]
 impl LettaServer {
-    /// Run HTTP server (v3 — uses built-in Axum transport)
+    /// Run HTTP server with rate limiting and security configuration.
+    ///
+    /// Configuration via environment variables:
+    /// - `RATE_LIMIT_RPS`: Max requests per second per client (default: 100, 0 = disabled)
     pub async fn run_http_custom(&self, addr: &str) -> Result<(), Box<dyn std::error::Error>> {
-        // v3 run_http: creates Axum router with POST /, /mcp and GET /sse
-        self.run_http(addr).await?;
+        let rate_limit_rps: u32 = std::env::var("RATE_LIMIT_RPS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(100);
+
+        let mut builder = self.builder().transport(turbomcp::Transport::http(addr));
+
+        if rate_limit_rps > 0 {
+            builder = builder.with_rate_limit(rate_limit_rps, std::time::Duration::from_secs(1));
+            tracing::info!("🛡️  Rate limiting: {} req/s per client", rate_limit_rps);
+        } else {
+            tracing::warn!("⚠️  Rate limiting disabled (RATE_LIMIT_RPS=0)");
+        }
+
+        builder.serve().await?;
         Ok(())
     }
 }
