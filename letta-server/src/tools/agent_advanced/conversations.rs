@@ -73,8 +73,7 @@ pub(crate) async fn handle_send_conversation_message(
         request.messages,
         "messages is required for send_conversation_message",
     )?;
-    let letta_conversation_id =
-        require_id(Some(conversation_id.clone()), "conversation_id")?;
+    let letta_conversation_id = require_id(Some(conversation_id.clone()), "conversation_id")?;
 
     let message_values: Vec<Value> = messages
         .into_iter()
@@ -84,20 +83,17 @@ pub(crate) async fn handle_send_conversation_message(
     // The Letta conversation messages endpoint defaults to SSE streaming.
     // We drain the SSE stream ourselves and assemble a JSON response,
     // which bypasses the server-side non-streaming serialization bug.
-    let response_value = send_conversation_message_via_sse(
-        client,
-        &letta_conversation_id,
-        message_values,
-    )
-    .await
-    .map_err(|e| {
-        tracing::warn!(
-            "send_conversation_message failed for conv {}: {}",
-            conversation_id,
-            e
-        );
-        sdk_err("send conversation message", e)
-    })?;
+    let response_value =
+        send_conversation_message_via_sse(client, &letta_conversation_id, message_values)
+            .await
+            .map_err(|e| {
+                tracing::warn!(
+                    "send_conversation_message failed for conv {}: {}",
+                    conversation_id,
+                    e
+                );
+                sdk_err("send conversation message", e)
+            })?;
 
     Ok(StandardResponse::success(
         "send_conversation_message",
@@ -178,8 +174,12 @@ async fn send_conversation_message_via_sse(
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
             match msg_type {
-                "assistant_message" | "tool_call_message" | "tool_return_message"
-                | "reasoning_message" | "user_message" | "system_message" => {
+                "assistant_message"
+                | "tool_call_message"
+                | "tool_return_message"
+                | "reasoning_message"
+                | "user_message"
+                | "system_message" => {
                     collected_messages.push(val);
                 }
                 "stop_reason" => {

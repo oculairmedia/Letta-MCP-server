@@ -1,7 +1,7 @@
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use futures::StreamExt;
-use letta::api::messages::StreamingEvent;
 use letta::LettaClient;
+use letta::api::messages::StreamingEvent;
 use letta_types::StandardResponse;
 use turbomcp::McpError;
 
@@ -37,19 +37,18 @@ pub(crate) async fn handle_send_message(
     // serialization bug (returns 500 after successful processing).
     // Drain the SSE stream and assemble the response ourselves — same
     // pattern LettaBot's session.stream() uses in production.
-    let mut response_value = match send_message_via_stream(client, &letta_id, messages_request)
-        .await
-    {
-        Ok(value) => value,
-        Err(e) => {
-            tracing::warn!(
-                "Streaming send_message failed for agent {}, error: {}",
-                agent_id,
-                e
-            );
-            return Err(sdk_err("send message", e));
-        }
-    };
+    let mut response_value =
+        match send_message_via_stream(client, &letta_id, messages_request).await {
+            Ok(value) => value,
+            Err(e) => {
+                tracing::warn!(
+                    "Streaming send_message failed for agent {}, error: {}",
+                    agent_id,
+                    e
+                );
+                return Err(sdk_err("send message", e));
+            }
+        };
 
     if !verbose {
         if let Some(messages) = response_value
