@@ -123,13 +123,15 @@ async fn send_conversation_message_via_sse(
         "streaming": true,
     });
 
+    use reqwest::header::{ACCEPT, CONTENT_TYPE};
+
     let mut headers = HeaderMap::new();
     client
         .auth()
         .apply_to_headers(&mut headers)
         .map_err(|e| format!("Auth error: {}", e))?;
-    headers.insert("Content-Type", "application/json".parse().unwrap());
-    headers.insert("Accept", "text/event-stream".parse().unwrap());
+    headers.insert(CONTENT_TYPE, reqwest::header::HeaderValue::from_static("application/json"));
+    headers.insert(ACCEPT, reqwest::header::HeaderValue::from_static("text/event-stream"));
 
     let response = client
         .http()

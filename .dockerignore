@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+target
+rust/target
+
+# CI/CD
+.github
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# IDE/Editor
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+
+# Documentation
+*.md
+LICENSE
+
+# Tests and dev tooling
+coverage
+mutants.out
+.beads
+.dolt
+.serena
+.opencode
+.vibesync-cache
+.letta
+
+# Node.js (wrapper package)
+node_modules
+
+# Misc
+*.backup
+*.orig
+*.rej
+.git-rewrite
+*.db
+.beads-credential-key

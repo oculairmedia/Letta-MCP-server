@@ -23,11 +23,11 @@ on:
             - 'Cargo.lock'
             - 'Dockerfile.rust'
             - 'docker-compose.rust.yml'
-    workflow_run:
-        workflows: ['Rust Tests']
-        types: [completed]
-        branches: [rust-implementation, 'fork/**']
     workflow_call:
+
+concurrency:
+    group: docker-${{ github.ref }}
+    cancel-in-progress: false
 
 env:
     IMAGE: ghcr.io/oculairmedia/letta-mcp-server-rust
