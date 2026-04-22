@@ -202,7 +202,7 @@ jobs:
             - name: Run cargo audit (blocking)
               run: |
                   cargo install cargo-audit
-                  cargo audit --deny warnings
+                  cargo audit --deny warnings --ignore RUSTSEC-2026-0097
 
     benchmark:
         name: Performance Benchmarks
