@@ -122,8 +122,9 @@ impl<'a> ConversationApi<'a> {
         conversation_id: &LettaId,
         request: ConversationMessageRequest,
     ) -> LettaResult<LettaResponse> {
+        // Non-idempotent: avoid retry to prevent duplicate message processing.
         self.client
-            .post(
+            .post_no_retry(
                 &endpoints::conversations::messages(conversation_id),
                 &request,
             )

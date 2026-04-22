@@ -79,8 +79,11 @@ impl<'a> MessageApi<'a> {
         agent_id: &LettaId,
         request: CreateMessagesRequest,
     ) -> LettaResult<LettaResponse> {
+        // Use post_no_retry: sending messages is non-idempotent — retrying on
+        // transient server errors (e.g. 500 during response serialization) would
+        // create duplicate messages on the agent.
         self.client
-            .post(&endpoints::agents::messages::send(agent_id), &request)
+            .post_no_retry(&endpoints::agents::messages::send(agent_id), &request)
             .await
     }
 
@@ -294,8 +297,9 @@ impl<'a> MessageApi<'a> {
         agent_id: &LettaId,
         request: CreateMessagesRequest,
     ) -> LettaResult<crate::types::Run> {
+        // Non-idempotent: avoid retry to prevent duplicate message processing.
         self.client
-            .post(&endpoints::agents::messages::send_async(agent_id), &request)
+            .post_no_retry(&endpoints::agents::messages::send_async(agent_id), &request)
             .await
     }
 

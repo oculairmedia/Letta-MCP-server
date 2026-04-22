@@ -648,6 +648,51 @@ impl LettaClient {
         .await
     }
 
+    /// Make a POST request with a JSON body **without retry**.
+    ///
+    /// Use this for non-idempotent mutations (e.g. sending messages) where retrying
+    /// on transient failures would create duplicate side effects.
+    #[tracing::instrument(skip(self, body), fields(path = %path))]
+    pub async fn post_no_retry<T, B>(&self, path: &str, body: &B) -> LettaResult<T>
+    where
+        T: serde::de::DeserializeOwned,
+        B: serde::Serialize + ?Sized,
+    {
+        let url = self.base_url().join(path.trim_start_matches('/'))?;
+
+        let mut headers = HeaderMap::new();
+        self.auth().apply_to_headers(&mut headers)?;
+        headers.insert(
+            "Content-Type",
+            "application/json"
+                .parse()
+                .map_err(|_| LettaError::config("Failed to parse Content-Type header"))?,
+        );
+
+        let response = self
+            .http()
+            .post(url.clone())
+            .headers(headers)
+            .json(body)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let headers = response.headers().clone();
+            let body = response.text().await?;
+            return Err(LettaError::from_response_with_context(
+                status,
+                body,
+                Some(&headers),
+                Some(url.clone()),
+                Some("POST".to_string()),
+            ));
+        }
+
+        self.guarded_json(response, &url, "POST").await
+    }
+
     /// Send a POST request with additional headers and deserialize the JSON response.
     #[tracing::instrument(skip(self, body, extra_headers), fields(path = %path))]
     pub async fn post_with_headers<T, B>(

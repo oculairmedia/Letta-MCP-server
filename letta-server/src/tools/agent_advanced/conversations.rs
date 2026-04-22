@@ -66,48 +66,144 @@ pub(crate) async fn handle_send_conversation_message(
     request: AgentAdvancedRequest,
 ) -> Result<StandardResponse, McpError> {
     let conversation_id = require_field(
-        request.conversation_id,
+        request.conversation_id.clone(),
         "conversation_id is required for send_conversation_message",
     )?;
     let messages = require_field(
         request.messages,
         "messages is required for send_conversation_message",
     )?;
-    let letta_conversation_id = require_id(Some(conversation_id), "conversation_id")?;
+    let letta_conversation_id =
+        require_id(Some(conversation_id.clone()), "conversation_id")?;
 
     let message_values: Vec<Value> = messages
         .into_iter()
         .map(|m| serde_json::json!({ "role": m.role, "content": m.content }))
         .collect();
 
-    let message_request = letta::types::ConversationMessageRequest {
-        messages: Some(Value::Array(message_values)),
-        input: None,
-        max_steps: None,
-        use_assistant_message: None,
-        assistant_message_tool_name: None,
-        assistant_message_tool_kwarg: None,
-        include_return_message_types: None,
-        enable_thinking: None,
-        client_tools: None,
-        override_model: None,
-        streaming: request.stream,
-        stream_tokens: None,
-        include_pings: None,
-        background: None,
-    };
-
-    let response = client
-        .conversations()
-        .send_message(&letta_conversation_id, message_request)
-        .await
-        .map_err(|e| sdk_err("send conversation message", e))?;
+    // The Letta conversation messages endpoint defaults to SSE streaming.
+    // We drain the SSE stream ourselves and assemble a JSON response,
+    // which bypasses the server-side non-streaming serialization bug.
+    let response_value = send_conversation_message_via_sse(
+        client,
+        &letta_conversation_id,
+        message_values,
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!(
+            "send_conversation_message failed for conv {}: {}",
+            conversation_id,
+            e
+        );
+        sdk_err("send conversation message", e)
+    })?;
 
     Ok(StandardResponse::success(
         "send_conversation_message",
-        serde_json::to_value(response)?,
+        response_value,
         "Conversation message sent successfully",
     ))
+}
+
+/// Send a conversation message by POSTing directly and draining the SSE
+/// response.  The conversation messages endpoint defaults to streaming,
+/// so we accept the SSE and reassemble it into JSON rather than fighting
+/// the content-type mismatch.
+async fn send_conversation_message_via_sse(
+    client: &LettaClient,
+    conversation_id: &letta::types::LettaId,
+    message_values: Vec<Value>,
+) -> Result<serde_json::Value, String> {
+    use reqwest::header::HeaderMap;
+
+    let url = client
+        .base_url()
+        .join(&format!("v1/conversations/{}/messages", conversation_id))
+        .map_err(|e| format!("Bad URL: {}", e))?;
+
+    let body = serde_json::json!({
+        "messages": message_values,
+        "streaming": true,
+    });
+
+    let mut headers = HeaderMap::new();
+    client
+        .auth()
+        .apply_to_headers(&mut headers)
+        .map_err(|e| format!("Auth error: {}", e))?;
+    headers.insert("Content-Type", "application/json".parse().unwrap());
+    headers.insert("Accept", "text/event-stream".parse().unwrap());
+
+    let response = client
+        .http()
+        .post(url)
+        .headers(headers)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("HTTP error: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status().as_u16();
+        let body_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "unknown".to_string());
+        return Err(format!("API error {}: {}", status, body_text));
+    }
+
+    // Read the full SSE body and parse events manually.
+    // SSE format: "data: {json}\n\n" per event, with optional "event: type\n".
+    let body_text = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read SSE body: {}", e))?;
+
+    let mut collected_messages: Vec<serde_json::Value> = Vec::new();
+    let mut stop_reason: Option<serde_json::Value> = None;
+
+    for line in body_text.lines() {
+        let line = line.trim();
+        if !line.starts_with("data: ") {
+            continue;
+        }
+        let data = &line[6..]; // strip "data: "
+        if data.is_empty() || data == "[DONE]" {
+            continue;
+        }
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(data) {
+            let msg_type = val
+                .get("message_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            match msg_type {
+                "assistant_message" | "tool_call_message" | "tool_return_message"
+                | "reasoning_message" | "user_message" | "system_message" => {
+                    collected_messages.push(val);
+                }
+                "stop_reason" => {
+                    stop_reason = Some(val);
+                }
+                "error_message" => {
+                    tracing::debug!("Conversation stream cleanup error: {}", data);
+                }
+                _ => {
+                    // pings, unknown types — skip
+                }
+            }
+        }
+    }
+
+    if collected_messages.is_empty() {
+        return Err("Stream completed without returning any messages".to_string());
+    }
+
+    Ok(serde_json::json!({
+        "messages": collected_messages,
+        "stop_reason": stop_reason.unwrap_or(serde_json::json!({"stop_reason": "end_turn"})),
+        "usage": {},
+    }))
 }
 
 pub(crate) async fn handle_cancel_conversation(
