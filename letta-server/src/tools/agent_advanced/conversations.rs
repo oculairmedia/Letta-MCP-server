@@ -130,8 +130,14 @@ async fn send_conversation_message_via_sse(
         .auth()
         .apply_to_headers(&mut headers)
         .map_err(|e| format!("Auth error: {}", e))?;
-    headers.insert(CONTENT_TYPE, reqwest::header::HeaderValue::from_static("application/json"));
-    headers.insert(ACCEPT, reqwest::header::HeaderValue::from_static("text/event-stream"));
+    headers.insert(
+        CONTENT_TYPE,
+        reqwest::header::HeaderValue::from_static("application/json"),
+    );
+    headers.insert(
+        ACCEPT,
+        reqwest::header::HeaderValue::from_static("text/event-stream"),
+    );
 
     let response = client
         .http()

@@ -555,7 +555,7 @@ impl LettaServer {
             .and_then(|v| v.parse().ok())
             .unwrap_or(100);
 
-        let mut builder = self.builder().transport(turbomcp::Transport::http(addr));
+        let mut builder = self.clone().builder().transport(turbomcp::Transport::http(addr));
 
         if rate_limit_rps > 0 {
             builder = builder.with_rate_limit(rate_limit_rps, std::time::Duration::from_secs(1));
