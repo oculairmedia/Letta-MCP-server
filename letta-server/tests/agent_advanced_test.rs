@@ -292,10 +292,7 @@ fn test_parse_get_conversation() {
     });
 
     let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
-    assert!(matches!(
-        request.operation,
-        AgentOperation::GetConversation
-    ));
+    assert!(matches!(request.operation, AgentOperation::GetConversation));
     assert_eq!(request.conversation_id.unwrap(), "conv-abcdef");
 }
 
@@ -541,8 +538,12 @@ mod sse_parsing {
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
                 match msg_type {
-                    "assistant_message" | "tool_call_message" | "tool_return_message"
-                    | "reasoning_message" | "user_message" | "system_message" => {
+                    "assistant_message"
+                    | "tool_call_message"
+                    | "tool_return_message"
+                    | "reasoning_message"
+                    | "user_message"
+                    | "system_message" => {
                         collected_messages.push(val);
                     }
                     "stop_reason" => {
@@ -621,9 +622,11 @@ data: [DONE]\n";
         let sse_body = "data: [DONE]\n";
         let result = parse_sse_body(sse_body);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .contains("without returning any messages"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("without returning any messages")
+        );
     }
 
     #[test]
