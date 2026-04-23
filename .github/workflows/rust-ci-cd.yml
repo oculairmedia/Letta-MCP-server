@@ -9,7 +9,9 @@ on:
             - 'letta-types/**'
             - 'Cargo.toml'
             - 'Cargo.lock'
-            - '.github/workflows/rust-*.yml'
+            - '.github/workflows/rust-ci-cd.yml'
+            - '.github/workflows/rust-test.yml'
+            - '.github/workflows/rust-docker-build.yml'
     pull_request:
         branches: [rust-implementation, main, master]
         paths:
@@ -18,7 +20,9 @@ on:
             - 'letta-types/**'
             - 'Cargo.toml'
             - 'Cargo.lock'
-            - '.github/workflows/rust-*.yml'
+            - '.github/workflows/rust-ci-cd.yml'
+            - '.github/workflows/rust-test.yml'
+            - '.github/workflows/rust-docker-build.yml'
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
