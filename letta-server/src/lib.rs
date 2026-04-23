@@ -561,8 +561,7 @@ impl LettaServer {
             .transport(turbomcp::Transport::http(addr));
 
         if rate_limit_rps > 0 {
-            builder =
-                builder.with_rate_limit(rate_limit_rps, std::time::Duration::from_secs(1));
+            builder = builder.with_rate_limit(rate_limit_rps, std::time::Duration::from_secs(1));
             tracing::info!("🛡️  Rate limiting: {} req/s per client", rate_limit_rps);
         } else {
             tracing::warn!("⚠️  Rate limiting disabled (RATE_LIMIT_RPS=0)");
