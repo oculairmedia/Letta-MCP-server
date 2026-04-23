@@ -41,7 +41,10 @@ jobs:
                       ${{ runner.os }}-mutants-
 
             - name: Install cargo-mutants
-              run: cargo install cargo-mutants --locked
+              run: |
+                  if ! command -v cargo-mutants &>/dev/null; then
+                    cargo install cargo-mutants --locked
+                  fi
 
             - name: Run mutation testing (letta-server)
               run: |
