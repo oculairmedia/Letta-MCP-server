@@ -439,7 +439,10 @@ mod tests {
         unsafe {
             env::remove_var(limits::ENV_CORE_MEMORY_PREVIEW_LEN);
         }
-        assert_eq!(limits::core_memory_preview_len(), limits::DEFAULT_CORE_MEMORY_PREVIEW_LEN);
+        assert_eq!(
+            limits::core_memory_preview_len(),
+            limits::DEFAULT_CORE_MEMORY_PREVIEW_LEN
+        );
     }
 
     #[test]

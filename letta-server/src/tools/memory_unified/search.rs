@@ -28,20 +28,27 @@ pub(crate) async fn handle_search_memory(
     let (archival_result, messages_result) = match source {
         SearchSource::Both => {
             let (arch, msgs) = tokio::join!(
-                search_archival_memory(client, &letta_id, &query, limit, verbose, start_date, end_date),
-                search_messages(client, &letta_id, &query, limit, verbose, start_date, end_date)
+                search_archival_memory(
+                    client, &letta_id, &query, limit, verbose, start_date, end_date
+                ),
+                search_messages(
+                    client, &letta_id, &query, limit, verbose, start_date, end_date
+                )
             );
             (Some(arch?), Some(msgs?))
         }
         SearchSource::Archival => {
-            let arch =
-                search_archival_memory(client, &letta_id, &query, limit, verbose, start_date, end_date)
-                    .await?;
+            let arch = search_archival_memory(
+                client, &letta_id, &query, limit, verbose, start_date, end_date,
+            )
+            .await?;
             (Some(arch), None)
         }
         SearchSource::Messages => {
-            let msgs =
-                search_messages(client, &letta_id, &query, limit, verbose, start_date, end_date).await?;
+            let msgs = search_messages(
+                client, &letta_id, &query, limit, verbose, start_date, end_date,
+            )
+            .await?;
             (None, Some(msgs))
         }
     };

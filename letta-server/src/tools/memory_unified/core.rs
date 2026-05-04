@@ -89,7 +89,10 @@ pub(crate) async fn handle_update_core_memory(
 
     let mut block_value = serde_json::to_value(updated_block)?;
     if !verbose {
-        crate::tools::memory_utils::truncate_block_value(&mut block_value, core_memory_preview_len());
+        crate::tools::memory_utils::truncate_block_value(
+            &mut block_value,
+            core_memory_preview_len(),
+        );
     }
 
     Ok(ToolResponse::success(

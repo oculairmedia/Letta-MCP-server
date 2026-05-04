@@ -29,9 +29,9 @@ pub(crate) async fn handle_get_block_by_label(
         .map_err(|e| sdk_err("get block by label", e))?;
 
     let mut block_value = serde_json::to_value(block)?;
-if !verbose {
-            truncate_block_value(&mut block_value, max_value_len());
-        }
+    if !verbose {
+        truncate_block_value(&mut block_value, max_value_len());
+    }
 
     Ok(ToolResponse::success(
         "get_block_by_label",
@@ -115,9 +115,9 @@ pub(crate) async fn handle_create_block(
 
     let block_id = block.id.as_ref().map(|id| id.to_string());
     let mut block_value = serde_json::to_value(block)?;
-if !verbose {
-            truncate_block_value(&mut block_value, max_value_len());
-        }
+    if !verbose {
+        truncate_block_value(&mut block_value, max_value_len());
+    }
 
     Ok(
         ToolResponse::success("create_block", "Block created successfully")
@@ -141,9 +141,9 @@ pub(crate) async fn handle_get_block(
         .map_err(|e| sdk_err("get block", e))?;
 
     let mut block_value = serde_json::to_value(block)?;
-if !verbose {
-            truncate_block_value(&mut block_value, max_value_len());
-        }
+    if !verbose {
+        truncate_block_value(&mut block_value, max_value_len());
+    }
 
     Ok(
         ToolResponse::success("get_block", "Block retrieved successfully")
@@ -179,9 +179,9 @@ pub(crate) async fn handle_update_block(
         .map_err(|e| sdk_err("update block", e))?;
 
     let mut block_value = serde_json::to_value(block)?;
-if !verbose {
-            truncate_block_value(&mut block_value, max_value_len());
-        }
+    if !verbose {
+        truncate_block_value(&mut block_value, max_value_len());
+    }
 
     Ok(
         ToolResponse::success("update_block", "Block updated successfully")
