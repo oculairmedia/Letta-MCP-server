@@ -607,3 +607,24 @@ mod edge_cases {
         assert_eq!(summary.label, long_label);
     }
 }
+
+// Truncation Limits Integration Tests
+// ============================================================
+
+#[test]
+fn test_truncation_limits_env_configurable() {
+    use letta_server::tools::response_utils::limits;
+
+    // Test default values (environment-agnostic)
+    assert_eq!(limits::DEFAULT_MAX_VALUE_LEN, 500);
+    assert_eq!(limits::max_value_len(), 500);
+}
+
+#[test]
+fn test_core_memory_preview_len_env_configurable() {
+    use letta_server::tools::response_utils::limits;
+
+    // Test default values
+    assert_eq!(limits::DEFAULT_CORE_MEMORY_PREVIEW_LEN, 200);
+    assert_eq!(limits::core_memory_preview_len(), 200);
+}
