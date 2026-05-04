@@ -1,12 +1,11 @@
 use crate::tools::memory_utils::{BlockSummary, truncate_block_value};
+use crate::tools::response_utils::limits::max_value_len;
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use turbomcp::McpError;
 
 use super::MemoryUnifiedRequest;
 use crate::tools::response_utils::ToolResponse;
-
-const BLOCK_VALUE_TRUNCATE_LEN: usize = 500;
 
 pub(crate) async fn handle_get_block_by_label(
     client: &LettaClient,
@@ -30,9 +29,9 @@ pub(crate) async fn handle_get_block_by_label(
         .map_err(|e| sdk_err("get block by label", e))?;
 
     let mut block_value = serde_json::to_value(block)?;
-    if !verbose {
-        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
-    }
+if !verbose {
+            truncate_block_value(&mut block_value, max_value_len());
+        }
 
     Ok(ToolResponse::success(
         "get_block_by_label",
@@ -116,9 +115,9 @@ pub(crate) async fn handle_create_block(
 
     let block_id = block.id.as_ref().map(|id| id.to_string());
     let mut block_value = serde_json::to_value(block)?;
-    if !verbose {
-        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
-    }
+if !verbose {
+            truncate_block_value(&mut block_value, max_value_len());
+        }
 
     Ok(
         ToolResponse::success("create_block", "Block created successfully")
@@ -142,9 +141,9 @@ pub(crate) async fn handle_get_block(
         .map_err(|e| sdk_err("get block", e))?;
 
     let mut block_value = serde_json::to_value(block)?;
-    if !verbose {
-        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
-    }
+if !verbose {
+            truncate_block_value(&mut block_value, max_value_len());
+        }
 
     Ok(
         ToolResponse::success("get_block", "Block retrieved successfully")
@@ -180,9 +179,9 @@ pub(crate) async fn handle_update_block(
         .map_err(|e| sdk_err("update block", e))?;
 
     let mut block_value = serde_json::to_value(block)?;
-    if !verbose {
-        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
-    }
+if !verbose {
+            truncate_block_value(&mut block_value, max_value_len());
+        }
 
     Ok(
         ToolResponse::success("update_block", "Block updated successfully")

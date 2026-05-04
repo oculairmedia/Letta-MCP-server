@@ -13,6 +13,14 @@ use serde_json::Value;
 
 /// Default limits for response truncation
 pub mod limits {
+    use std::env;
+    use tracing::warn;
+
+    /// Environment variable name for maximum value/truncation length
+    pub const ENV_MAX_VALUE_LEN: &str = "LETTA_MCP_MAX_VALUE_LEN";
+    /// Environment variable name for core memory preview length
+    pub const ENV_CORE_MEMORY_PREVIEW_LEN: &str = "LETTA_MCP_CORE_MEMORY_PREVIEW_LEN";
+
     /// Maximum characters for description previews
     pub const DESCRIPTION_PREVIEW: usize = 100;
     /// Maximum characters for short descriptions (e.g., tool descriptions)
@@ -31,6 +39,41 @@ pub mod limits {
     pub const VALUE_PREVIEW: usize = 100;
     /// Maximum characters for text previews in passages
     pub const PASSAGE_TEXT_PREVIEW: usize = 200;
+
+    /// Default truncation length for block/passage/search values (500 chars)
+    pub const DEFAULT_MAX_VALUE_LEN: usize = 500;
+    /// Default truncation length for core memory previews (200 chars)
+    pub const DEFAULT_CORE_MEMORY_PREVIEW_LEN: usize = 200;
+
+    /// Get max value truncation length from env var or default.
+    /// Reads LETTA_MCP_MAX_VALUE_LEN env var. Invalid values fall back to DEFAULT_MAX_VALUE_LEN.
+    pub fn max_value_len() -> usize {
+        read_env_usize(ENV_MAX_VALUE_LEN, DEFAULT_MAX_VALUE_LEN)
+    }
+
+    /// Get core memory preview length from env var or default.
+    /// Reads LETTA_MCP_CORE_MEMORY_PREVIEW_LEN env var. Invalid values fall back to DEFAULT_CORE_MEMORY_PREVIEW_LEN.
+    pub fn core_memory_preview_len() -> usize {
+        read_env_usize(ENV_CORE_MEMORY_PREVIEW_LEN, DEFAULT_CORE_MEMORY_PREVIEW_LEN)
+    }
+
+    /// Read a usize env var with fallback.
+    /// Returns fallback if env var is not set or invalid.
+    fn read_env_usize(name: &str, fallback: usize) -> usize {
+        match env::var(name) {
+            Ok(val) => match val.parse() {
+                Ok(val) => val,
+                Err(e) => {
+                    warn!(
+                        "Invalid value for {}='{}': {}. Using default {}",
+                        name, val, e, fallback
+                    );
+                    fallback
+                }
+            },
+            Err(_) => fallback,
+        }
+    }
 }
 
 // ===================================================

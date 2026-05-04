@@ -1,3 +1,4 @@
+use crate::tools::response_utils::limits::max_value_len;
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use chrono::{DateTime, Utc};
 use letta::LettaClient;
@@ -16,6 +17,7 @@ pub(crate) async fn handle_search_memory(
 ) -> Result<ToolResponse, McpError> {
     let agent_id = require_field(request.agent_id, "agent_id is required for search_memory")?;
     let query = require_field(request.query, "query is required for search_memory")?;
+    let verbose = request.verbose.unwrap_or(false);
     let letta_id = require_id(Some(agent_id.clone()), "agent_id")?;
 
     let source = request.source.unwrap_or_default();
@@ -25,22 +27,21 @@ pub(crate) async fn handle_search_memory(
 
     let (archival_result, messages_result) = match source {
         SearchSource::Both => {
-            // Fan-out: archival + messages search in parallel
             let (arch, msgs) = tokio::join!(
-                search_archival_memory(client, &letta_id, &query, limit, start_date, end_date),
-                search_messages(client, &letta_id, &query, limit, start_date, end_date)
+                search_archival_memory(client, &letta_id, &query, limit, verbose, start_date, end_date),
+                search_messages(client, &letta_id, &query, limit, verbose, start_date, end_date)
             );
             (Some(arch?), Some(msgs?))
         }
         SearchSource::Archival => {
             let arch =
-                search_archival_memory(client, &letta_id, &query, limit, start_date, end_date)
+                search_archival_memory(client, &letta_id, &query, limit, verbose, start_date, end_date)
                     .await?;
             (Some(arch), None)
         }
         SearchSource::Messages => {
             let msgs =
-                search_messages(client, &letta_id, &query, limit, start_date, end_date).await?;
+                search_messages(client, &letta_id, &query, limit, verbose, start_date, end_date).await?;
             (None, Some(msgs))
         }
     };
@@ -68,6 +69,7 @@ async fn search_archival_memory(
     agent_id: &letta::types::LettaId,
     query: &str,
     limit: usize,
+    verbose: bool,
     start_date: Option<DateTime<Utc>>,
     end_date: Option<DateTime<Utc>>,
 ) -> Result<ArchivalSearchResult, McpError> {
@@ -112,7 +114,9 @@ async fn search_archival_memory(
         passage_obj.remove("embedding");
 
         let mut passage_val = Value::Object(passage_obj);
-        crate::tools::memory_utils::truncate_passage_text(&mut passage_val, 500);
+        if !verbose {
+            crate::tools::memory_utils::truncate_passage_text(&mut passage_val, max_value_len());
+        }
         filtered_passages.push(passage_val);
     }
 
@@ -128,6 +132,7 @@ async fn search_messages(
     agent_id: &letta::types::LettaId,
     query: &str,
     limit: usize,
+    verbose: bool,
     start_date: Option<DateTime<Utc>>,
     end_date: Option<DateTime<Utc>>,
 ) -> Result<MessageSearchResult, McpError> {
@@ -177,8 +182,8 @@ async fn search_messages(
                 }
             }
             if content.to_lowercase().contains(&query_lower) {
-                let truncated_content = if content.len() > 500 {
-                    crate::tools::response_utils::truncate_preview(&content, 500)
+                let message_content = if !verbose && content.len() > max_value_len() {
+                    crate::tools::response_utils::truncate_preview(&content, max_value_len())
                 } else {
                     content
                 };
@@ -187,7 +192,7 @@ async fn search_messages(
                     id,
                     date,
                     message_type,
-                    content: truncated_content,
+                    content: message_content,
                 });
 
                 if matching_messages.len() >= limit {
