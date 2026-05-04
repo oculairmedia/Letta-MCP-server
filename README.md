@@ -87,6 +87,8 @@ services:
 | `PORT` | No | `6507` | HTTP port (when `TRANSPORT=http`) |
 | `RUST_LOG` | No | `info` | Log level: `debug`, `info`, `warn`, `error` |
 | `RUST_BACKTRACE` | No | `0` | Enable backtraces (`0` or `1`) |
+| `LETTA_MCP_MAX_VALUE_LEN` | No | `500` | Max characters for block/passages/search values |
+| `LETTA_MCP_CORE_MEMORY_PREVIEW_LEN` | No | `200` | Max characters for core memory previews |
 
 ## Available Tools
 

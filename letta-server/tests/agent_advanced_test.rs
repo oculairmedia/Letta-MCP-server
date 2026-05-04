@@ -194,14 +194,15 @@ fn test_parse_clone_operation() {
 #[test]
 fn test_all_operations_parse() {
     let operations = vec![
+        // CRUD
         "list",
         "create",
         "get",
         "update",
         "delete",
         "search",
+        // Management
         "list_tools",
-        "send_message",
         "export",
         "import",
         "clone",
@@ -210,6 +211,8 @@ fn test_all_operations_parse() {
         "context",
         "reset_messages",
         "summarize",
+        // Messaging
+        "send_message",
         "stream",
         "async_message",
         "cancel_message",
@@ -217,6 +220,12 @@ fn test_all_operations_parse() {
         "search_messages",
         "get_message",
         "count",
+        // Conversations
+        "list_conversations",
+        "get_conversation",
+        "send_conversation_message",
+        "cancel_conversation",
+        "compact_conversation",
     ];
 
     for op in operations {
@@ -234,6 +243,85 @@ fn test_invalid_operation_fails() {
 
     let result: Result<AgentAdvancedRequest, _> = serde_json::from_value(json_input);
     assert!(result.is_err(), "Should fail on invalid operation");
+}
+
+// ============================================================
+// Conversation Operation Parsing Tests
+// ============================================================
+
+#[test]
+fn test_parse_send_conversation_message() {
+    let json_input = json!({
+        "operation": "send_conversation_message",
+        "agent_id": "agent-12345",
+        "conversation_id": "conv-67890",
+        "messages": [
+            {"role": "user", "content": "Hello from conversation!"}
+        ]
+    });
+
+    let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(
+        request.operation,
+        AgentOperation::SendConversationMessage
+    ));
+    assert_eq!(request.conversation_id.unwrap(), "conv-67890");
+    assert!(request.messages.is_some());
+}
+
+#[test]
+fn test_parse_list_conversations() {
+    let json_input = json!({
+        "operation": "list_conversations",
+        "agent_id": "agent-12345"
+    });
+
+    let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(
+        request.operation,
+        AgentOperation::ListConversations
+    ));
+    assert_eq!(request.agent_id.unwrap(), "agent-12345");
+}
+
+#[test]
+fn test_parse_get_conversation() {
+    let json_input = json!({
+        "operation": "get_conversation",
+        "conversation_id": "conv-abcdef"
+    });
+
+    let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(request.operation, AgentOperation::GetConversation));
+    assert_eq!(request.conversation_id.unwrap(), "conv-abcdef");
+}
+
+#[test]
+fn test_parse_compact_conversation() {
+    let json_input = json!({
+        "operation": "compact_conversation",
+        "conversation_id": "conv-12345"
+    });
+
+    let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(
+        request.operation,
+        AgentOperation::CompactConversation
+    ));
+}
+
+#[test]
+fn test_parse_cancel_conversation() {
+    let json_input = json!({
+        "operation": "cancel_conversation",
+        "conversation_id": "conv-12345"
+    });
+
+    let request: AgentAdvancedRequest = serde_json::from_value(json_input).unwrap();
+    assert!(matches!(
+        request.operation,
+        AgentOperation::CancelConversation
+    ));
 }
 
 // ============================================================
@@ -415,6 +503,202 @@ mod truncation {
 
         assert!(result.len() < long_system.len());
         assert!(result.contains("truncated"));
+    }
+}
+
+// ============================================================
+// SSE Response Parsing Tests
+// ============================================================
+//
+// These tests verify the SSE parsing logic that works around the
+// Letta server's non-streaming response serialization bug.
+// See: letta-MCP-server-dpg
+
+mod sse_parsing {
+    use serde_json::json;
+
+    /// Replicates the SSE parsing logic from conversations.rs
+    /// to test it in isolation without HTTP dependencies.
+    fn parse_sse_body(body_text: &str) -> Result<serde_json::Value, String> {
+        let mut collected_messages: Vec<serde_json::Value> = Vec::new();
+        let mut stop_reason: Option<serde_json::Value> = None;
+
+        for line in body_text.lines() {
+            let line = line.trim();
+            if !line.starts_with("data: ") {
+                continue;
+            }
+            let data = &line[6..];
+            if data.is_empty() || data == "[DONE]" {
+                continue;
+            }
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(data) {
+                let msg_type = val
+                    .get("message_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                match msg_type {
+                    "assistant_message"
+                    | "tool_call_message"
+                    | "tool_return_message"
+                    | "reasoning_message"
+                    | "user_message"
+                    | "system_message" => {
+                        collected_messages.push(val);
+                    }
+                    "stop_reason" => {
+                        stop_reason = Some(val);
+                    }
+                    "error_message" => {
+                        // Non-fatal cleanup errors from the server
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        if collected_messages.is_empty() {
+            return Err("Stream completed without returning any messages".to_string());
+        }
+
+        Ok(json!({
+            "messages": collected_messages,
+            "stop_reason": stop_reason.unwrap_or(json!({"stop_reason": "end_turn"})),
+            "usage": {},
+        }))
+    }
+
+    #[test]
+    fn test_parse_normal_sse_response() {
+        let sse_body = "\
+data: {\"message_type\": \"assistant_message\", \"text\": \"Hello!\"}\n\
+\n\
+data: {\"message_type\": \"stop_reason\", \"stop_reason\": \"end_turn\"}\n\
+\n\
+data: [DONE]\n";
+
+        let result = parse_sse_body(sse_body).unwrap();
+        let messages = result["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0]["text"], "Hello!");
+    }
+
+    #[test]
+    fn test_parse_multi_message_sse() {
+        let sse_body = "\
+data: {\"message_type\": \"reasoning_message\", \"text\": \"thinking...\"}\n\
+\n\
+data: {\"message_type\": \"tool_call_message\", \"text\": \"calling tool\"}\n\
+\n\
+data: {\"message_type\": \"tool_return_message\", \"text\": \"tool result\"}\n\
+\n\
+data: {\"message_type\": \"assistant_message\", \"text\": \"Here is the answer.\"}\n\
+\n\
+data: [DONE]\n";
+
+        let result = parse_sse_body(sse_body).unwrap();
+        let messages = result["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 4);
+    }
+
+    #[test]
+    fn test_parse_sse_with_error_message_non_fatal() {
+        // Server cleanup errors should be silently skipped
+        let sse_body = "\
+data: {\"message_type\": \"assistant_message\", \"text\": \"Response\"}\n\
+\n\
+data: {\"message_type\": \"error_message\", \"text\": \"cleanup error\"}\n\
+\n\
+data: [DONE]\n";
+
+        let result = parse_sse_body(sse_body).unwrap();
+        let messages = result["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 1, "Error messages should be filtered out");
+        assert_eq!(messages[0]["text"], "Response");
+    }
+
+    #[test]
+    fn test_parse_empty_sse_returns_error() {
+        let sse_body = "data: [DONE]\n";
+        let result = parse_sse_body(sse_body);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("without returning any messages")
+        );
+    }
+
+    #[test]
+    fn test_parse_sse_with_only_done() {
+        let sse_body = "\n\ndata: [DONE]\n\n";
+        let result = parse_sse_body(sse_body);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_sse_ignores_non_data_lines() {
+        let sse_body = "\
+event: message\n\
+data: {\"message_type\": \"assistant_message\", \"text\": \"Hello!\"}\n\
+\n\
+: keep-alive\n\
+\n\
+retry: 3000\n\
+data: [DONE]\n";
+
+        let result = parse_sse_body(sse_body).unwrap();
+        let messages = result["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_sse_with_invalid_json_lines() {
+        // Malformed JSON lines should be silently skipped
+        let sse_body = "\
+data: {\"message_type\": \"assistant_message\", \"text\": \"Good response\"}\n\
+\n\
+data: {invalid json here\n\
+\n\
+data: \n\
+\n\
+data: [DONE]\n";
+
+        let result = parse_sse_body(sse_body).unwrap();
+        let messages = result["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 1, "Only valid JSON messages should be kept");
+    }
+
+    #[test]
+    fn test_parse_sse_default_stop_reason() {
+        // When no stop_reason event is present, should default to end_turn
+        let sse_body = "\
+data: {\"message_type\": \"assistant_message\", \"text\": \"Hello\"}\n\
+\n\
+data: [DONE]\n";
+
+        let result = parse_sse_body(sse_body).unwrap();
+        assert_eq!(result["stop_reason"]["stop_reason"], "end_turn");
+    }
+
+    #[test]
+    fn test_parse_sse_unknown_message_types_ignored() {
+        let sse_body = "\
+data: {\"message_type\": \"ping\", \"ts\": 123}\n\
+\n\
+data: {\"message_type\": \"assistant_message\", \"text\": \"Real message\"}\n\
+\n\
+data: {\"message_type\": \"internal_debug\", \"detail\": \"stuff\"}\n\
+\n\
+data: [DONE]\n";
+
+        let result = parse_sse_body(sse_body).unwrap();
+        let messages = result["messages"].as_array().unwrap();
+        assert_eq!(
+            messages.len(),
+            1,
+            "Only known message types should be collected"
+        );
     }
 }
 

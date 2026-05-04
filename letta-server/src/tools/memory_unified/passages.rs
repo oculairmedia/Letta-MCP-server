@@ -1,12 +1,11 @@
 use crate::tools::memory_utils::{PassageSummary, truncate_passage_text};
+use crate::tools::response_utils::limits::max_value_len;
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use turbomcp::McpError;
 
 use super::MemoryUnifiedRequest;
 use crate::tools::response_utils::ToolResponse;
-
-const PASSAGE_TEXT_TRUNCATE_LEN: usize = 500;
 
 pub(crate) async fn handle_search_archival(
     client: &LettaClient,
@@ -128,7 +127,7 @@ pub(crate) async fn handle_create_passage(
     let mut passages_value = serde_json::to_value(&passages)?;
     if !verbose && let Some(arr) = passages_value.as_array_mut() {
         for p in arr.iter_mut() {
-            truncate_passage_text(p, PASSAGE_TEXT_TRUNCATE_LEN);
+            truncate_passage_text(p, max_value_len());
         }
     }
 

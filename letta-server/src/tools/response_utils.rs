@@ -13,6 +13,14 @@ use serde_json::Value;
 
 /// Default limits for response truncation
 pub mod limits {
+    use std::env;
+    use tracing::warn;
+
+    /// Environment variable name for maximum value/truncation length
+    pub const ENV_MAX_VALUE_LEN: &str = "LETTA_MCP_MAX_VALUE_LEN";
+    /// Environment variable name for core memory preview length
+    pub const ENV_CORE_MEMORY_PREVIEW_LEN: &str = "LETTA_MCP_CORE_MEMORY_PREVIEW_LEN";
+
     /// Maximum characters for description previews
     pub const DESCRIPTION_PREVIEW: usize = 100;
     /// Maximum characters for short descriptions (e.g., tool descriptions)
@@ -31,6 +39,41 @@ pub mod limits {
     pub const VALUE_PREVIEW: usize = 100;
     /// Maximum characters for text previews in passages
     pub const PASSAGE_TEXT_PREVIEW: usize = 200;
+
+    /// Default truncation length for block/passage/search values (500 chars)
+    pub const DEFAULT_MAX_VALUE_LEN: usize = 500;
+    /// Default truncation length for core memory previews (200 chars)
+    pub const DEFAULT_CORE_MEMORY_PREVIEW_LEN: usize = 200;
+
+    /// Get max value truncation length from env var or default.
+    /// Reads LETTA_MCP_MAX_VALUE_LEN env var. Invalid values fall back to DEFAULT_MAX_VALUE_LEN.
+    pub fn max_value_len() -> usize {
+        read_env_usize(ENV_MAX_VALUE_LEN, DEFAULT_MAX_VALUE_LEN)
+    }
+
+    /// Get core memory preview length from env var or default.
+    /// Reads LETTA_MCP_CORE_MEMORY_PREVIEW_LEN env var. Invalid values fall back to DEFAULT_CORE_MEMORY_PREVIEW_LEN.
+    pub fn core_memory_preview_len() -> usize {
+        read_env_usize(ENV_CORE_MEMORY_PREVIEW_LEN, DEFAULT_CORE_MEMORY_PREVIEW_LEN)
+    }
+
+    /// Read a usize env var with fallback.
+    /// Returns fallback if env var is not set or invalid.
+    fn read_env_usize(name: &str, fallback: usize) -> usize {
+        match env::var(name) {
+            Ok(val) => match val.parse() {
+                Ok(val) => val,
+                Err(e) => {
+                    warn!(
+                        "Invalid value for {}='{}': {}. Using default {}",
+                        name, val, e, fallback
+                    );
+                    fallback
+                }
+            },
+            Err(_) => fallback,
+        }
+    }
 }
 
 // ===================================================
@@ -300,6 +343,7 @@ pub mod hints {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
 
     #[test]
     fn test_truncate_with_indicator() {
@@ -320,21 +364,16 @@ mod tests {
 
     #[test]
     fn test_truncate_utf8_multibyte_safety() {
-        // Emoji: each is 4 bytes. "😀😁😂" = 12 bytes
         let emoji_text = "😀😁😂 hello";
-        // Cutting at byte 5 would land mid-emoji; should snap back to byte 4
         let result = truncate_preview(emoji_text, 5);
         assert!(result.starts_with("😀"));
         assert!(result.ends_with("..."));
 
-        // CJK: each char is 3 bytes. "你好世界" = 12 bytes
         let cjk_text = "你好世界abcdef";
         let result = truncate_with_indicator(cjk_text, 7);
-        // byte 7 lands mid-char (世 starts at 6), should snap to 6
         assert!(result.starts_with("你好"));
         assert!(result.contains("truncated"));
 
-        // Exact boundary should work fine
         let result = truncate_preview("abc", 3);
         assert_eq!(result, "abc");
     }
@@ -352,18 +391,68 @@ mod tests {
 
     #[test]
     fn test_apply_pagination_defaults() {
-        // Default values
         let (limit, offset) = apply_pagination_defaults(None, None);
         assert_eq!(limit, limits::DEFAULT_PAGE_SIZE);
         assert_eq!(offset, 0);
 
-        // Custom values within limits
         let (limit, offset) = apply_pagination_defaults(Some(25), Some(10));
         assert_eq!(limit, 25);
         assert_eq!(offset, 10);
 
-        // Exceeds max - should be capped
         let (limit, _) = apply_pagination_defaults(Some(100), None);
         assert_eq!(limit, limits::MAX_PAGE_SIZE);
+    }
+
+    #[test]
+    fn test_max_value_len_default() {
+        // Safety: env var manipulation in tests
+        unsafe {
+            env::remove_var(limits::ENV_MAX_VALUE_LEN);
+        }
+        assert_eq!(limits::max_value_len(), limits::DEFAULT_MAX_VALUE_LEN);
+    }
+
+    #[test]
+    fn test_max_value_len_from_env() {
+        unsafe {
+            env::set_var(limits::ENV_MAX_VALUE_LEN, "1000");
+        }
+        assert_eq!(limits::max_value_len(), 1000);
+        unsafe {
+            env::remove_var(limits::ENV_MAX_VALUE_LEN);
+        }
+    }
+
+    #[test]
+    fn test_max_value_len_invalid_falls_back() {
+        unsafe {
+            env::set_var(limits::ENV_MAX_VALUE_LEN, "not-a-number");
+        }
+        assert_eq!(limits::max_value_len(), limits::DEFAULT_MAX_VALUE_LEN);
+        unsafe {
+            env::remove_var(limits::ENV_MAX_VALUE_LEN);
+        }
+    }
+
+    #[test]
+    fn test_core_memory_preview_len_default() {
+        unsafe {
+            env::remove_var(limits::ENV_CORE_MEMORY_PREVIEW_LEN);
+        }
+        assert_eq!(
+            limits::core_memory_preview_len(),
+            limits::DEFAULT_CORE_MEMORY_PREVIEW_LEN
+        );
+    }
+
+    #[test]
+    fn test_core_memory_preview_len_from_env() {
+        unsafe {
+            env::set_var(limits::ENV_CORE_MEMORY_PREVIEW_LEN, "300");
+        }
+        assert_eq!(limits::core_memory_preview_len(), 300);
+        unsafe {
+            env::remove_var(limits::ENV_CORE_MEMORY_PREVIEW_LEN);
+        }
     }
 }

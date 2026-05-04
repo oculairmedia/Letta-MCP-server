@@ -1,12 +1,11 @@
 use crate::tools::memory_utils::{BlockSummary, truncate_block_value};
+use crate::tools::response_utils::limits::max_value_len;
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use turbomcp::McpError;
 
 use super::MemoryUnifiedRequest;
 use crate::tools::response_utils::ToolResponse;
-
-const BLOCK_VALUE_TRUNCATE_LEN: usize = 500;
 
 pub(crate) async fn handle_get_block_by_label(
     client: &LettaClient,
@@ -31,7 +30,7 @@ pub(crate) async fn handle_get_block_by_label(
 
     let mut block_value = serde_json::to_value(block)?;
     if !verbose {
-        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
+        truncate_block_value(&mut block_value, max_value_len());
     }
 
     Ok(ToolResponse::success(
@@ -117,7 +116,7 @@ pub(crate) async fn handle_create_block(
     let block_id = block.id.as_ref().map(|id| id.to_string());
     let mut block_value = serde_json::to_value(block)?;
     if !verbose {
-        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
+        truncate_block_value(&mut block_value, max_value_len());
     }
 
     Ok(
@@ -143,7 +142,7 @@ pub(crate) async fn handle_get_block(
 
     let mut block_value = serde_json::to_value(block)?;
     if !verbose {
-        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
+        truncate_block_value(&mut block_value, max_value_len());
     }
 
     Ok(
@@ -181,7 +180,7 @@ pub(crate) async fn handle_update_block(
 
     let mut block_value = serde_json::to_value(block)?;
     if !verbose {
-        truncate_block_value(&mut block_value, BLOCK_VALUE_TRUNCATE_LEN);
+        truncate_block_value(&mut block_value, max_value_len());
     }
 
     Ok(

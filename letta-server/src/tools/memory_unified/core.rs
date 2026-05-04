@@ -1,4 +1,5 @@
 use crate::tools::memory_utils::BlockSummary;
+use crate::tools::response_utils::limits::core_memory_preview_len;
 use crate::tools::validation_utils::{require_field, require_id, sdk_err};
 use letta::LettaClient;
 use turbomcp::McpError;
@@ -88,7 +89,10 @@ pub(crate) async fn handle_update_core_memory(
 
     let mut block_value = serde_json::to_value(updated_block)?;
     if !verbose {
-        crate::tools::memory_utils::truncate_block_value(&mut block_value, 200);
+        crate::tools::memory_utils::truncate_block_value(
+            &mut block_value,
+            core_memory_preview_len(),
+        );
     }
 
     Ok(ToolResponse::success(
