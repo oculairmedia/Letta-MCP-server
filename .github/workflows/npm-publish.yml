@@ -75,12 +75,14 @@ jobs:
             # Cross-compilation tools for Linux ARM64 on x64 runner
             - name: Install cross tool (Linux ARM64)
               if: matrix.platform == 'linux-arm64'
-              run: cargo install cross --git https://github.com/cross-rs/cross
+              run: |
+                cargo install cross --git https://github.com/cross-rs/cross
+                apt-get update && apt-get install -y clang
 
             - name: Build release binary
               run: |
                   if [ "${{ matrix.platform }}" = "linux-arm64" ]; then
-                    cross build --release --target ${{ matrix.target }} --package letta-server --features vendored-openssl
+                    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=clangd CC_aarch64_unknown_linux_gnu=clang cross build --release --target ${{ matrix.target }} --package letta-server --features vendored-openssl
                   else
                     cargo build --release --target ${{ matrix.target }} --package letta-server
                   fi
