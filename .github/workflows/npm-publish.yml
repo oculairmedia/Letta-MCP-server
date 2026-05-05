@@ -181,58 +181,8 @@ jobs:
                     fi
                   done
 
-            - name: Copy shared files to main package
-              run: |
-                  cp LICENSE npm/letta-mcp-server/ 2>/dev/null || echo "No LICENSE file found"
-                  # README will be generated/copied in a future step
-
-            # Publish platform packages first, then main package
-            - name: Publish platform packages
-              if: ${{ !inputs.dry_run }}
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-              run: |
-                  PLATFORM_DIRS=("darwin-x64" "darwin-arm64" "linux-x64" "linux-arm64" "windows-x64")
-                  TAG="${{ inputs.npm_tag }}"
-
-                  for dir_name in "${PLATFORM_DIRS[@]}"; do
-                    if [ -d "npm/platforms/${dir_name}/bin" ] && [ -n "$(ls -A npm/platforms/${dir_name}/bin 2>/dev/null)" ]; then
-                      pkg_name=$(jq -r .name "npm/platforms/${dir_name}/package.json")
-                      echo "📤 Publishing ${pkg_name}@${{ inputs.version }}..."
-                      cd "npm/platforms/${dir_name}"
-                      npm publish --access public --tag "${TAG}" --provenance
-                      cd ../../..
-                      echo "✅ Published ${pkg_name}"
-                    else
-                      echo "⚠️ Skipping ${dir_name} - no binary"
-                    fi
-                  done
-
-            - name: Publish main package
-              if: ${{ !inputs.dry_run }}
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-              run: |
-                  TAG="${{ inputs.npm_tag }}"
-                  echo "📤 Publishing letta-mcp-server@${{ inputs.version }}..."
-                  cd npm/letta-mcp-server
-                  npm publish --access public --tag "${TAG}" --provenance
-                  cd ../..
-                  echo "✅ Published letta-mcp-server@${{ inputs.version }}"
-
-            - name: Dry run summary
-              if: ${{ inputs.dry_run }}
-              run: |
-                  echo "🔍 DRY RUN - Would have published:"
-                  echo ""
-                  echo "Main package:"
-                  cat npm/letta-mcp-server/package.json | jq '{name, version, optionalDependencies}'
-                  echo ""
-                  echo "Platform packages:"
-                  for dir in npm/platforms/*/; do
-                    cat "${dir}package.json" | jq '{name, version, os, cpu}'
-                    ls -lh "${dir}bin/"
-                  done
+            - name: Skip npm publish
+              run: echo "npm publish skipped - use GitHub Release artifacts instead"
 
             - name: Create GitHub Release
               if: ${{ !inputs.dry_run }}
@@ -243,21 +193,18 @@ jobs:
                   body: |
                       ## letta-mcp-server v${{ inputs.version }}
 
-                      ### Install via npm
-                      ```bash
-                      npm install -g letta-mcp-server@${{ inputs.version }}
-                      ```
+                      Built binaries (see artifacts):
+                      - darwin-x64
+                      - darwin-arm64  
+                      - linux-x64
+                      - windows-x64
 
-                      ### Or use Docker
+                      ### Install via npm (manual)
+                      Download artifacts and install manually, or use Docker:
+
                       ```bash
                       docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest
                       ```
-
-                      ### Platform packages (available)
-                      - `letta-mcp-darwin-x64` - macOS Intel
-                      - `letta-mcp-darwin-arm64` - macOS Apple Silicon
-                      - `letta-mcp-linux-x64` - Linux x64
-                      - `letta-mcp-windows-x64` - Windows x64
                   draft: false
                   prerelease: ${{ inputs.npm_tag != 'latest' }}
                   generate_release_notes: true
