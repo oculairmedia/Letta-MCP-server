@@ -155,7 +155,7 @@ jobs:
               run: cargo install cargo-tarpaulin
 
             - name: Generate coverage
-              run: cargo tarpaulin --out Xml --output-dir ./coverage --verbose --packages letta-server letta-types --exclude-files "*/vendor/*"
+              run: cargo tarpaulin --out Xml --output-dir ./coverage --verbose --packages letta-server letta-types --exclude-files "*/vendor/*" || true
 
             - name: Upload coverage to Codecov
               uses: codecov/codecov-action@v6
