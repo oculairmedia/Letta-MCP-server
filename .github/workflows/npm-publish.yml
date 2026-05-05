@@ -73,6 +73,9 @@ jobs:
               with:
                   targets: ${{ matrix.target }}
 
+            - name: Install mold linker
+              run: sudo apt-get update -qq && sudo apt-get install -y -qq mold
+
             # Cross-compilation tools for Linux ARM64 on x64 runner
             - name: Install cross tool (Linux ARM64)
               if: matrix.platform == 'linux-arm64'
