@@ -55,10 +55,11 @@ jobs:
                       target: x86_64-unknown-linux-gnu
                       runner: ubuntu-latest
                       binary: letta-server
-                    - platform: linux-arm64
-                      target: aarch64-unknown-linux-gnu
-                      runner: ubuntu-latest
-                      binary: letta-server
+                    # Linux ARM64 requires cross-compilation - temporarily disabled
+                    # - platform: linux-arm64
+                    #   target: aarch64-unknown-linux-gnu
+                    #   runner: ubuntu-latest
+                    #   binary: letta-server
                     - platform: win32-x64
                       target: x86_64-pc-windows-msvc
                       runner: windows-latest
@@ -77,12 +78,16 @@ jobs:
               if: matrix.platform == 'linux-arm64'
               run: |
                 cargo install cross --git https://github.com/cross-rs/cross
-                apt-get update && apt-get install -y clang
+                # cross uses Docker - install clang in the cross environment
+                # Usezig via cross.toml or skip ARM64 for now
 
             - name: Build release binary
               run: |
                   if [ "${{ matrix.platform }}" = "linux-arm64" ]; then
-                    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=clangd CC_aarch64_unknown_linux_gnu=clang cross build --release --target ${{ matrix.target }} --package letta-server --features vendored-openssl
+                    sudo apt-get update && sudo apt-get install -y llvm
+                    which clang || true
+                    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=clang CC_aarch64_unknown_linux_gnu=clang
+                    cross build --release --target ${{ matrix.target }} --package letta-server --features vendored-openssl
                   else
                     cargo build --release --target ${{ matrix.target }} --package letta-server
                   fi
