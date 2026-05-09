@@ -137,8 +137,9 @@ jobs:
                   VERSION="${{ inputs.version }}"
                   echo "Setting version to ${VERSION} in all packages..."
 
-                  # Main package
-                  jq --arg v "$VERSION" '.version = $v | .optionalDependencies |= with_entries(.value = $v)' \
+                  # Main package. Linux ARM64 is omitted until that binary build is re-enabled,
+                  # so the npm wrapper does not depend on an unpublished platform package.
+                  jq --arg v "$VERSION" '.version = $v | .optionalDependencies |= with_entries(select(.key != "letta-mcp-linux-arm64") | .value = $v)' \
                     npm/letta-mcp-server/package.json > tmp.json && mv tmp.json npm/letta-mcp-server/package.json
 
                   # Platform packages
@@ -181,8 +182,61 @@ jobs:
                     fi
                   done
 
-            - name: Skip npm publish
-              run: echo "npm publish skipped - use GitHub Release artifacts instead"
+            - name: Copy shared files to main package
+              run: |
+                  cp LICENSE npm/letta-mcp-server/ 2>/dev/null || echo "No LICENSE file found"
+
+            # Publish platform packages first, then main package so optional dependencies resolve.
+            - name: Publish platform packages
+              if: ${{ !inputs.dry_run }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+              run: |
+                  PLATFORM_DIRS=("darwin-x64" "darwin-arm64" "linux-x64" "linux-arm64" "windows-x64")
+                  TAG="${{ inputs.npm_tag }}"
+
+                  for dir_name in "${PLATFORM_DIRS[@]}"; do
+                    if [ -d "npm/platforms/${dir_name}/bin" ] && [ -n "$(ls -A npm/platforms/${dir_name}/bin 2>/dev/null)" ]; then
+                      pkg_name=$(jq -r .name "npm/platforms/${dir_name}/package.json")
+                      echo "📤 Publishing ${pkg_name}@${{ inputs.version }}..."
+                      cd "npm/platforms/${dir_name}"
+                      npm publish --access public --tag "${TAG}" --provenance
+                      cd ../../..
+                      echo "✅ Published ${pkg_name}"
+                    else
+                      echo "⚠️ Skipping ${dir_name} - no binary"
+                    fi
+                  done
+
+            - name: Publish main package
+              if: ${{ !inputs.dry_run }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+              run: |
+                  TAG="${{ inputs.npm_tag }}"
+                  echo "📤 Publishing letta-mcp-server@${{ inputs.version }}..."
+                  cd npm/letta-mcp-server
+                  npm publish --access public --tag "${TAG}" --provenance
+                  cd ../..
+                  echo "✅ Published letta-mcp-server@${{ inputs.version }}"
+
+            - name: Dry run summary
+              if: ${{ inputs.dry_run }}
+              run: |
+                  echo "🔍 DRY RUN - Would have published:"
+                  echo ""
+                  echo "Main package:"
+                  cat npm/letta-mcp-server/package.json | jq '{name, version, optionalDependencies}'
+                  echo ""
+                  echo "Platform packages:"
+                  for dir in npm/platforms/*/; do
+                    cat "${dir}package.json" | jq '{name, version, os, cpu}'
+                    if [ -d "${dir}bin" ]; then
+                      ls -lh "${dir}bin/"
+                    else
+                      echo "No binary staged"
+                    fi
+                  done
 
             - name: Create GitHub Release
               if: ${{ !inputs.dry_run }}
@@ -193,14 +247,18 @@ jobs:
                   body: |
                       ## letta-mcp-server v${{ inputs.version }}
 
-                      Built binaries (see artifacts):
+                      ### Install via npm
+                      ```bash
+                      npm install -g letta-mcp-server@${{ inputs.version }}
+                      ```
+
+                      Built binaries:
                       - darwin-x64
                       - darwin-arm64  
                       - linux-x64
                       - windows-x64
 
-                      ### Install via npm (manual)
-                      Download artifacts and install manually, or use Docker:
+                      ### Or use Docker
 
                       ```bash
                       docker pull ghcr.io/oculairmedia/letta-mcp-server-rust:rust-latest
