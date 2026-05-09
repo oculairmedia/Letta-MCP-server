@@ -117,7 +117,6 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: write # For GitHub release
-            id-token: write # For npm provenance
 
         steps:
             - uses: actions/checkout@v6
@@ -187,6 +186,8 @@ jobs:
                   cp LICENSE npm/letta-mcp-server/ 2>/dev/null || echo "No LICENSE file found"
 
             # Publish platform packages first, then main package so optional dependencies resolve.
+            # The publish helper is idempotent so failed/re-run workflows can safely continue
+            # after a subset of packages has already reached npm.
             - name: Publish platform packages
               if: ${{ !inputs.dry_run }}
               env:
@@ -194,15 +195,26 @@ jobs:
               run: |
                   PLATFORM_DIRS=("darwin-x64" "darwin-arm64" "linux-x64" "linux-arm64" "windows-x64")
                   TAG="${{ inputs.npm_tag }}"
+                  VERSION="${{ inputs.version }}"
+
+                  publish_if_needed() {
+                    local package_dir="$1"
+                    local package_name
+                    package_name=$(jq -r .name "${package_dir}/package.json")
+
+                    if npm view "${package_name}@${VERSION}" version >/dev/null 2>&1; then
+                      echo "✅ ${package_name}@${VERSION} already published; skipping"
+                      return 0
+                    fi
+
+                    echo "📤 Publishing ${package_name}@${VERSION}..."
+                    (cd "${package_dir}" && npm publish --access public --tag "${TAG}")
+                    echo "✅ Published ${package_name}@${VERSION}"
+                  }
 
                   for dir_name in "${PLATFORM_DIRS[@]}"; do
                     if [ -d "npm/platforms/${dir_name}/bin" ] && [ -n "$(ls -A npm/platforms/${dir_name}/bin 2>/dev/null)" ]; then
-                      pkg_name=$(jq -r .name "npm/platforms/${dir_name}/package.json")
-                      echo "📤 Publishing ${pkg_name}@${{ inputs.version }}..."
-                      cd "npm/platforms/${dir_name}"
-                      npm publish --access public --tag "${TAG}" --provenance
-                      cd ../../..
-                      echo "✅ Published ${pkg_name}"
+                      publish_if_needed "npm/platforms/${dir_name}"
                     else
                       echo "⚠️ Skipping ${dir_name} - no binary"
                     fi
@@ -214,9 +226,16 @@ jobs:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
               run: |
                   TAG="${{ inputs.npm_tag }}"
+                  VERSION="${{ inputs.version }}"
+
+                  if npm view "letta-mcp-server@${VERSION}" version >/dev/null 2>&1; then
+                    echo "✅ letta-mcp-server@${VERSION} already published; skipping"
+                    exit 0
+                  fi
+
                   echo "📤 Publishing letta-mcp-server@${{ inputs.version }}..."
                   cd npm/letta-mcp-server
-                  npm publish --access public --tag "${TAG}" --provenance
+                  npm publish --access public --tag "${TAG}"
                   cd ../..
                   echo "✅ Published letta-mcp-server@${{ inputs.version }}"
 
