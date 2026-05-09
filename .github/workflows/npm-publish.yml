@@ -117,13 +117,14 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: write # For GitHub release
+            id-token: write # For npm trusted publishing fallback
 
         steps:
             - uses: actions/checkout@v6
 
             - uses: actions/setup-node@v6
               with:
-                  node-version: '20'
+                  node-version: '24'
                   registry-url: 'https://registry.npmjs.org'
 
             - name: Download all binary artifacts
@@ -208,7 +209,13 @@ jobs:
                     fi
 
                     echo "📤 Publishing ${package_name}@${VERSION}..."
-                    (cd "${package_dir}" && npm publish --access public --tag "${TAG}")
+                    if (cd "${package_dir}" && npm publish --access public --tag "${TAG}"); then
+                      echo "✅ Published ${package_name}@${VERSION} with NPM_TOKEN"
+                      return 0
+                    fi
+
+                    echo "⚠️ Token publish failed for ${package_name}; retrying with npm trusted publishing"
+                    (cd "${package_dir}" && NODE_AUTH_TOKEN="" npm publish --access public --tag "${TAG}" --provenance)
                     echo "✅ Published ${package_name}@${VERSION}"
                   }
 
@@ -235,7 +242,14 @@ jobs:
 
                   echo "📤 Publishing letta-mcp-server@${{ inputs.version }}..."
                   cd npm/letta-mcp-server
-                  npm publish --access public --tag "${TAG}"
+                  if npm publish --access public --tag "${TAG}"; then
+                    cd ../..
+                    echo "✅ Published letta-mcp-server@${{ inputs.version }} with NPM_TOKEN"
+                    exit 0
+                  fi
+
+                  echo "⚠️ Token publish failed for letta-mcp-server; retrying with npm trusted publishing"
+                  NODE_AUTH_TOKEN="" npm publish --access public --tag "${TAG}" --provenance
                   cd ../..
                   echo "✅ Published letta-mcp-server@${{ inputs.version }}"
 
