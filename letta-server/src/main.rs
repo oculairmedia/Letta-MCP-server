@@ -7,6 +7,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let log_level = env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
     tracing_subscriber::fmt()
         .with_env_filter(log_level)
+        // MCP stdio reserves stdout exclusively for JSON-RPC frames.
+        // Keep diagnostics on stderr and disable ANSI escapes so spec-compliant
+        // stdio clients never see non-JSON bytes on stdout.
+        .with_writer(std::io::stderr)
+        .with_ansi(false)
         .with_target(false)
         .with_thread_ids(false)
         .with_file(false)
