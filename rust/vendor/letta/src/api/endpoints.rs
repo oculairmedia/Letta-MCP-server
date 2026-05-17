@@ -113,12 +113,6 @@ pub mod agents {
         pub fn create(agent_id: &impl std::fmt::Display) -> String {
             format!("v1/agents/{agent_id}/archival-memory")
         }
-        pub fn update(
-            agent_id: &impl std::fmt::Display,
-            memory_id: &impl std::fmt::Display,
-        ) -> String {
-            format!("v1/agents/{agent_id}/archival-memory/{memory_id}")
-        }
         pub fn delete(
             agent_id: &impl std::fmt::Display,
             memory_id: &impl std::fmt::Display,
@@ -394,7 +388,7 @@ pub mod groups {
         format!("v1/groups/{group_id}/messages/{message_id}")
     }
     pub fn reset_messages(group_id: &impl std::fmt::Display) -> String {
-        format!("v1/agents/{group_id}/reset-messages")
+        format!("v1/groups/{group_id}/reset-messages")
     }
 }
 

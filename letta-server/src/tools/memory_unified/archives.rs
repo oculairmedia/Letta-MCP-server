@@ -87,8 +87,8 @@ pub(crate) async fn handle_create_archive(
 
     let create_request = letta::types::ArchiveCreateRequest {
         name,
-        embedding: None,
-        embedding_config: None,
+        embedding: request.embedding,
+        embedding_config: request.embedding_config,
         description: request.text,
     };
 
@@ -147,18 +147,18 @@ pub(crate) async fn handle_delete_archive(
     )?;
     let letta_archive_id = require_id(Some(archive_id.clone()), "archive_id")?;
 
-    let response = client
+    client
         .archives()
         .delete(&letta_archive_id)
         .await
         .map_err(|e| sdk_err("delete archive", e))?;
 
     Ok(
-        ToolResponse::success("delete_archive", "Archive deleted successfully")
-            .with_json_data(serde_json::to_value(response)?)
-            .with_extra(serde_json::json!({
+        ToolResponse::success("delete_archive", "Archive deleted successfully").with_extra(
+            serde_json::json!({
                 "archive_id": archive_id,
-            })),
+            }),
+        ),
     )
 }
 
