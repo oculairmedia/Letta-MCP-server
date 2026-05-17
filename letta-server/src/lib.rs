@@ -200,6 +200,9 @@ impl LettaServer {
         #[description("Label for creating blocks or archives")] label: Option<String>,
         #[description("Value/content for creating or updating blocks")] value: Option<String>,
         #[description("Text content for creating archival passages")] text: Option<String>,
+        #[description("Embedding handle for archive creation")] embedding: Option<String>,
+        #[description("Embedding configuration object for archive creation")]
+        embedding_config: Option<Map<String, Value>>,
         #[description("Search query string (for search_archival, search_memory)")] query: Option<
             String,
         >,
@@ -242,6 +245,8 @@ impl LettaServer {
             label,
             value,
             text,
+            embedding,
+            embedding_config: embedding_config.map(Value::Object),
             query,
             limit,
             offset,

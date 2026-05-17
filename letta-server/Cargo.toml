@@ -11,6 +11,7 @@ name = "letta-server"
 path = "src/main.rs"
 
 [dependencies]
+dotenvy = "0.15"
 # Workspace dependencies
 tokio = { workspace = true }
 # TurboMCP v3 (resolved via workspace git dep — re-exports everything via prelude)

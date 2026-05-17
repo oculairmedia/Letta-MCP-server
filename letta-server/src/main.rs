@@ -2,8 +2,22 @@ use letta_server::LettaServer;
 use std::env;
 use turbomcp::prelude::*; // v3: McpHandlerExt for run_stdio/run_http
 
+fn read_letta_auth() -> Result<String, Box<dyn std::error::Error>> {
+    if let Ok(password) = env::var("LETTA_PASSWORD") {
+        return Ok(password);
+    }
+
+    if let Ok(token) = env::var("LETTA_API_TOKEN") {
+        return Ok(token);
+    }
+
+    Err("LETTA_PASSWORD or LETTA_API_TOKEN environment variable is required".into())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = dotenvy::dotenv();
+
     let log_level = env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
     tracing_subscriber::fmt()
         .with_env_filter(log_level)
@@ -20,11 +34,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let base_url =
         env::var("LETTA_BASE_URL").expect("LETTA_BASE_URL environment variable is required");
-    let password =
-        env::var("LETTA_PASSWORD").expect("LETTA_PASSWORD environment variable is required");
+    let password = read_letta_auth()?;
     let transport = env::var("TRANSPORT").unwrap_or_else(|_| "stdio".to_string());
     let port: u16 = env::var("PORT")
-        .unwrap_or_else(|_| "3001".to_string())
+        .unwrap_or_else(|_| "6507".to_string())
         .parse()
         .expect("PORT must be a valid number");
 

@@ -280,6 +280,9 @@ LETTA_PASSWORD=your-password \
 ./target/release/letta-server
 ```
 
+For local development, the Rust binary also loads a repo-level `.env` automatically, so
+`cargo run -p letta-server` works without manually exporting variables first.
+
 ### Docker Build
 
 ```bash
@@ -344,7 +347,7 @@ letta-server/
 ### Authentication Errors
 
 1. Verify `LETTA_BASE_URL` points to your Letta instance
-2. Check `LETTA_PASSWORD` is correct
+2. Check `LETTA_PASSWORD` or `LETTA_API_TOKEN` is correct
 3. Ensure Letta server is accessible from the container
 
 ### Tool Not Found
