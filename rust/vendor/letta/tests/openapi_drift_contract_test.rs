@@ -1,5 +1,5 @@
 use letta::client::ClientBuilder;
-use letta::types::LettaId;
+use letta::types::{Identity, LettaId};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -65,4 +65,74 @@ async fn mcp_refresh_sends_agent_id_when_provided() {
         requests[0].url.query(),
         Some(format!("agent_id={agent_id}").as_str())
     );
+}
+
+#[tokio::test]
+async fn job_cancel_uses_cancel_endpoint() {
+    let mock_server = MockServer::start().await;
+    let job_id: LettaId = "job-00000000-0000-0000-0000-000000000001"
+        .parse()
+        .expect("valid job id");
+
+    Mock::given(method("PATCH"))
+        .and(path(format!("/v1/jobs/{job_id}/cancel")))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/json")
+                .set_body_string(format!(r#"{{"id":"{job_id}"}}"#)),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let client = ClientBuilder::new()
+        .base_url(&mock_server.uri())
+        .build()
+        .expect("client builds");
+
+    let result = client.jobs().cancel(&job_id).await;
+    assert!(result.is_ok(), "job cancel should deserialize Job response");
+}
+
+#[tokio::test]
+async fn group_reset_accepts_empty_schema_response() {
+    let mock_server = MockServer::start().await;
+    let group_id: LettaId = "group-00000000-0000-0000-0000-000000000001"
+        .parse()
+        .expect("valid group id");
+
+    Mock::given(method("PATCH"))
+        .and(path(format!("/v1/groups/{group_id}/reset-messages")))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/json")
+                .set_body_string("{}"),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let client = ClientBuilder::new()
+        .base_url(&mock_server.uri())
+        .build()
+        .expect("client builds");
+
+    let result = client.groups().reset(&group_id, Some(false)).await;
+    assert!(result.is_ok(), "group reset empty schema should succeed");
+}
+
+#[test]
+fn identity_deserializes_required_empty_id_arrays() {
+    let identity: Identity = serde_json::from_str(
+        r#"{
+            "id":"identity-00000000-0000-0000-0000-000000000001",
+            "identifier_key":"user@example.com",
+            "name":"Example User",
+            "identity_type":"user",
+            "agent_ids":[],
+            "block_ids":[]
+        }"#,
+    )
+    .expect("identity with required empty arrays should deserialize");
+
+    assert!(identity.agent_ids.is_empty());
+    assert!(identity.block_ids.is_empty());
 }

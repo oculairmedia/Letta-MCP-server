@@ -16,7 +16,7 @@ async fn test_list_batch_runs() -> LettaResult<()> {
     let client = get_test_client()?;
 
     // List all batch runs
-    let batches = client.batch().list().await?;
+    let batches = client.batch().list(None).await?;
 
     println!("Found {} batch runs", batches.len());
     for batch in batches.iter().take(3) {
@@ -78,7 +78,7 @@ async fn test_batch_messages() -> LettaResult<()> {
     let client = get_test_client()?;
 
     // Get existing batches
-    let batches = client.batch().list().await?;
+    let batches = client.batch().list(None).await?;
 
     if batches.is_empty() {
         println!("No batches available to test messages, skipping");
@@ -91,7 +91,7 @@ async fn test_batch_messages() -> LettaResult<()> {
     // List messages with pagination
     let params = ListBatchMessagesParams {
         limit: Some(10),
-        sort_descending: Some(true),
+        order: Some("desc".to_string()),
         ..Default::default()
     };
 

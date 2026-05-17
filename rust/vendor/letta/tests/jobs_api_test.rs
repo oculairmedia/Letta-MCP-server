@@ -14,7 +14,7 @@ async fn test_list_jobs() {
     let client = get_test_client();
 
     // List jobs (might be empty)
-    let result = client.jobs().list(None, None, None).await;
+    let result = client.jobs().list(None).await;
 
     let jobs = result.expect("Failed to list jobs");
 
@@ -84,7 +84,10 @@ async fn test_list_jobs_with_filters() {
     // Test listing with status filter
     let running_jobs = client
         .jobs()
-        .list(Some(JobStatus::Running), None, None)
+        .list(Some(ListJobsParams {
+            status: Some(JobStatus::Running),
+            ..Default::default()
+        }))
         .await
         .expect("Failed to list running jobs");
 
@@ -96,7 +99,10 @@ async fn test_list_jobs_with_filters() {
     // Test listing with limit
     let limited_jobs = client
         .jobs()
-        .list(None, Some(5), None)
+        .list(Some(ListJobsParams {
+            limit: Some(5),
+            ..Default::default()
+        }))
         .await
         .expect("Failed to list jobs with limit");
 
