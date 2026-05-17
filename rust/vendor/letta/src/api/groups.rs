@@ -255,7 +255,7 @@ impl<'a> GroupApi<'a> {
         &self,
         group_id: &LettaId,
         add_default_initial_messages: Option<bool>,
-    ) -> LettaResult<crate::types::AgentState> {
+    ) -> LettaResult<()> {
         let mut body = serde_json::Map::new();
         if let Some(add_default) = add_default_initial_messages {
             body.insert(
@@ -265,8 +265,9 @@ impl<'a> GroupApi<'a> {
         }
 
         self.client
-            .patch(&endpoints::groups::reset_messages(group_id), &body)
+            .patch::<serde_json::Value, _>(&endpoints::groups::reset_messages(group_id), &body)
             .await
+            .map(|_| ())
     }
 
     /// Retrieve message history for an agent group

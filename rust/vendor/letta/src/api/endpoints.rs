@@ -441,6 +441,9 @@ pub mod jobs {
     pub fn delete(job_id: &impl std::fmt::Display) -> String {
         format!("v1/jobs/{job_id}")
     }
+    pub fn cancel(job_id: &impl std::fmt::Display) -> String {
+        format!("v1/jobs/{job_id}/cancel")
+    }
 }
 
 // ---------------------------------------------------------------------------

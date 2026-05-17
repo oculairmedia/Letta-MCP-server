@@ -75,6 +75,21 @@ impl<'a> JobApi<'a> {
     pub async fn delete(&self, job_id: &LettaId) -> LettaResult<Job> {
         self.client.delete(&endpoints::jobs::delete(job_id)).await
     }
+
+    /// Cancel a job.
+    ///
+    /// # Arguments
+    ///
+    /// * `job_id` - The ID of the job to cancel
+    ///
+    /// # Errors
+    ///
+    /// Returns a [crate::error::LettaError] if the request fails or if the response cannot be parsed.
+    pub async fn cancel(&self, job_id: &LettaId) -> LettaResult<Job> {
+        self.client
+            .patch(&endpoints::jobs::cancel(job_id), &serde_json::Value::Null)
+            .await
+    }
 }
 
 /// Step API operations.
