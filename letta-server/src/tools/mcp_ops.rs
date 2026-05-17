@@ -296,17 +296,25 @@ async fn handle_resync_server(
 ) -> Result<ToolResponse, McpError> {
     let mcp_server_id = require_field(request.mcp_server_id, "mcp_server_id required for resync")?;
     let letta_mcp_server_id = parse_letta_id(&mcp_server_id, "mcp_server_id")?;
+    let letta_agent_id = request
+        .agent_id
+        .as_ref()
+        .map(|agent_id| parse_letta_id(agent_id, "agent_id"))
+        .transpose()?;
 
     let result = client
         .mcp_servers()
-        .refresh(&letta_mcp_server_id)
+        .refresh(&letta_mcp_server_id, letta_agent_id.as_ref())
         .await
         .map_err(|e| sdk_err("refresh MCP server tools", e))?;
 
     Ok(
         ToolResponse::success("resync", "MCP server tools refreshed successfully")
             .with_json_data(result)
-            .with_extra(serde_json::json!({ "mcp_server_id": mcp_server_id })),
+            .with_extra(serde_json::json!({
+                "mcp_server_id": mcp_server_id,
+                "agent_id": request.agent_id,
+            })),
     )
 }
 

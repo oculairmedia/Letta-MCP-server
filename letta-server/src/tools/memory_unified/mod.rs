@@ -81,6 +81,12 @@ pub struct MemoryUnifiedRequest {
     /// Text content (required for create_passage, update_passage)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    /// Embedding handle for archive creation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedding: Option<String>,
+    /// Embedding configuration object for archive creation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedding_config: Option<Value>,
     /// Search query (required for search_archival, search_memory)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub query: Option<String>,
