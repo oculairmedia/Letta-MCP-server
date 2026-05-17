@@ -72,7 +72,7 @@ impl<'a> JobApi<'a> {
     /// # Errors
     ///
     /// Returns a [crate::error::LettaError] if the request fails.
-    pub async fn delete(&self, job_id: &LettaId) -> LettaResult<String> {
+    pub async fn delete(&self, job_id: &LettaId) -> LettaResult<Job> {
         self.client.delete(&endpoints::jobs::delete(job_id)).await
     }
 }

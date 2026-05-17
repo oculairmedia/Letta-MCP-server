@@ -6,8 +6,8 @@ use crate::error::LettaResult;
 use crate::pagination::PaginatedStream;
 use crate::types::{
     memory::{
-        ArchivalMemoryQueryParams, Block, CreateArchivalMemoryRequest, Memory, Passage,
-        UpdateArchivalMemoryRequest, UpdateMemoryBlockRequest,
+        ArchivalMemoryQueryParams, ArchivalMemorySearchParams, ArchivalMemorySearchResponse, Block,
+        CreateArchivalMemoryRequest, Memory, Passage, UpdateMemoryBlockRequest,
     },
     LettaId, PaginationParams,
 };
@@ -97,10 +97,25 @@ impl<'a> MemoryApi<'a> {
         };
 
         if let Some(params) = params {
-            let query = serde_urlencoded::to_string(&params)?;
-            if !query.is_empty() {
-                let url_with_query = format!("{}?{}", url, query);
-                return self.client.get(&url_with_query).await;
+            if has_search_query {
+                let search_params = ArchivalMemorySearchParams {
+                    query: params.search.unwrap_or_default(),
+                    top_k: params.limit,
+                    ..Default::default()
+                };
+                let query = serde_urlencoded::to_string(&search_params)?;
+                if !query.is_empty() {
+                    let url_with_query = format!("{}?{}", url, query);
+                    let response: ArchivalMemorySearchResponse =
+                        self.client.get(&url_with_query).await?;
+                    return Ok(response.results);
+                }
+            } else {
+                let query = serde_urlencoded::to_string(&params)?;
+                if !query.is_empty() {
+                    let url_with_query = format!("{}?{}", url, query);
+                    return self.client.get(&url_with_query).await;
+                }
             }
         }
         self.client.get(&url).await
@@ -114,17 +129,6 @@ impl<'a> MemoryApi<'a> {
     ) -> LettaResult<Vec<Passage>> {
         let url = endpoints::agents::archival::create(agent_id);
         self.client.post(&url, &request).await
-    }
-
-    /// Update an archival memory passage.
-    pub async fn update_archival_memory(
-        &self,
-        agent_id: &LettaId,
-        memory_id: &LettaId,
-        request: UpdateArchivalMemoryRequest,
-    ) -> LettaResult<Vec<Passage>> {
-        let url = endpoints::agents::archival::update(agent_id, memory_id);
-        self.client.patch(&url, &request).await
     }
 
     /// Delete an archival memory passage.

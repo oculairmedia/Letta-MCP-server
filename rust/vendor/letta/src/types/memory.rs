@@ -271,6 +271,7 @@ pub struct Passage {
     /// Passage ID.
     pub id: LettaId,
     /// Passage text content.
+    #[serde(alias = "content")]
     pub text: String,
     /// Agent ID this passage belongs to.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -303,7 +304,7 @@ pub struct Passage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_updated_by_id: Option<LettaId>,
     /// When the passage was created.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "timestamp", skip_serializing_if = "Option::is_none")]
     pub created_at: Option<Timestamp>,
     /// When the passage was last updated.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -318,52 +319,6 @@ pub struct Passage {
 pub struct CreateArchivalMemoryRequest {
     /// Memory text content.
     pub text: String,
-}
-
-/// Request to update archival memory.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateArchivalMemoryRequest {
-    /// Passage ID (required).
-    pub id: LettaId,
-    /// Created by ID.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_by_id: Option<LettaId>,
-    /// Last updated by ID.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_updated_by_id: Option<LettaId>,
-    /// Created at timestamp.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<Timestamp>,
-    /// Updated at timestamp.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<Timestamp>,
-    /// Is deleted flag.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_deleted: Option<bool>,
-    /// Updated agent ID.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_id: Option<LettaId>,
-    /// Updated source ID.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub source_id: Option<LettaId>,
-    /// Updated file ID.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_id: Option<LettaId>,
-    /// Updated file name.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_name: Option<String>,
-    /// Updated metadata.
-    #[serde(rename = "metadata", skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<Metadata>,
-    /// Organization ID.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub organization_id: Option<LettaId>,
-    /// Updated text content.
-    pub text: String,
-    /// Updated embedding.
-    pub embedding: Vec<f32>,
-    /// Updated embedding config.
-    pub embedding_config: EmbeddingConfig,
 }
 
 /// Query parameters for listing archival memory.
@@ -384,6 +339,37 @@ pub struct ArchivalMemoryQueryParams {
     /// Sort order (true for ascending/oldest first).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ascending: Option<bool>,
+}
+
+/// Query parameters for searching archival memory.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ArchivalMemorySearchParams {
+    /// Search query text.
+    pub query: String,
+    /// Maximum number of semantic search results.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<u32>,
+    /// Optional tag filters.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+    /// Tag matching mode, for example "any" or "all".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag_match_mode: Option<String>,
+    /// Filter results after this timestamp.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_datetime: Option<Timestamp>,
+    /// Filter results before this timestamp.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_datetime: Option<Timestamp>,
+}
+
+/// Response envelope returned by archival-memory search.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArchivalMemorySearchResponse {
+    /// Search result passages.
+    pub results: Vec<Passage>,
+    /// Total number of results returned by the search endpoint.
+    pub count: u32,
 }
 
 /// Memory response from GET /v1/agents/{id}/core-memory.
