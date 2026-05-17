@@ -128,6 +128,18 @@ pub struct Run {
     /// Request configuration for the run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_config: Option<RunRequestConfig>,
+    /// Agent ID for the run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<LettaId>,
+    /// Conversation ID for the run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conversation_id: Option<LettaId>,
+    /// Whether the run is a background run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background: Option<bool>,
+    /// Stop reason reported by the server.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop_reason: Option<String>,
 }
 
 /// Configuration for a run request.
@@ -159,6 +171,24 @@ pub struct RunRequestConfig {
 /// Query parameters for listing runs.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ListRunsParams {
+    /// Filter by a single agent ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<LettaId>,
+    /// Filter by multiple agent IDs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_ids: Option<Vec<LettaId>>,
+    /// Filter by run statuses.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub statuses: Option<Vec<JobStatus>>,
+    /// Filter by background flag.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background: Option<bool>,
+    /// Filter by stop reason.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop_reason: Option<String>,
+    /// Filter by conversation ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conversation_id: Option<LettaId>,
     /// Pagination cursor (after).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub after: Option<String>,
@@ -168,12 +198,21 @@ pub struct ListRunsParams {
     /// Maximum number of runs to return.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
-    /// Filter by status.
+    /// Filter by a single status (legacy convenience; prefer statuses).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<JobStatus>,
-    /// Filter by agent ID.
+    /// Sort order (`asc` or `desc`).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_id: Option<LettaId>,
+    pub order: Option<String>,
+    /// Field to sort by.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_by: Option<String>,
+    /// Filter active runs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active: Option<bool>,
+    /// Legacy ascending sort flag.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ascending: Option<bool>,
 }
 
 /// Run status update request.
@@ -186,7 +225,7 @@ pub struct UpdateRunStatus {
 /// Parameters for listing jobs.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ListJobsParams {
-    /// Filter by job status.
+    /// Filter by job status (legacy client-side convenience; live OpenAPI uses active/status on runs).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<JobStatus>,
 
@@ -197,6 +236,24 @@ pub struct ListJobsParams {
     /// Filter by source ID.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_id: Option<String>,
+    /// Cursor for pagination before this job ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub before: Option<String>,
+    /// Cursor for pagination after this job ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub after: Option<String>,
+    /// Sort order (`asc` or `desc`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<String>,
+    /// Field to sort by.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_by: Option<String>,
+    /// Filter active jobs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active: Option<bool>,
+    /// Legacy ascending sort flag.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ascending: Option<bool>,
 }
 
 /// Query parameters for listing steps.

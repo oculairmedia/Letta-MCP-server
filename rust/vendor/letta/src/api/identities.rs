@@ -154,7 +154,10 @@ impl<'a> IdentitiesApi<'a> {
         properties: Vec<IdentityProperty>,
     ) -> LettaResult<()> {
         self.client
-            .put::<serde_json::Value, _>(&endpoints::identities::properties(identity_id), &properties)
+            .put::<serde_json::Value, _>(
+                &endpoints::identities::properties(identity_id),
+                &properties,
+            )
             .await
             .map(|_| ())
     }
