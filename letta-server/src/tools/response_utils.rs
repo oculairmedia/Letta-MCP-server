@@ -344,6 +344,9 @@ pub mod hints {
 mod tests {
     use super::*;
     use std::env;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_truncate_with_indicator() {
@@ -405,6 +408,7 @@ mod tests {
 
     #[test]
     fn test_max_value_len_default() {
+        let _guard = ENV_LOCK.lock().expect("env test lock poisoned");
         // Safety: env var manipulation in tests
         unsafe {
             env::remove_var(limits::ENV_MAX_VALUE_LEN);
@@ -414,6 +418,7 @@ mod tests {
 
     #[test]
     fn test_max_value_len_from_env() {
+        let _guard = ENV_LOCK.lock().expect("env test lock poisoned");
         unsafe {
             env::set_var(limits::ENV_MAX_VALUE_LEN, "1000");
         }
@@ -425,6 +430,7 @@ mod tests {
 
     #[test]
     fn test_max_value_len_invalid_falls_back() {
+        let _guard = ENV_LOCK.lock().expect("env test lock poisoned");
         unsafe {
             env::set_var(limits::ENV_MAX_VALUE_LEN, "not-a-number");
         }
@@ -436,6 +442,7 @@ mod tests {
 
     #[test]
     fn test_core_memory_preview_len_default() {
+        let _guard = ENV_LOCK.lock().expect("env test lock poisoned");
         unsafe {
             env::remove_var(limits::ENV_CORE_MEMORY_PREVIEW_LEN);
         }
@@ -447,6 +454,7 @@ mod tests {
 
     #[test]
     fn test_core_memory_preview_len_from_env() {
+        let _guard = ENV_LOCK.lock().expect("env test lock poisoned");
         unsafe {
             env::set_var(limits::ENV_CORE_MEMORY_PREVIEW_LEN, "300");
         }
