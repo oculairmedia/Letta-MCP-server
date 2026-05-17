@@ -30,7 +30,7 @@ async fn test_list_jobs_with_connection_error() {
     let client = LettaClient::new(config).unwrap();
 
     // This should fail
-    let result = client.jobs().list(None, None, None).await;
+    let result = client.jobs().list(None).await;
 
     // Verify it returns an error
     assert!(

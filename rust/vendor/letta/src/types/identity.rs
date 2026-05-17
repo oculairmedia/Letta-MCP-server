@@ -51,11 +51,11 @@ pub struct Identity {
     /// Identity type.
     pub identity_type: IdentityType,
     /// Agent IDs associated with this identity.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_ids: Option<Vec<LettaId>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub agent_ids: Vec<LettaId>,
     /// Block IDs associated with this identity.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub block_ids: Option<Vec<LettaId>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub block_ids: Vec<LettaId>,
     /// Project ID this identity belongs to.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_id: Option<LettaId>,
