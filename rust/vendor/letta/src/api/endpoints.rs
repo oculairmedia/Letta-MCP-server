@@ -417,6 +417,15 @@ pub mod identities {
     pub fn delete(identity_id: &impl std::fmt::Display) -> String {
         format!("v1/identities/{identity_id}")
     }
+    pub fn agents(identity_id: &impl std::fmt::Display) -> String {
+        format!("v1/identities/{identity_id}/agents")
+    }
+    pub fn blocks(identity_id: &impl std::fmt::Display) -> String {
+        format!("v1/identities/{identity_id}/blocks")
+    }
+    pub fn properties(identity_id: &impl std::fmt::Display) -> String {
+        format!("v1/identities/{identity_id}/properties")
+    }
 }
 
 // ---------------------------------------------------------------------------

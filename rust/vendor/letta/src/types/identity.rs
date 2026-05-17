@@ -134,6 +134,12 @@ pub struct ListIdentitiesParams {
     /// Maximum number of results to return.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
+    /// Sort order (`asc` or `desc`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<String>,
+    /// Field to sort by.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_by: Option<String>,
 }
 
 #[cfg(test)]

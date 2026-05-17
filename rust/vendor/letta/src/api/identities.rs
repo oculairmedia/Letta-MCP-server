@@ -5,8 +5,8 @@ use crate::client::LettaClient;
 use crate::error::LettaResult;
 use crate::pagination::PaginatedStream;
 use crate::types::{
-    CreateIdentityRequest, Identity, LettaId, ListIdentitiesParams, PaginationParams,
-    UpdateIdentityRequest,
+    AgentState, Block, CreateIdentityRequest, Identity, IdentityProperty, LettaId,
+    ListIdentitiesParams, PaginationParams, UpdateIdentityRequest,
 };
 
 /// Identities API operations.
@@ -131,6 +131,32 @@ impl<'a> IdentitiesApi<'a> {
         self.client
             .delete_no_response(&endpoints::identities::delete(identity_id))
             .await
+    }
+
+    /// List agents associated with an identity.
+    pub async fn list_agents(&self, identity_id: &LettaId) -> LettaResult<Vec<AgentState>> {
+        self.client
+            .get(&endpoints::identities::agents(identity_id))
+            .await
+    }
+
+    /// List blocks associated with an identity.
+    pub async fn list_blocks(&self, identity_id: &LettaId) -> LettaResult<Vec<Block>> {
+        self.client
+            .get(&endpoints::identities::blocks(identity_id))
+            .await
+    }
+
+    /// Replace or create properties for an identity.
+    pub async fn upsert_properties(
+        &self,
+        identity_id: &LettaId,
+        properties: Vec<IdentityProperty>,
+    ) -> LettaResult<()> {
+        self.client
+            .put::<serde_json::Value, _>(&endpoints::identities::properties(identity_id), &properties)
+            .await
+            .map(|_| ())
     }
 
     /// Get count of identities.
