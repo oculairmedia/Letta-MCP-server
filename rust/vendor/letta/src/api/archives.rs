@@ -10,7 +10,6 @@ use crate::types::archive::{
 };
 use crate::types::memory::Passage;
 use crate::types::LettaId;
-use serde_json::Value;
 
 /// Archive API operations.
 #[derive(Debug)]
@@ -55,9 +54,9 @@ impl<'a> ArchiveApi<'a> {
     }
 
     /// Archive deletion endpoint.
-    pub async fn delete(&self, archive_id: &LettaId) -> LettaResult<Option<Value>> {
+    pub async fn delete(&self, archive_id: &LettaId) -> LettaResult<()> {
         self.client
-            .delete(&endpoints::archives::delete(archive_id))
+            .delete_no_response(&endpoints::archives::delete(archive_id))
             .await
     }
 

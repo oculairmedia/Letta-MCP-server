@@ -74,10 +74,21 @@ impl<'a> McpServerApi<'a> {
     }
 
     /// Refresh tools for an MCP server by ID.
-    pub async fn refresh(&self, mcp_server_id: &LettaId) -> LettaResult<serde_json::Value> {
-        self.client
-            .patch_no_body(&endpoints::mcp_servers::refresh(mcp_server_id))
-            .await
+    pub async fn refresh(
+        &self,
+        mcp_server_id: &LettaId,
+        agent_id: Option<&LettaId>,
+    ) -> LettaResult<serde_json::Value> {
+        let path = match agent_id {
+            Some(agent_id) => format!(
+                "{}?agent_id={}",
+                endpoints::mcp_servers::refresh(mcp_server_id),
+                agent_id
+            ),
+            None => endpoints::mcp_servers::refresh(mcp_server_id),
+        };
+
+        self.client.patch_no_body(&path).await
     }
 
     /// List tools for an MCP server by ID.
