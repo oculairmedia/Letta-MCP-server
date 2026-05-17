@@ -4,7 +4,7 @@
 //! including edge cases like null responses discovered in production.
 
 use letta::types::agent::AgentState;
-use letta::types::memory::Passage;
+use letta::types::memory::ArchivalMemorySearchResponse;
 use letta::types::tool::Tool;
 
 #[test]
@@ -70,14 +70,16 @@ fn test_list_tools_response() {
 #[test]
 fn test_archival_memory_search_response() {
     let json = include_str!("fixtures/archival_memory_search.json");
-    let result: Result<Vec<Passage>, _> = serde_json::from_str(json);
+    let result: Result<ArchivalMemorySearchResponse, _> = serde_json::from_str(json);
     assert!(
         result.is_ok(),
-        "Failed to deserialize passage list: {:?}",
+        "Failed to deserialize passage search response: {:?}",
         result.err()
     );
 
-    let passages = result.unwrap();
+    let response = result.unwrap();
+    let passages = response.results;
     assert_eq!(passages.len(), 2, "Expected 2 passages");
     assert!(passages[0].text.contains("Important context"));
+    assert!(passages[0].created_at.is_some());
 }

@@ -1,14 +1,17 @@
-[
-  {
-    "id": "passage-11111111-2222-3333-4444-555555555555",
-    "text": "Important context about the project that was stored previously",
-    "created_at": "2024-01-01T00:00:00Z",
-    "agent_id": "agent-11111111-2222-3333-4444-555555555555"
-  },
-  {
-    "id": "passage-66666666-7777-8888-9999-000000000000",
-    "text": "Another piece of archival memory with relevant information",
-    "created_at": "2024-01-02T00:00:00Z",
-    "agent_id": "agent-11111111-2222-3333-4444-555555555555"
-  }
-]
+{
+  "results": [
+    {
+      "id": "passage-11111111-2222-3333-4444-555555555555",
+      "content": "Important context about the project that was stored previously",
+      "timestamp": "2024-01-01T00:00:00Z",
+      "tags": ["project"]
+    },
+    {
+      "id": "passage-66666666-7777-8888-9999-000000000000",
+      "content": "Another piece of archival memory with relevant information",
+      "timestamp": "2024-01-02T00:00:00Z",
+      "tags": ["memory"]
+    }
+  ],
+  "count": 2
+}

@@ -3,9 +3,7 @@
 use letta::client::ClientBuilder;
 use letta::error::LettaResult;
 use letta::types::agent::CreateAgentRequest;
-use letta::types::memory::{
-    ArchivalMemoryQueryParams, Block, CreateArchivalMemoryRequest, UpdateArchivalMemoryRequest,
-};
+use letta::types::memory::{ArchivalMemoryQueryParams, Block, CreateArchivalMemoryRequest};
 use letta::{LettaClient, LettaId};
 use serial_test::serial;
 
@@ -145,95 +143,6 @@ async fn test_list_archival_memory() -> LettaResult<()> {
 
     // Clean up
     client.agents().delete(&agent_id).await?;
-    Ok(())
-}
-
-#[tokio::test]
-#[serial]
-#[ignore = "There are unclear problems with this function, the API spec does not seem to match what is actually required by the server, and the server itself has problems"]
-async fn test_update_archival_memory() -> LettaResult<()> {
-    // TODO: The server appears to have a bug where it tries to return the response
-    // as tuples instead of proper Passage objects, causing a ResponseValidationError.
-    // This needs to be fixed on the server side.
-    let client = create_test_client()?;
-    let agent_id = create_test_agent(&client).await?;
-    println!("agent_id: {}", agent_id);
-
-    // Create some archival memories
-    let memories = vec![
-        "User's favorite color is blue.",
-        "User works as a software engineer.",
-        "User has two cats named Whiskers and Shadow.",
-    ];
-
-    for text in &memories {
-        let request = CreateArchivalMemoryRequest {
-            text: text.to_string(),
-        };
-        client
-            .memory()
-            .create_archival_memory(&agent_id, request)
-            .await?;
-    }
-
-    // List all archival memories
-    let passages = client
-        .memory()
-        .list_archival_memory(&agent_id, None)
-        .await?;
-
-    let passage_id = &passages[0].id;
-
-    // Get existing passage to preserve embedding config
-    let existing_passage = &passages[0];
-    println!("existing text: {}", existing_passage.text);
-
-    // make a new passage to see if this will work to point the archive at the new passage?
-    // Note from later: It does not, it tries to re-insert and hits a duplicate key error.
-    let new_passage = client
-        .memory()
-        .create_archival_memory(
-            &agent_id,
-            CreateArchivalMemoryRequest {
-                text: "User's new favorite color is red".to_string(),
-            },
-        )
-        .await?;
-
-    // Unlike what the spec says, id, text, embedding, and embedding_config are all required.
-    let test_request = UpdateArchivalMemoryRequest {
-        id: passage_id.clone(),
-        text: new_passage[0].text.clone(),
-        created_by_id: None,
-        last_updated_by_id: None,
-        created_at: None,
-        updated_at: None,
-        is_deleted: None,
-        agent_id: None,
-        embedding: new_passage[0].embedding.clone().unwrap(),
-        embedding_config: new_passage[0].embedding_config.clone().unwrap(),
-        source_id: None,
-        file_id: None,
-        file_name: None,
-        metadata: None,
-        organization_id: None,
-    };
-
-    // Ensure it serializes correctly
-    let json = serde_json::to_string(&test_request)?;
-    println!("Request JSON:\n{}", json);
-
-    let updated_passages = client
-        .memory()
-        .update_archival_memory(&agent_id, passage_id, test_request)
-        .await?;
-
-    // Verify the update worked
-    assert!(!updated_passages.is_empty());
-    assert_eq!(updated_passages[0].text, "User's new favorite color is red");
-    // Clean up
-    client.agents().delete(&agent_id).await?;
-
     Ok(())
 }
 

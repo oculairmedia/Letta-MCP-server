@@ -19,7 +19,7 @@ async fn search_params_hit_archival_search_endpoint() {
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "application/json")
-                .set_body_string("[]"),
+                .set_body_string(r#"{"results":[],"count":0}"#),
         )
         .mount(&mock_server)
         .await;
@@ -61,8 +61,16 @@ async fn search_params_hit_archival_search_endpoint() {
 
     let query = request.url.query().unwrap_or_default().to_string();
     assert!(
-        query.contains("search=cats"),
-        "query should include search term"
+        query.contains("query=cats"),
+        "query should include search term as Letta 0.16 search param"
+    );
+    assert!(
+        query.contains("top_k=5"),
+        "query should map limit to Letta 0.16 top_k param"
+    );
+    assert!(
+        !query.contains("search=") && !query.contains("limit="),
+        "search endpoint should not receive list-endpoint param names"
     );
 }
 
