@@ -3,7 +3,9 @@
 use crate::api::endpoints;
 use crate::client::LettaClient;
 use crate::error::{LettaError, LettaResult};
-use crate::types::{LettaId, LettaMessageUnion, Run, RunMetrics, Step, UsageStatistics};
+use crate::types::{
+    LettaId, LettaMessageUnion, ListRunsParams, Run, RunMetrics, Step, UsageStatistics,
+};
 use eventsource_stream::Eventsource;
 use futures::stream::{Stream, StreamExt};
 use reqwest::header::HeaderMap;
@@ -48,6 +50,13 @@ impl<'a> RunApi<'a> {
         let id_list = agent_ids.iter().map(|id| id.as_str()).collect::<Vec<_>>();
         self.client
             .get_with_query(endpoints::runs::LIST, &[("agent_ids", id_list.join(","))])
+            .await
+    }
+
+    /// List runs with the full Letta 0.16 query parameter surface.
+    pub async fn list_with_params(&self, params: Option<ListRunsParams>) -> LettaResult<Vec<Run>> {
+        self.client
+            .get_with_query(endpoints::runs::LIST, &params.unwrap_or_default())
             .await
     }
 
@@ -106,6 +115,16 @@ impl<'a> RunApi<'a> {
                 endpoints::runs::LIST_ACTIVE,
                 &[("agent_ids", id_list.join(","))],
             )
+            .await
+    }
+
+    /// List active runs with optional OpenAPI query parameters.
+    pub async fn list_active_with_params(
+        &self,
+        params: Option<ListRunsParams>,
+    ) -> LettaResult<Vec<Run>> {
+        self.client
+            .get_with_query(endpoints::runs::LIST_ACTIVE, &params.unwrap_or_default())
             .await
     }
 

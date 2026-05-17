@@ -19,6 +19,10 @@ pub enum BatchStatus {
     Failed,
     /// Batch was cancelled.
     Cancelled,
+    /// Batch is pending.
+    Pending,
+    /// Batch expired.
+    Expired,
 }
 
 impl std::fmt::Display for BatchStatus {
@@ -29,6 +33,8 @@ impl std::fmt::Display for BatchStatus {
             Self::Completed => write!(f, "completed"),
             Self::Failed => write!(f, "failed"),
             Self::Cancelled => write!(f, "cancelled"),
+            Self::Pending => write!(f, "pending"),
+            Self::Expired => write!(f, "expired"),
         }
     }
 }
@@ -135,15 +141,21 @@ pub struct ListBatchMessagesParams {
     /// Maximum number of messages to return.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
-    /// Cursor for pagination (message ID).
+    /// Cursor for pagination before this message ID.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cursor: Option<String>,
+    pub before: Option<String>,
+    /// Cursor for pagination after this message ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub after: Option<String>,
     /// Filter by agent ID.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<LettaId>,
-    /// Sort in descending order (default true).
+    /// Sort order (`asc` or `desc`).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sort_descending: Option<bool>,
+    pub order: Option<String>,
+    /// Field to sort by.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_by: Option<String>,
 }
 
 /// Response containing batch messages.
@@ -167,4 +179,10 @@ pub struct ListBatchRunsParams {
     /// Maximum number of batch runs to return (default: 50).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<u32>,
+    /// Sort order (`asc` or `desc`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<String>,
+    /// Field to sort by.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_by: Option<String>,
 }
