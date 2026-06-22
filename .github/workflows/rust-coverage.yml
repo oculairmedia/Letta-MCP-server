@@ -22,7 +22,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Install Rust toolchain
               uses: dtolnay/rust-toolchain@stable
@@ -52,7 +52,7 @@ jobs:
                       --lcov --output-path lcov.info
 
             - name: Upload coverage to Codecov
-              uses: codecov/codecov-action@v6
+              uses: codecov/codecov-action@v7
               with:
                   token: ${{ secrets.CODECOV_TOKEN }}
                   files: lcov.info
