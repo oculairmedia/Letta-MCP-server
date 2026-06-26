@@ -347,7 +347,7 @@ async fn handle_detach_source(
     let source_id = require_field(request.source_id, "source_id required")?;
 
     let letta_agent_id = require_id(Some(agent_id), "agent_id")?;
-    let letta_source_id = require_id(Some(source_id.clone()), "source_id")?;
+    let letta_source_id = require_id(Some(source_id), "source_id")?;
 
     let agent_state = client
         .sources()
