@@ -145,11 +145,15 @@ impl FromStr for LettaId {
             let prefix = &s[..dash_pos];
             let suffix = &s[dash_pos + 1..];
             // Validate: prefix is non-empty alphanumeric (with optional underscores),
-            // suffix is non-empty alphanumeric (with optional underscores)
+            // suffix is non-empty alphanumeric (with optional underscores).
+            // Require at least one alphanumeric char in each to reject
+            // underscore-only components like "___-___".
             if !prefix.is_empty()
                 && !suffix.is_empty()
                 && !prefix.starts_with('-')
                 && !prefix.ends_with('-')
+                && prefix.chars().any(|c| c.is_alphanumeric())
+                && suffix.chars().any(|c| c.is_alphanumeric())
                 && prefix.chars().all(|c| c.is_alphanumeric() || c == '_')
                 && suffix.chars().all(|c| c.is_alphanumeric() || c == '_')
             {
@@ -577,6 +581,14 @@ mod tests {
         assert_eq!(id.as_str(), short_str);
         assert!(id.uuid().is_none());
         assert!(!id.is_uuid_based());
+    }
+
+    #[test]
+    fn test_letta_id_rejects_underscore_only() {
+        // Underscore-only components should be rejected
+        assert!(LettaId::from_str("___-___").is_err());
+        assert!(LettaId::from_str("_-a").is_err());
+        assert!(LettaId::from_str("a-_").is_err());
     }
 
     #[test]
