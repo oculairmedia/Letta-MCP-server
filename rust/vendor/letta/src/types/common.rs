@@ -144,8 +144,9 @@ impl FromStr for LettaId {
         if let Some(dash_pos) = s.rfind('-') {
             let prefix = &s[..dash_pos];
             let suffix = &s[dash_pos + 1..];
-            // Validate: prefix is non-empty alphanumeric (with optional underscores),
-            // suffix is non-empty alphanumeric (with optional underscores).
+            // Validate: prefix is non-empty alphanumeric (with optional underscores
+            // and hyphens, matching the UUID-prefixed path above), suffix is
+            // non-empty alphanumeric (with optional underscores).
             // Require at least one alphanumeric char in each to reject
             // underscore-only components like "___-___".
             if !prefix.is_empty()
@@ -154,7 +155,7 @@ impl FromStr for LettaId {
                 && !prefix.ends_with('-')
                 && prefix.chars().any(|c| c.is_alphanumeric())
                 && suffix.chars().any(|c| c.is_alphanumeric())
-                && prefix.chars().all(|c| c.is_alphanumeric() || c == '_')
+                && prefix.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-')
                 && suffix.chars().all(|c| c.is_alphanumeric() || c == '_')
             {
                 return Ok(Self::new_raw(Some(prefix.to_string()), s.to_string()));
@@ -578,6 +579,19 @@ mod tests {
 
         assert!(!id.is_bare());
         assert_eq!(id.prefix(), Some("project"));
+        assert_eq!(id.as_str(), short_str);
+        assert!(id.uuid().is_none());
+        assert!(!id.is_uuid_based());
+    }
+
+    #[test]
+    fn test_letta_id_short_prefixed_hyphenated() {
+        // Hyphenated prefixes like "mcp-server-abc123" should be accepted
+        let short_str = "mcp-server-abc123";
+        let id = LettaId::from_str(short_str).unwrap();
+
+        assert!(!id.is_bare());
+        assert_eq!(id.prefix(), Some("mcp-server"));
         assert_eq!(id.as_str(), short_str);
         assert!(id.uuid().is_none());
         assert!(!id.is_uuid_based());
