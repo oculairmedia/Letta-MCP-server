@@ -18,7 +18,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
               with:
                   fetch-depth: 0
 
@@ -28,7 +28,7 @@ jobs:
                   toolchain: stable
 
             - name: Cache cargo build
-              uses: actions/cache@v5
+              uses: actions/cache@v6
               with:
                   path: |
                       ~/.cargo/bin/
