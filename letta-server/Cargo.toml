@@ -37,7 +37,6 @@ openssl = { workspace = true, optional = true }
 
 # Local dependencies
 letta-types = { path = "../letta-types" }
-quinn-proto = "0.11.15"
 
 [dev-dependencies]
 tokio-test = "0.4"

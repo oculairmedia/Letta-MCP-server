@@ -36,10 +36,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|_| "LETTA_BASE_URL environment variable is required")?;
     let password = read_letta_auth()?;
     let transport = env::var("TRANSPORT").unwrap_or_else(|_| "stdio".to_string());
-    let port_str = env::var("PORT").unwrap_or_else(|_| "6507".to_string());
-    let port: u16 = port_str
+    let port: u16 = env::var("PORT")
+        .unwrap_or_else(|_| "6507".to_string())
         .parse()
-        .map_err(|e| format!("Invalid PORT environment variable '{}': {}", port_str, e))?;
+        .map_err(|_| "PORT must be a valid number")?;
 
     tracing::info!("╔══════════════════════════════════════╗");
     tracing::info!("║   Letta MCP Server (Rust/TurboMCP)  ║");
