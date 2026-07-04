@@ -30,7 +30,7 @@
     "LICENSE"
   ],
   "optionalDependencies": {
-    "letta-mcp-darwin-x64": "3.0.2",
+    "letta-mcp-darwin-x64": "3.0.3",
     "letta-mcp-darwin-arm64": "3.0.3",
     "letta-mcp-linux-x64": "3.0.2",
     "letta-mcp-linux-arm64": "3.0.0",
