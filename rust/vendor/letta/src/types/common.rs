@@ -61,12 +61,17 @@ impl LettaId {
         }
     }
 
-    /// Create a new ID from a raw string that is not a UUID (e.g., a Letta
+    /// Create a new prefixed short ID that is not UUID-based (e.g., a Letta
     /// Cloud short ID like `project-5J9p8vbPSU3Zmqbr87bi`).
-    pub fn new_raw(prefix: Option<String>, raw: impl Into<String>) -> Self {
+    ///
+    /// The stored `raw` value is always derived as `{prefix}-{suffix}`, so the
+    /// `prefix()`/`as_str()` invariants stay consistent by construction.
+    pub fn new_raw(prefix: impl Into<String>, suffix: impl Into<String>) -> Self {
+        let prefix = prefix.into();
+        let suffix = suffix.into();
         Self {
-            raw: raw.into(),
-            prefix,
+            raw: format!("{}-{}", prefix, suffix),
+            prefix: Some(prefix),
             uuid: None,
         }
     }
@@ -158,7 +163,7 @@ impl FromStr for LettaId {
                 && prefix.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-')
                 && suffix.chars().all(|c| c.is_alphanumeric() || c == '_')
             {
-                return Ok(Self::new_raw(Some(prefix.to_string()), s.to_string()));
+                return Ok(Self::new_raw(prefix, suffix));
             }
         }
 
@@ -557,18 +562,19 @@ mod tests {
         assert!(id.is_bare());
         assert_eq!(id.prefix(), None);
         assert_eq!(id.as_str(), uuid_str);
-        assert!(id.uuid().is_some());
+        assert_eq!(id.uuid(), Some(&Uuid::from_str(uuid_str).unwrap()));
     }
 
     #[test]
     fn test_letta_id_prefixed() {
+        let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
         let prefixed_str = "agent-550e8400-e29b-41d4-a716-446655440000";
         let id = LettaId::from_str(prefixed_str).unwrap();
 
         assert!(!id.is_bare());
         assert_eq!(id.prefix(), Some("agent"));
         assert_eq!(id.as_str(), prefixed_str);
-        assert!(id.uuid().is_some());
+        assert_eq!(id.uuid(), Some(&Uuid::from_str(uuid_str).unwrap()));
     }
 
     #[test]
@@ -624,14 +630,29 @@ mod tests {
     #[test]
     fn test_letta_id_invalid() {
         let invalid_cases = vec![
-            "not-a-uuid",
-            "agent-not-a-uuid",
             "-550e8400-e29b-41d4-a716-446655440000", // Empty prefix
-            "agent--550e8400-e29b-41d4-a716-446655440000", // Double dash
+            "notauuid",                              // No prefix separator
+            "-abc",                                  // Empty prefix, short ID
+            "abc-",                                  // Empty suffix, short ID
         ];
 
         for case in invalid_cases {
-            assert!(LettaId::from_str(case).is_err());
+            assert!(
+                LettaId::from_str(case).is_err(),
+                "expected {case:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn test_letta_id_short_ids_accepted() {
+        // With Letta Cloud short-ID support, prefix-suffix strings that are not
+        // UUIDs are valid short IDs (structurally indistinguishable from
+        // `project-5J9p8vbPSU3Zmqbr87bi`), so they parse successfully.
+        for case in ["not-a-uuid", "agent-not-a-uuid"] {
+            let id = LettaId::from_str(case).unwrap();
+            assert_eq!(id.as_str(), case);
+            assert!(!id.is_uuid_based());
         }
     }
 
