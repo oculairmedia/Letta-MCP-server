@@ -160,7 +160,9 @@ impl FromStr for LettaId {
                 && !prefix.ends_with('-')
                 && prefix.chars().any(|c| c.is_alphanumeric())
                 && suffix.chars().any(|c| c.is_alphanumeric())
-                && prefix.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+                && prefix
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
                 && suffix.chars().all(|c| c.is_alphanumeric() || c == '_')
             {
                 return Ok(Self::new_raw(prefix, suffix));
