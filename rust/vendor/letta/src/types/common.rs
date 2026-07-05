@@ -8,7 +8,8 @@ use std::fmt;
 use std::str::FromStr;
 use uuid::Uuid;
 
-/// Letta resource identifier that can be either a bare UUID or a prefixed UUID.
+/// Letta resource identifier that can be a bare UUID, a prefixed UUID, or a
+/// prefixed short ID (used by Letta Cloud for resources like projects).
 ///
 /// # Examples
 ///
@@ -22,29 +23,57 @@ use uuid::Uuid;
 /// // Prefixed UUID
 /// let id2 = LettaId::from_str("agent-550e8400-e29b-41d4-a716-446655440000").unwrap();
 ///
-/// // Get the UUID part
-/// assert_eq!(id1.uuid(), id2.uuid());
+/// // Prefixed short ID (Letta Cloud format, e.g. project IDs)
+/// let id3 = LettaId::from_str("project-5J9p8vbPSU3Zmqbr87bi").unwrap();
+///
+/// // All round-trip correctly
+/// assert_eq!(id1.as_str(), "550e8400-e29b-41d4-a716-446655440000");
+/// assert_eq!(id2.as_str(), "agent-550e8400-e29b-41d4-a716-446655440000");
+/// assert_eq!(id3.as_str(), "project-5J9p8vbPSU3Zmqbr87bi");
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LettaId {
-    /// Optional prefix (e.g., "agent", "run", "tool")
+    /// Optional prefix (e.g., "agent", "run", "tool", "project")
     prefix: Option<String>,
-    /// The UUID part
-    uuid: Uuid,
+    /// The UUID part, if the ID is UUID-based
+    uuid: Option<Uuid>,
+    /// The full string representation (always set)
+    raw: String,
 }
 
 impl LettaId {
-    /// Create a new ID with a prefix.
+    /// Create a new ID with a prefix and a UUID.
     pub fn new_prefixed(prefix: impl Into<String>, uuid: Uuid) -> Self {
+        let prefix = prefix.into();
         Self {
-            prefix: Some(prefix.into()),
-            uuid,
+            raw: format!("{}-{}", prefix, uuid),
+            prefix: Some(prefix),
+            uuid: Some(uuid),
         }
     }
 
     /// Create a new ID without a prefix (bare UUID).
     pub fn new_bare(uuid: Uuid) -> Self {
-        Self { prefix: None, uuid }
+        Self {
+            raw: uuid.to_string(),
+            prefix: None,
+            uuid: Some(uuid),
+        }
+    }
+
+    /// Create a new prefixed short ID that is not UUID-based (e.g., a Letta
+    /// Cloud short ID like `project-5J9p8vbPSU3Zmqbr87bi`).
+    ///
+    /// The stored `raw` value is always derived as `{prefix}-{suffix}`, so the
+    /// `prefix()`/`as_str()` invariants stay consistent by construction.
+    pub fn new_raw(prefix: impl Into<String>, suffix: impl Into<String>) -> Self {
+        let prefix = prefix.into();
+        let suffix = suffix.into();
+        Self {
+            raw: format!("{}-{}", prefix, suffix),
+            prefix: Some(prefix),
+            uuid: None,
+        }
     }
 
     /// Get the prefix, if any.
@@ -52,9 +81,9 @@ impl LettaId {
         self.prefix.as_deref()
     }
 
-    /// Get the UUID part.
-    pub fn uuid(&self) -> &Uuid {
-        &self.uuid
+    /// Get the UUID part, if this is a UUID-based ID.
+    pub fn uuid(&self) -> Option<&Uuid> {
+        self.uuid.as_ref()
     }
 
     /// Check if this is a bare UUID (no prefix).
@@ -62,12 +91,14 @@ impl LettaId {
         self.prefix.is_none()
     }
 
+    /// Check if this ID is UUID-based (as opposed to a short string ID).
+    pub fn is_uuid_based(&self) -> bool {
+        self.uuid.is_some()
+    }
+
     /// Convert to string representation.
     pub fn as_str(&self) -> String {
-        match &self.prefix {
-            Some(prefix) => format!("{}-{}", prefix, self.uuid),
-            None => self.uuid.to_string(),
-        }
+        self.raw.clone()
     }
 }
 
@@ -109,6 +140,30 @@ impl FromStr for LettaId {
                         return Ok(Self::new_prefixed(prefix, uuid));
                     }
                 }
+            }
+        }
+
+        // Fallback: try to parse as a prefixed short ID (Letta Cloud format)
+        // These look like "project-5J9p8vbPSU3Zmqbr87bi" where the suffix is
+        // a short alphanumeric string rather than a UUID.
+        if let Some(dash_pos) = s.rfind('-') {
+            let prefix = &s[..dash_pos];
+            let suffix = &s[dash_pos + 1..];
+            // Validate: prefix is non-empty alphanumeric (with optional underscores
+            // and hyphens, matching the UUID-prefixed path above), suffix is
+            // non-empty alphanumeric (with optional underscores).
+            // Require at least one alphanumeric char in each to reject
+            // underscore-only components like "___-___".
+            if !prefix.is_empty()
+                && !suffix.is_empty()
+                && !prefix.starts_with('-')
+                && !prefix.ends_with('-')
+                && prefix.chars().any(|c| c.is_alphanumeric())
+                && suffix.chars().any(|c| c.is_alphanumeric())
+                && prefix.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+                && suffix.chars().all(|c| c.is_alphanumeric() || c == '_')
+            {
+                return Ok(Self::new_raw(prefix, suffix));
             }
         }
 
@@ -507,16 +562,53 @@ mod tests {
         assert!(id.is_bare());
         assert_eq!(id.prefix(), None);
         assert_eq!(id.as_str(), uuid_str);
+        assert_eq!(id.uuid(), Some(&Uuid::from_str(uuid_str).unwrap()));
     }
 
     #[test]
     fn test_letta_id_prefixed() {
+        let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
         let prefixed_str = "agent-550e8400-e29b-41d4-a716-446655440000";
         let id = LettaId::from_str(prefixed_str).unwrap();
 
         assert!(!id.is_bare());
         assert_eq!(id.prefix(), Some("agent"));
         assert_eq!(id.as_str(), prefixed_str);
+        assert_eq!(id.uuid(), Some(&Uuid::from_str(uuid_str).unwrap()));
+    }
+
+    #[test]
+    fn test_letta_id_short_prefixed() {
+        // Letta Cloud uses short IDs like "project-5J9p8vbPSU3Zmqbr87bi"
+        let short_str = "project-5J9p8vbPSU3Zmqbr87bi";
+        let id = LettaId::from_str(short_str).unwrap();
+
+        assert!(!id.is_bare());
+        assert_eq!(id.prefix(), Some("project"));
+        assert_eq!(id.as_str(), short_str);
+        assert!(id.uuid().is_none());
+        assert!(!id.is_uuid_based());
+    }
+
+    #[test]
+    fn test_letta_id_short_prefixed_hyphenated() {
+        // Hyphenated prefixes like "mcp-server-abc123" should be accepted
+        let short_str = "mcp-server-abc123";
+        let id = LettaId::from_str(short_str).unwrap();
+
+        assert!(!id.is_bare());
+        assert_eq!(id.prefix(), Some("mcp-server"));
+        assert_eq!(id.as_str(), short_str);
+        assert!(id.uuid().is_none());
+        assert!(!id.is_uuid_based());
+    }
+
+    #[test]
+    fn test_letta_id_rejects_underscore_only() {
+        // Underscore-only components should be rejected
+        assert!(LettaId::from_str("___-___").is_err());
+        assert!(LettaId::from_str("_-a").is_err());
+        assert!(LettaId::from_str("a-_").is_err());
     }
 
     #[test]
@@ -538,14 +630,29 @@ mod tests {
     #[test]
     fn test_letta_id_invalid() {
         let invalid_cases = vec![
-            "not-a-uuid",
-            "agent-not-a-uuid",
             "-550e8400-e29b-41d4-a716-446655440000", // Empty prefix
-            "agent--550e8400-e29b-41d4-a716-446655440000", // Double dash
+            "notauuid",                              // No prefix separator
+            "-abc",                                  // Empty prefix, short ID
+            "abc-",                                  // Empty suffix, short ID
         ];
 
         for case in invalid_cases {
-            assert!(LettaId::from_str(case).is_err());
+            assert!(
+                LettaId::from_str(case).is_err(),
+                "expected {case:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn test_letta_id_short_ids_accepted() {
+        // With Letta Cloud short-ID support, prefix-suffix strings that are not
+        // UUIDs are valid short IDs (structurally indistinguishable from
+        // `project-5J9p8vbPSU3Zmqbr87bi`), so they parse successfully.
+        for case in ["not-a-uuid", "agent-not-a-uuid"] {
+            let id = LettaId::from_str(case).unwrap();
+            assert_eq!(id.as_str(), case);
+            assert!(!id.is_uuid_based());
         }
     }
 
