@@ -32,8 +32,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_line_number(false)
         .init();
 
-    let base_url =
-        env::var("LETTA_BASE_URL").expect("LETTA_BASE_URL environment variable is required");
+    let base_url = env::var("LETTA_BASE_URL")
+        .map_err(|_| "LETTA_BASE_URL environment variable is required")?;
     let password = read_letta_auth()?;
     let transport = env::var("TRANSPORT").unwrap_or_else(|_| "stdio".to_string());
     let port_str = env::var("PORT").unwrap_or_else(|_| "6507".to_string());
